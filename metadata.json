@@ -1,0 +1,7 @@
+{
+  "name": "12labs-aistudio",
+  "description": "More content, less efforts.\nCreative 12labs ",
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

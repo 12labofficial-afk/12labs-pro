@@ -1,0 +1,646 @@
+
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the TwelveLabs Voice Studio application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "Core role of the user (e.g., 'admin', 'user').",
+          "enum": ["admin", "user"]
+        },
+        "isSeller": {
+          "type": "boolean",
+          "description": "Indicates if the user has seller privileges."
+        },
+        "creditBalance": {
+          "type": "number",
+          "description": "The users credit balance."
+        },
+        "followingCount": {
+          "type": "number",
+          "description": "The number of sellers this user is following."
+        },
+        "hasMadeFirstPurchase": {
+          "type": "boolean",
+          "description": "Indicates if the user has ever purchased credits."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "role",
+        "creditBalance"
+      ]
+    },
+    "Seller": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Seller",
+      "type": "object",
+      "description": "Represents a seller on the digital marketplace.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the seller, same as the user's UID."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who is the seller. (Relationship: User 1:1 Seller)"
+        },
+        "storeName": {
+          "type": "string",
+          "description": "The public name of the seller's store."
+        },
+        "description": {
+          "type": "string",
+          "description": "A public description of the seller's store."
+        },
+        "profileImageUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL of the seller's profile image."
+        },
+        "mobileNumber": {
+          "type": "string",
+          "description": "The seller's contact mobile number (optional)."
+        },
+        "secondaryEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "An alternative contact email for the seller (optional)."
+        },
+        "payoutDetails": {
+          "type": "object",
+          "description": "Bank account or other details for payouts."
+        },
+        "onboarded": {
+          "type": "boolean",
+          "description": "Flag indicating if the seller has completed the onboarding process."
+        },
+        "followerCount": {
+          "type": "number",
+          "description": "The number of users following this seller."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "storeName",
+        "description",
+        "profileImageUrl",
+        "onboarded",
+        "createdAt"
+      ]
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a digital product sold on the marketplace.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the product."
+        },
+        "sellerId": {
+          "type": "string",
+          "description": "Reference to the Seller. (Relationship: Seller 1:N Product)"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "productType": {
+          "type": "string",
+          "enum": [
+            "PC Character",
+            "Green Screen Character",
+            "Premium Background",
+            "Hand Written Script",
+            "Real Voice",
+            "AutoDraft Character",
+            "YouTube Thumbnail"
+          ]
+        },
+        "previews": {
+          "type": "array",
+          "description": "Array of URLs for product previews (images, videos, audio samples).",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["image", "video", "audio"]
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          }
+        },
+        "downloadableFiles": {
+           "type": "array",
+          "description": "Array of files available for download after purchase.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "fileName": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "description": "Protected Firebase Storage URL."
+              }
+            }
+          }
+        },
+        "price": {
+          "type": "number",
+          "description": "Price in INR."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "description": "Approval status of the product."
+        },
+        "rejectionReason": {
+            "type": "string",
+            "description": "Reason provided by admin for rejecting the product."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "likes": {
+            "type": "number",
+            "description": "Number of likes the product has received."
+        }
+      },
+      "required": [
+        "id",
+        "sellerId",
+        "title",
+        "productType",
+        "price",
+        "status",
+        "createdAt"
+      ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents a purchase made by a buyer.",
+       "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string", "description": "Reference to User (Buyer)." },
+        "productId": { "type": "string", "description": "Reference to Product." },
+        "sellerId": { "type": "string", "description": "Reference to Seller." },
+        "amount": { "type": "number", "description": "Total amount paid." },
+        "currency": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "paid", "failed"],
+          "description": "Payment status of the order."
+        },
+        "paymentId": { "type": "string", "description": "ID from payment gateway (Razorpay)." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "productId", "sellerId", "amount", "status", "createdAt"]
+    },
+     "Download": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Download",
+      "type": "object",
+      "description": "Logs a download instance of a purchased product.",
+       "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "productId": { "type": "string" },
+        "downloadedAt": { "type": "string", "format": "date-time" },
+        "ipAddress": { "type": "string" }
+      },
+      "required": ["id", "userId", "orderId", "productId", "downloadedAt"]
+    },
+    "CharacterProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CharacterProfile",
+      "type": "object",
+      "description": "Represents a character profile defined using the AI tool.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the character profile entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N CharacterProfile)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the character."
+        },
+        "gender": {
+          "type": "string",
+          "description": "Gender of the character as inferred by the AI."
+        },
+        "age": {
+          "type": "string",
+          "description": "Age of the character as inferred by the AI."
+        },
+        "emotion": {
+          "type": "string",
+          "description": "Primary emotion of the character as inferred by the AI."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "gender",
+        "age",
+        "emotion"
+      ]
+    },
+    "VoiceoverProject": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VoiceoverProject",
+      "type": "object",
+      "description": "Represents a voiceover project, containing script, assigned voices and audio.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the voiceover project."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N VoiceoverProject)"
+        },
+        "scriptText": {
+          "type": "string",
+          "description": "The script text for the voiceover project."
+        },
+        "characterProfileIds": {
+          "type": "array",
+          "description": "References to CharacterProfiles. (Relationship: CharacterProfile N:N VoiceoverProject)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "audioDataUri": {
+          "type": "string",
+          "description": "Base64 encoded audio data URI for the generated voiceover."
+        },
+        "creationDate": {
+          "type": "string",
+          "description": "The date the project was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "scriptText",
+        "creationDate"
+      ]
+    },
+    "CreditTransaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CreditTransaction",
+      "type": "object",
+      "description": "Represents a transaction of credits for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the credit transaction."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N CreditTransaction)"
+        },
+        "transactionDate": {
+          "type": "string",
+          "description": "Date and time of the transaction.",
+          "format": "date-time"
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of credits added or deducted (negative values for deductions)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the transaction (e.g., 'Initial credit grant', 'Voice generation charge')."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "transactionDate",
+        "amount",
+        "description"
+      ]
+    },
+    "LiveChatSession": {
+      "title": "LiveChatSession",
+      "type": "object",
+      "description": "Represents a live chat session between a user and an admin.",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "userEmail": {
+          "type": "string"
+        },
+        "lastMessage": {
+          "type": "string"
+        },
+        "lastMessageTimestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "isReadByAdmin": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "userId",
+        "userName",
+        "userEmail",
+        "lastMessageTimestamp"
+      ]
+    },
+    "LiveChatMessage": {
+      "title": "LiveChatMessage",
+      "type": "object",
+      "description": "Represents a single message within a live chat session.",
+      "properties": {
+        "sender": {
+          "type": "string",
+          "enum": [
+            "user",
+            "admin"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "sender",
+        "text",
+        "timestamp"
+      ]
+    },
+    "Thumbnail": {
+      "title": "Thumbnail",
+      "type": "object",
+      "description": "Represents an AI-generated thumbnail project.",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "ID of the user who created the thumbnail."
+        },
+        "prompt": {
+          "type": "string",
+          "description": "The prompt used to generate the image."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "The URL of the final image stored in Cloudinary."
+        },
+        "seed": {
+          "type": "number",
+          "description": "The seed used for image generation."
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "num_inference_steps": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date the thumbnail was created."
+        }
+      },
+      "required": [
+        "userId",
+        "prompt",
+        "imageUrl",
+        "seed",
+        "createdAt"
+      ]
+    },
+    "Report": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Report",
+      "type": "object",
+      "description": "Represents a user-submitted report against a product.",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "productTitle": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "reporterId": { "type": "string" },
+        "reporterEmail": { "type": "string" },
+        "reason": { "type": "string" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "resolved", "dismissed"] }
+      },
+      "required": ["id", "productId", "sellerId", "reporterId", "reason", "createdAt", "status"]
+    },
+    "WithdrawalRequest": {
+      "title": "Withdrawal Request",
+      "type": "object",
+      "description": "Represents a seller's request to withdraw their earnings.",
+      "properties": {
+        "sellerId": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "withdrawableAmount": { "type": "number" },
+        "upiId": { "type": "string" },
+        "accountHolderName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "rejectionReason": { "type": "string" },
+        "processedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sellerId", "sellerName", "withdrawableAmount", "upiId", "accountHolderName", "status", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous",
+      "google"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles (buyers). Accessible only to the user and admins."
+        }
+      },
+      {
+        "path": "/sellers/{sellerId}",
+        "definition": {
+          "entityName": "Seller",
+          "schema": {
+            "$ref": "#/backend/entities/Seller"
+          },
+          "description": "Stores seller profiles. Accessible only to the seller and admins."
+        }
+      },
+       {
+        "path": "/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Stores the permanent record of all submitted products, with a status of 'approved' or 'rejected'. Writable only by server-side admin functions."
+        }
+      },
+      {
+        "path": "/users/{userId}/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": {
+            "$ref": "#/backend/entities/Order"
+          },
+          "description": "Stores order history for each user. Accessible only to the user and admins."
+        }
+      },
+      {
+        "path": "/users/{userId}/downloads/{downloadId}",
+        "definition": {
+          "entityName": "Download",
+          "schema": {
+            "$ref": "#/backend/entities/Download"
+          },
+          "description": "Logs download history for a user's purchased items."
+        }
+      },
+      {
+        "path": "/users/{userId}/characterProfiles/{characterProfileId}",
+        "definition": {
+          "entityName": "CharacterProfile",
+          "schema": {
+            "$ref": "#/backend/entities/CharacterProfile"
+          },
+          "description": "Stores character profiles created by the user. Path-based ownership ensures only the user can access their character profiles."
+        }
+      },
+      {
+        "path": "/users/{userId}/voiceoverProjects/{voiceoverProjectId}",
+        "definition": {
+          "entityName": "VoiceoverProject",
+          "schema": {
+            "$ref": "#/backend/entities/VoiceoverProject"
+          },
+          "description": "Stores voiceover projects created by the user. Path-based ownership ensures only the user can access their voiceover projects."
+        }
+      },
+      {
+        "path": "/users/{userId}/creditTransactions/{creditTransactionId}",
+        "definition": {
+          "entityName": "CreditTransaction",
+          "schema": {
+            "$ref": "#/backend/entities/CreditTransaction"
+          },
+          "description": "Stores credit transaction history for each user. Accessible only to the user and admins."
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "AdminRole",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Collection to store admin roles. Existence of document implies admin role."
+        }
+      },
+      {
+        "path": "/users/{userId}/thumbnails/{thumbnailId}",
+        "definition": {
+          "entityName": "Thumbnail",
+          "schema": {
+            "$ref": "#/backend/entities/Thumbnail"
+          },
+          "description": "Stores AI-generated thumbnails for a user."
+        }
+      },
+      {
+        "path": "/sellers/{sellerId}/followers/{userId}",
+        "definition": {
+          "description": "Stores a record of users who follow a seller. Path-based ownership."
+        }
+      },
+      {
+        "path": "/users/{userId}/following/{sellerId}",
+        "definition": {
+          "description": "Stores a record of sellers a user follows. Path-based ownership."
+        }
+      },
+      {
+        "path": "/reports/{reportId}",
+        "definition": {
+            "entityName": "Report",
+            "schema": {
+                "$ref": "#/backend/entities/Report"
+            },
+            "description": "Stores user reports against products for admin review."
+        }
+      },
+      {
+        "path": "/withdrawalRequests/{requestId}",
+        "definition": {
+          "entityName": "WithdrawalRequest",
+          "schema": {
+            "$ref": "#/backend/entities/WithdrawalRequest"
+          },
+          "description": "Stores withdrawal requests from sellers for admin processing."
+        }
+      }
+    ],
+    "reasoning": "The architecture uses a hybrid approach for the digital store. New product submissions are staged in the Realtime Database at `/pendingProducts/{productId}` for admin review. Upon approval, the full product record is moved to the Firestore `/products/{productId}` collection with an 'approved' status, and a minimal, public-facing version is created in the Realtime Database at `/storeProducts/{productId}` for fast, real-time store listings. Rejected products are also recorded in Firestore with a 'rejected' status. This keeps the public store fast (RTDB) while maintaining a secure and auditable record of all products (Firestore)."
+  }
+}

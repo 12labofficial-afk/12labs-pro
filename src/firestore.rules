@@ -1,0 +1,168 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- FUNCTIONS ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.role == 'admin' ||
+        request.auth.token.email in ['toonday378@gmail.com', 'yrathod18495@gmail.com', 'Yashsharma4638@gmail.com']
+      );
+    }
+
+    // ---------- APPLICATION SETTINGS ----------
+    match /settings/maintenance {
+      allow get: if true;
+      allow list, write: if isAdmin();
+    }
+
+
+    match /settings/app {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---------- TOOL SETTINGS ----------
+    match /toolSettings/{toolId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------- PROJECTS ----------
+    match /projects/{projectId} {
+      allow list: if isAdmin() || (isSignedIn() && request.query.where.userId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+
+    match /thumbnailProjects/{projectId} {
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+
+    // ---------- VOICE INDIA REQUESTS ----------
+    match /voiceIndiaRequests/{requestId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && request.resource.data.userId == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'adminNotes']);
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAdmin();
+    }
+    
+    // ---------- WITHDRAWAL REQUESTS ----------
+    match /withdrawalRequests/{requestId} {
+      allow read, list, create, update, delete: if isAdmin();
+    }
+
+
+    // ---------- USERS ----------
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'email', 'uid', 'createdAt', 'hasMadeFirstPurchase']) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photoURL', 'credits', 'updatedAt', 'isAffiliate', 'purchasedPlans', 'totalInvestment', 'isSeller', 'isSponsor']);
+      allow delete: if false;
+
+      match /notifications/user_notifications {
+        allow get: if isOwner(userId);
+        allow write: if isOwner(userId) || isAdmin();
+        allow list, delete: if false;
+      }
+      
+      match /creditHistory/{docId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+        allow write: if false; 
+      }
+      
+      match /following/{sellerId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      
+      match /redeemedEvents/{eventId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if false;
+      }
+    }
+
+    // ---------- PENDING PAYMENTS ----------
+    match /pendingPayments/{paymentId} {
+      allow create: if isSignedIn();
+      allow read, list, update, delete: if isAdmin();
+    }
+
+    // ---------- PENDING PROJECTS ----------
+    match /pendingProjects/{projectId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // ---------- LIVE CHAT ----------
+    match /chats/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+      match /messages/{messageId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if (isOwner(userId) && request.resource.data.senderId == userId) || isAdmin();
+        allow delete: if (isOwner(userId) && request.resource.data.senderId == userId) || isAdmin();
+        allow update: if false;
+      }
+    }
+
+    // ---------- PROMO CODES ----------
+    match /promoCodes/{codeId} {
+      allow create, list: if isAdmin();
+      allow read: if isSignedIn();
+      allow update: if isAdmin() || (isSignedIn() && resource.data.status == 'available' && request.resource.data.status == 'redeemed' && request.resource.data.redeemedBy == request.auth.uid);
+      allow delete: if false;
+    }
+
+    // ---------- PRODUCTS ----------
+    match /products/{productId} {
+      allow get, list: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.sellerId == request.auth.uid
+        );
+
+      allow create: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.sellerId == request.auth.uid
+        );
+
+      allow update: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.sellerId == request.auth.uid
+        );
+
+      allow delete: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.sellerId == request.auth.uid
+        );
+    }
+
+    // ---------- STORE HISTORY (FIXED) ----------
+    match /storeHistory/{historyId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow get: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow list: if isAdmin() || (isSignedIn() && request.query.where.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // ---------- GLOBAL ADMIN FALLBACK ----------
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

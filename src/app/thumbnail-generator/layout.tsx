@@ -1,0 +1,47 @@
+'use client';
+
+import { Header } from "@/components/header";
+import { useAuth } from "@/context/auth-provider";
+import { Loader2 } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import { useEffect } from "react";
+import ToolLockGuard from "@/components/tool-lock-guard";
+
+export default function ThumbnailGeneratorLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push(`/login?redirect=${pathname}`); 
+    }
+  }, [user, authLoading, router, pathname]);
+
+  if (authLoading || !user) {
+    return (
+        <>
+            <Header />
+            <main className="flex-1 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4 text-muted-foreground">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                    <p className="font-medium">Loading...</p>
+                </div>
+            </main>
+        </>
+    );
+  }
+
+  return (
+    <>
+      <Header />
+      <ToolLockGuard toolId="thumbnail-generator" toolName="AI Thumbnail Generator">
+        <main className="flex-1">{children}</main>
+      </ToolLockGuard>
+    </>
+  );
+}

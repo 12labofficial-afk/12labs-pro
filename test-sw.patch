@@ -1,0 +1,16 @@
+--- src/app/layout.tsx
++++ src/app/layout.tsx
+@@ -102,6 +102,13 @@
+                   }
+                 }
+               }, true);
++              
++              if ('serviceWorker' in navigator) {
++                navigator.serviceWorker.getRegistrations().then(function(registrations) {
++                  for(let registration of registrations) {
++                    registration.unregister();
++                  }
++                });
++              }
+             `,
+           }}
