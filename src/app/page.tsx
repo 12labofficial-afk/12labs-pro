@@ -18,6 +18,8 @@ import { SellerCtaSection } from '@/components/landing/seller-cta-section';
 import { FaqSection } from '@/components/landing/faq-section';
 import { CommunityCtaSection } from '@/components/landing/community-cta-section';
 import { FinalCtaSection } from '@/components/landing/final-cta-section';
+import { StatsSection } from '@/components/landing/stats-section';
+import { HowItWorksSection } from '@/components/landing/how-it-works-section';
 
 import { LazySection } from '@/components/lazy-section';
 
@@ -61,14 +63,16 @@ export default function LandingPage() {
                 <ProductMarquee />
                 <div className="max-w-none overflow-hidden">
                     <div className="sr-only">
-                        Looking for 11 labs or eleven labs in India? 12Labs is the professional choice for Indian creators 
+                        Looking for 11 labs or eleven labs in India? 12Labs is the professional choice for Indian creators
                         providing high quality AI voiceovers, voice cloning, and script studio. A powerful elevenlabs alternative.
                     </div>
                     <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>
                         <div className="flex flex-col gap-12 md:gap-20">
+                            <StatsSection />
                             <LazySection minHeight="500px">
                                 <FeaturesSection user={user} />
                             </LazySection>
+                            <HowItWorksSection />
                             <LazySection minHeight="500px">
                                 <DemoSection />
                             </LazySection>

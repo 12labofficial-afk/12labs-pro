@@ -10,16 +10,21 @@ import { Sparkles, ArrowRight, Mic, Radio, ShieldCheck, Zap, Globe2, Cpu, AudioW
 
 export function HeroSection({ user }: { user: User | null }) {
   return (
-    <section className="relative w-full min-h-[90vh] py-20 md:py-32 overflow-hidden flex flex-col items-center justify-center text-center px-4 font-['Poppins'] bg-background">
-      {/* High-Tech Background Ambient Grid & Radial Glows */}
-      <div className="absolute top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[600px] bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.18)_0%,rgba(147,51,234,0.14)_40%,transparent_75%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.25)_0%,rgba(168,85,247,0.18)_45%,transparent_80%)] blur-[110px] rounded-full pointer-events-none -z-10" />
-      
-      {/* Cyber Grid Lines */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(99,102,241,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(99,102,241,0.06)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,#000_70%,transparent_100%)] pointer-events-none -z-10" />
+    <section className="relative w-full min-h-[100vh] py-16 md:py-32 overflow-hidden flex flex-col items-center justify-center text-center px-4 font-['Poppins'] bg-background">
+      {/* Enhanced Multi-Layer Background */}
+      {/* Layer 1: Main Gradient Blob */}
+      <div className="absolute top-[15%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[700px] bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.25)_0%,rgba(147,51,234,0.15)_35%,rgba(168,85,247,0.08)_70%,transparent_85%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.35)_0%,rgba(168,85,247,0.25)_40%,rgba(124,58,202,0.1)_70%,transparent_85%)] blur-3xl rounded-full pointer-events-none -z-10 animate-pulse" style={{ animationDuration: '8s' }} />
 
-      {/* Floating Animated Ambient Particles */}
-      <div className="absolute top-1/4 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
-      <div className="absolute bottom-1/4 right-10 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" style={{ animationDelay: '2s' }} />
+      {/* Layer 2: Secondary Gradient */}
+      <div className="absolute -top-40 right-0 w-[600px] h-[600px] bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.12)_0%,transparent_70%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.15)_0%,transparent_70%)] blur-3xl rounded-full pointer-events-none -z-10" style={{ animationDelay: '1s' }} />
+
+      {/* Layer 3: Cyber Grid Lines */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(99,102,241,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(99,102,241,0.04)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_70%_65%_at_50%_45%,#000_65%,transparent_100%)] pointer-events-none -z-10" />
+
+      {/* Floating Animated Particles with Enhanced Movement */}
+      <div className="absolute top-1/3 left-8 w-96 h-96 bg-blue-500/12 rounded-full blur-3xl pointer-events-none" style={{ animation: 'pulse 6s ease-in-out infinite' }} />
+      <div className="absolute bottom-1/3 right-5 w-96 h-96 bg-purple-500/12 rounded-full blur-3xl pointer-events-none" style={{ animation: 'pulse 7s ease-in-out 1s infinite' }} />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-72 h-72 bg-indigo-500/8 rounded-full blur-3xl pointer-events-none" style={{ animation: 'pulse 8s ease-in-out 2s infinite' }} />
 
       <div className="relative z-10 max-w-5xl mx-auto flex flex-col items-center">
         {/* Top Status Pill - Dark Luxury Glass */}
@@ -66,35 +71,57 @@ export function HeroSection({ user }: { user: User | null }) {
 
         {/* Main Display Headline */}
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.15 }}
-          className="space-y-4 max-w-4xl"
+          transition={{ type: 'spring', stiffness: 280, damping: 22, delay: 0.15 }}
+          className="space-y-6 max-w-4xl"
         >
-          <h1 className="text-[40px] sm:text-[64px] md:text-[80px] font-black tracking-tight leading-[1.02] text-foreground font-headline">
-            More <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-300 dark:to-purple-300 bg-clip-text text-transparent">Content.</span><br />
-            Less <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-300 dark:to-purple-300 bg-clip-text text-transparent">Effort.</span>
-          </h1>
+          <div className="space-y-3">
+            <h1 className="text-[42px] sm:text-[72px] md:text-[96px] font-black tracking-tighter leading-[0.98] text-foreground font-headline">
+              <motion.span
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="block"
+              >
+                More <span className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 dark:from-blue-400 dark:via-purple-300 dark:to-pink-300 bg-clip-text text-transparent animate-pulse">Content</span>.
+              </motion.span>
+              <motion.span
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="block"
+              >
+                Less <span className="bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 dark:from-purple-300 dark:via-indigo-300 dark:to-blue-400 bg-clip-text text-transparent">Effort</span>.
+              </motion.span>
+            </h1>
+          </div>
 
-          <p className="text-base sm:text-xl text-muted-foreground dark:text-zinc-400 font-medium max-w-xl mx-auto leading-relaxed px-2">
-            The complete AI sound & script studio designed for modern creators. Generate studio-grade voiceovers, scripts, and video assets in seconds.
-          </p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.35 }}
+            className="text-lg sm:text-2xl text-muted-foreground/80 dark:text-zinc-300 font-medium max-w-2xl mx-auto leading-relaxed px-2 font-['Inter']"
+          >
+            Create <span className="font-bold text-foreground">professional content</span> in minutes, not hours. AI voice dubbing, cinematic scripts, and stunning visuals—all in one platform.
+          </motion.p>
 
           {/* Primary & Secondary Action CTAs */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.25 }}
-            className="pt-8 flex flex-col sm:flex-row items-center justify-center gap-4"
+            transition={{ type: 'spring', stiffness: 280, damping: 22, delay: 0.4 }}
+            className="pt-10 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5"
           >
             <Button
               asChild
               size="lg"
-              className="w-full sm:w-auto h-[58px] px-9 text-base sm:text-lg font-bold rounded-full shadow-2xl shadow-blue-500/30 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500 text-white transition-all duration-300 border-none group relative overflow-hidden active:scale-95"
+              className="w-full sm:w-auto h-14 px-10 text-base sm:text-lg font-bold rounded-xl shadow-2xl shadow-blue-500/40 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500 text-white transition-all duration-300 border border-blue-400/30 group relative overflow-hidden active:scale-95 hover:shadow-2xl hover:shadow-blue-500/60"
             >
-              <Link href={user ? "/studio" : "/login"} className="flex items-center justify-center gap-2.5">
-                <span>Launch Voice Studio</span>
-                <ArrowRight className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1" />
+              <Link href={user ? "/studio" : "/login"} className="flex items-center justify-center gap-3">
+                <Sparkles className="w-5 h-5" />
+                <span className="font-semibold">Get Started Free</span>
+                <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
               </Link>
             </Button>
 
@@ -102,34 +129,43 @@ export function HeroSection({ user }: { user: User | null }) {
               asChild
               variant="outline"
               size="lg"
-              className="w-full sm:w-auto h-[58px] px-8 text-base font-semibold rounded-full border-primary/20 hover:border-primary/40 bg-card/60 backdrop-blur-xl hover:bg-accent/60 text-foreground transition-all duration-200 active:scale-95 shadow-sm"
+              className="w-full sm:w-auto h-14 px-8 text-base font-semibold rounded-xl border border-primary/30 hover:border-primary/60 bg-white/5 dark:bg-zinc-950/40 backdrop-blur-xl hover:bg-accent/40 text-foreground transition-all duration-300 active:scale-95 shadow-md hover:shadow-lg"
             >
-              <Link href="/music-library" className="flex items-center justify-center gap-2.5">
-                <Radio className="w-4 h-4 text-blue-500 animate-pulse" />
-                <span>Explore Sound Library</span>
+              <Link href="/music-library" className="flex items-center justify-center gap-3">
+                <Radio className="w-5 h-5 text-blue-500" />
+                <span className="font-semibold">Browse Sound Library</span>
               </Link>
             </Button>
           </motion.div>
 
           {/* Feature Badge Bar */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.35, duration: 0.5 }}
-            className="pt-12 flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm font-semibold text-muted-foreground"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            className="pt-12 flex flex-wrap items-center justify-center gap-3 sm:gap-5 text-xs sm:text-sm font-semibold"
           >
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-card/80 dark:bg-zinc-900/60 border border-border/80 shadow-xs">
-              <Zap className="w-3.5 h-3.5 text-amber-500" />
-              <span>Instant AI Synthesis</span>
-            </div>
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-card/80 dark:bg-zinc-900/60 border border-border/80 shadow-xs">
-              <Globe2 className="w-3.5 h-3.5 text-blue-500" />
-              <span>70+ Languages & Dialects</span>
-            </div>
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-card/80 dark:bg-zinc-900/60 border border-border/80 shadow-xs">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>100% Commercial Rights</span>
-            </div>
+            <motion.div
+              whileHover={{ y: -2 }}
+              className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-500/5 dark:from-amber-500/20 dark:to-amber-500/10 border border-amber-500/30 shadow-sm hover:shadow-md transition-all text-amber-700 dark:text-amber-300"
+            >
+              <Zap className="w-4 h-4" />
+              <span>Ultra-Fast Synthesis</span>
+            </motion.div>
+            <motion.div
+              whileHover={{ y: -2 }}
+              className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500/10 to-blue-500/5 dark:from-blue-500/20 dark:to-blue-500/10 border border-blue-500/30 shadow-sm hover:shadow-md transition-all text-blue-700 dark:text-blue-300"
+            >
+              <Globe2 className="w-4 h-4" />
+              <span>70+ Languages</span>
+            </motion.div>
+            <motion.div
+              whileHover={{ y: -2 }}
+              className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 dark:from-emerald-500/20 dark:to-emerald-500/10 border border-emerald-500/30 shadow-sm hover:shadow-md transition-all text-emerald-700 dark:text-emerald-300"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>100% Commercial License</span>
+            </motion.div>
           </motion.div>
         </motion.div>
       </div>
