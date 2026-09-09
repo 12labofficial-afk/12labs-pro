@@ -1,0 +1,43 @@
+#!/bin/sh
+# Pre-commit hook: Prevent secrets from being committed
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo "${YELLOW}🔒 Running pre-commit security checks...${NC}"
+
+# Check 1: Detect common secret patterns
+echo "${YELLOW}  → Checking for API keys/secrets...${NC}"
+if git diff --cached | grep -iE '(api[_-]?key|secret[_-]?key|password|token|credential|bearer\s+[a-zA-Z0-9]|sk_[a-z0-9]{20}|pk_[a-z0-9]{20}|AIza[0-9A-Za-z\-_]{35}|AKIA[0-9A-Z]{16}|aws_secret_access_key)' | grep -v 'vercel.env.example' | grep -v '.example' > /dev/null; then
+    echo "${RED}❌ BLOCKED: Potential secrets detected in staged files${NC}"
+    echo "${RED}   Don't commit API keys, passwords, or tokens!${NC}"
+    echo "${YELLOW}   If this is a false positive, check the pattern in .husky/pre-commit${NC}"
+    exit 1
+fi
+
+# Check 2: Ensure .env files aren't being committed
+echo "${YELLOW}  → Checking for .env files...${NC}"
+if git diff --cached --name-only | grep -E '^\.env($|\..*$)' | grep -v '\.example' > /dev/null; then
+    echo "${RED}❌ BLOCKED: .env files cannot be committed${NC}"
+    echo "${RED}   Add secrets to .env (not in git), use .env.example instead${NC}"
+    exit 1
+fi
+
+# Check 3: Validate JSON files don't contain credentials
+echo "${YELLOW}  → Checking for credentials in JSON...${NC}"
+if git diff --cached --name-only | grep '\.json$' | while read file; do
+    if git show ":$file" 2>/dev/null | grep -iE '"(password|secret|key|token|credential)"' > /dev/null; then
+        echo "${RED}❌ Potential secrets in: $file${NC}"
+        exit 1
+    fi
+done; then
+    exit 1
+fi
+
+echo "${GREEN}✅ Security checks passed!${NC}"
+exit 0
