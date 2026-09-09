@@ -77,6 +77,8 @@ out/
 .env.test
 .venv
 .env.production
+next-env.d.ts
+tsconfig.tsbuildinfo
 
 # Logs
 logs/
