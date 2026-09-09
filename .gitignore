@@ -1,0 +1,120 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.development.local
+.env.test.local
+
+# Secrets and credentials
+*.pem
+*.key
+*.p8
+*.crt
+*.cert
+*.pfx
+!.env.example
+!.env.*.example
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+*.sw[op]
+*~
+.vscode/settings.json
+.idea/
+.vscode/
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build and runtime
+.next/
+.nuxt/
+out/
+.cache/
+.parcel-cache/
+.vuepress/dist/
+.serverless/
+.fusebox/
+.dynamodb/
+.tern-port
+.env.test
+.venv
+.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+.turbo/
+dist/
+.vercel/
+
+# Firebase
+.firebase/
+
+# Environment setup files
+.env.local.backup
+secrets/
+
+# Python cache
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Project specific
+uploads/
+temp-uploads/
