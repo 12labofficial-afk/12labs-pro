@@ -37,7 +37,7 @@ import {
     CreditCard, Zap, RefreshCw, X, CalendarClock, PlusCircle,
     Activity, Gem, Save, Sliders, Edit, ChevronsUpDown, Store,
     TrendingUp, IndianRupee, Award, Sparkles, ImageIcon, FilePenLine, ShoppingCart, Trophy, MonitorPlay, MicVocal,
-    Gift, Undo2, Music
+    Gift, Undo2, Music, Download, MessageSquareText
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -1620,30 +1620,41 @@ function UserUnifiedViewDialog({
                 
                 <ScrollArea className="flex-1">
                     <div className="p-8 sm:p-12 space-y-12">
-                        {/* NEW: Voice Assignment Section for Admin Review */}
+                        {/* Voice Assignment Section for Admin Review */}
                         {viewingProject?.characters && viewingProject.characters.length > 0 && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500">
-                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 border-l-4 border-primary/20 pl-4">
-                                    <Sparkles className="h-4 w-4" /> Cast Persona Mapping
+                                <div className="flex items-center justify-between gap-2 border-l-4 border-primary/20 pl-4">
+                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">
+                                        <Sparkles className="h-4 w-4" /> Cast Persona Mapping
+                                    </div>
+                                    <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest border-primary/20 text-muted-foreground">
+                                        {viewingProject.characters.length} {viewingProject.characters.length === 1 ? 'Character' : 'Characters'}
+                                    </Badge>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {viewingProject.characters.map((char: any, i: number) => {
                                         const voiceName = voices.find(v => v.id === char.voice)?.name || char.voice;
+                                        const hasVoice = !!char.voice;
                                         const avatarColor = generateAvatarColor(char.name);
                                         return (
                                             <div key={i} className="flex justify-between items-center p-4 px-6 rounded-[1.5rem] bg-muted/30 border border-primary/5 shadow-sm transition-all hover:bg-muted/40">
                                                 <div className="flex items-center gap-3 min-w-0">
-                                                    <Avatar className="h-8 w-8 shrink-0">
-                                                        <AvatarFallback className={cn("font-black text-[10px]", avatarColor.bg, avatarColor.text)}>
+                                                    <Avatar className="h-9 w-9 shrink-0 border-2 border-background shadow">
+                                                        <AvatarFallback className={cn("font-black text-xs", avatarColor.bg, avatarColor.text)}>
                                                             {char.name?.charAt(0).toUpperCase() || 'C'}
                                                         </AvatarFallback>
                                                     </Avatar>
                                                     <div className="min-w-0 flex flex-col">
                                                         <span className="font-black text-sm truncate uppercase tracking-tight">{char.name}</span>
-                                                        <span className="text-[8px] font-bold text-muted-foreground uppercase">{char.emotion || 'Neutral'}</span>
+                                                        <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">{char.emotion || 'Neutral'}</span>
                                                     </div>
                                                 </div>
-                                                <Badge className="text-[9px] font-black uppercase tracking-widest bg-primary text-white border-none h-6 px-3 shadow-md">{voiceName}</Badge>
+                                                <Badge className={cn(
+                                                    "text-[9px] font-black uppercase tracking-widest border-none h-6 px-3 shadow-md shrink-0 ml-2",
+                                                    hasVoice ? "bg-primary text-white" : "bg-destructive/10 text-destructive"
+                                                )}>
+                                                    {hasVoice ? voiceName : 'Unassigned'}
+                                                </Badge>
                                             </div>
                                         );
                                     })}
@@ -1653,17 +1664,24 @@ function UserUnifiedViewDialog({
                         )}
 
                         <div className="space-y-6">
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-l-4 border-muted-foreground/20 pl-4">
-                                <FileText className="h-4 w-4" /> Manuscript Content
+                            <div className="flex items-center justify-between gap-2 border-l-4 border-muted-foreground/20 pl-4">
+                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+                                    <MessageSquareText className="h-4 w-4" /> Manuscript Content
+                                </div>
+                                {!isLoadingFullScript && viewingScriptText && (
+                                    <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest border-muted-foreground/20 text-muted-foreground">
+                                        {viewingScriptText.length.toLocaleString()} chars
+                                    </Badge>
+                                )}
                             </div>
-                            <div className="border-2 border-primary/5 rounded-[2rem] p-8 sm:p-10 bg-muted/10 font-mono text-base leading-relaxed shadow-inner">
+                            <div className="border-2 border-primary/5 rounded-[2rem] p-8 sm:p-10 bg-muted/10 shadow-inner">
                                 {isLoadingFullScript ? (
                                     <div className="flex items-center gap-3 text-muted-foreground/60 font-bold text-sm uppercase tracking-widest">
                                         <Loader2 className="h-4 w-4 animate-spin" /> Loading full manuscript...
                                     </div>
                                 ) : (
-                                    <pre className="whitespace-pre-wrap font-sans font-bold text-foreground/80 leading-relaxed text-lg sm:text-xl">
-                                        {viewingScriptText}
+                                    <pre className="whitespace-pre-wrap font-sans font-medium text-foreground/80 leading-relaxed text-sm sm:text-base">
+                                        {viewingScriptText || 'No script content available.'}
                                     </pre>
                                 )}
                             </div>
@@ -1671,17 +1689,49 @@ function UserUnifiedViewDialog({
                     </div>
                 </ScrollArea>
 
-                <DialogFooter className="p-8 border-t bg-muted/20 gap-3 flex-wrap">
-                    <Button variant="outline" onClick={handleCopyScript} className="font-black h-12 rounded-xl border-primary/20 gap-2 bg-white">
-                        {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <ClipboardCopy className="mr-2 h-4 w-4 text-primary" />} 
-                        COPY SCRIPT
+                <DialogFooter className="p-6 sm:p-8 border-t bg-muted/20 flex flex-row items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={handleCopyScript}
+                            title="Copy Script"
+                            className="h-12 w-12 shrink-0 rounded-2xl border-primary/20 bg-white"
+                        >
+                            {isCopied ? <Check className="h-5 w-5 text-green-500" /> : <ClipboardCopy className="h-5 w-5 text-primary" />}
+                        </Button>
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    disabled={isDownloadingViewingPdf}
+                                    className="group h-12 rounded-2xl border-primary/20 bg-white gap-2 px-4 sm:px-6 font-black text-[10px] uppercase tracking-widest btn-shine"
+                                >
+                                    {isDownloadingViewingPdf
+                                        ? <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+                                        : <Download className="h-5 w-5 text-primary shrink-0 transition-transform duration-300 group-hover:translate-y-0.5" />}
+                                    <span className="hidden sm:inline">Export</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="rounded-2xl w-56">
+                                <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-wider text-muted-foreground px-2 py-1">Export Manuscript</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={handleDownloadScriptPdf} className="h-10 rounded-lg cursor-pointer font-bold text-xs gap-2">
+                                    <FileText className="h-4 w-4 text-red-500" /> .PDF Document
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleDownloadScriptDocx} className="h-10 rounded-lg cursor-pointer font-bold text-xs gap-2">
+                                    <FileText className="h-4 w-4 text-blue-500" /> .DOCX Word File
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleDownloadScriptTxt} className="h-10 rounded-lg cursor-pointer font-bold text-xs gap-2">
+                                    <FileText className="h-4 w-4 text-muted-foreground" /> .TXT Plain Text
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+
+                    <Button onClick={() => setViewingProject(null)} className="h-12 px-6 sm:px-10 rounded-2xl font-black bg-primary uppercase tracking-widest text-[10px] gap-2 shrink-0">
+                        <X className="h-4 w-4" /> <span className="hidden sm:inline">Exit View</span>
                     </Button>
-                    <Button variant="outline" onClick={handleDownloadScriptTxt} className="font-black h-12 rounded-xl border-primary/20 bg-white">.TXT</Button>
-                    <Button variant="outline" onClick={handleDownloadScriptPdf} disabled={isDownloadingViewingPdf} className="font-black h-12 rounded-xl border-primary/20 bg-white gap-2">
-                        {isDownloadingViewingPdf && <Loader2 className="h-4 w-4 animate-spin" />} .PDF
-                    </Button>
-                    <Button variant="outline" onClick={handleDownloadScriptDocx} className="font-black h-12 rounded-xl border-primary/20 bg-white">.DOCX</Button>
-                    <Button onClick={() => setViewingProject(null)} className="h-12 px-12 rounded-xl font-black bg-primary uppercase tracking-widest text-[10px] ml-auto">EXIT VIEW</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
