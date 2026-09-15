@@ -496,6 +496,22 @@ def process_11labs_project(project_id, data):
     email = data.get("userEmail") or "unknown"
     voice_map = _build_voice_map(data)
     fallback_voice_id = data.get("elevenLabsVoiceId")
+    # 🔴 FIX: _run_one used to resolve an unassigned character's voice
+    # inline (project-wide fallback, then any other character's voice) and
+    # throw that resolution away — final_sync_data.voiceAssignments below
+    # kept saving the raw (often empty) `c.get("voice")` the client sent.
+    # That meant a character actually spoken in another character's voice
+    # showed up as unassigned in the History/Voice Editor afterwards.
+    # Resolving once here, up front, and reusing the same map for both
+    # synthesis and the saved record keeps the two in sync.
+    default_fallback_voice = fallback_voice_id or (next(iter(voice_map.values())) if voice_map else None)
+    resolved_voice_map = {}
+    for _ch in data.get("characters") or []:
+        if not isinstance(_ch, dict):
+            continue
+        _name = (_ch.get("name") or "").strip()
+        if _name:
+            resolved_voice_map[_name] = voice_map.get(_name) or default_fallback_voice
     dialogues = data.get("dialogues") or (data.get("syncData") or {}).get("dialogues") or []
     credits_charged = data.get("creditCost") or data.get("cost") or 0
     total = len(dialogues)
@@ -542,11 +558,9 @@ def process_11labs_project(project_id, data):
             # Per-character voice, exactly as the user assigned it in the
             # studio. Falls back to the project-wide voice, then to any
             # assigned voice, so one unmapped speaker never kills the job.
-            line_voice = (
-                voice_map.get(character)
-                or fallback_voice_id
-                or (next(iter(voice_map.values())) if voice_map else None)
-            )
+            # Reuses resolved_voice_map (built above) so this resolution
+            # matches what gets saved into voiceAssignments afterwards.
+            line_voice = resolved_voice_map.get(character) or default_fallback_voice
             if line_voice:
                 audio, fail_reason = synth_elevenlabs(line_text, line_voice, key=api_key)
             else:
@@ -663,7 +677,7 @@ def process_11labs_project(project_id, data):
         final_sync_data = {
             "dialogues": dialogues,
             "timeline": timeline,
-            "voiceAssignments": {str(c.get("name")): c.get("voice") for c in char_list if isinstance(c, dict)},
+            "voiceAssignments": {str(c.get("name")): resolved_voice_map.get((c.get("name") or "").strip(), c.get("voice")) for c in char_list if isinstance(c, dict)},
             "characterSettings": {
                 c.get("name"): {"speed": 1.0, "pitch": 0}
                 for c in char_list if isinstance(c, dict)

@@ -796,7 +796,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             // before any credits are spent or a job is queued.
             if (submittedEngine === 'gemini') {
                 const knownGeminiIds = new Set(voices.map(v => v.id));
-                const mismatched = characters.filter(c => c.voice && !knownGeminiIds.has(c.voice));
+                // 🔴 FIX: this used to only catch `c.voice && !knownGeminiIds.has(...)`
+                // — a truthy voice from the wrong library. An EMPTY voice
+                // (`c.voice === ''`) slipped straight through that guard
+                // because `c.voice &&` is false for it, so it was never
+                // flagged as "mismatched". studio.py then silently
+                // resynthesizes that character in the Narrator's voice
+                // (voice_map.get(name) or voice_map.get("narrator")) instead
+                // of erroring — the job "succeeds" but nobody actually
+                // picked that character's voice. Checking `!c.voice` here
+                // catches it before any credits are spent.
+                const mismatched = characters.filter(c => !c.voice || !knownGeminiIds.has(c.voice));
                 if (mismatched.length > 0) {
                     setIsGenerating(false);
                     setHqProjectId(null);
@@ -804,7 +814,28 @@ export function StudioProvider({ children }: { children: ReactNode }) {
                     toast({
                         variant: 'destructive',
                         title: 'Voice/Engine Mismatch',
-                        description: `${mismatched.map(c => c.name).join(', ')} ${mismatched.length > 1 ? 'have' : 'has'} a voice not from the Gemini library. Reassign ${mismatched.length > 1 ? 'their voices' : 'a voice'} before generating.`
+                        description: `${mismatched.map(c => c.name).join(', ')} ${mismatched.length > 1 ? 'have' : 'has'} no voice, or a voice not from the Gemini library. Reassign ${mismatched.length > 1 ? 'their voices' : 'a voice'} before generating.`
+                    });
+                    return;
+                }
+            } else if (submittedEngine === 'elevenlabs') {
+                // 🔴 Same safety net as the Gemini branch above, for the
+                // other engine: script analysis deliberately leaves 11Labs
+                // characters unassigned (see getRandomVoiceId) so the user
+                // picks from the ElevenLabs library themselves. If one was
+                // never picked, 11.py's per-line fallback
+                // (voice_map.get(character) or fallback_voice_id or ...)
+                // silently reuses another character's voice instead of
+                // erroring — catch the missing assignment here instead.
+                const missing = characters.filter(c => !c.voice);
+                if (missing.length > 0) {
+                    setIsGenerating(false);
+                    setHqProjectId(null);
+                    submissionLock.current = false;
+                    toast({
+                        variant: 'destructive',
+                        title: 'Voice Not Assigned',
+                        description: `${missing.map(c => c.name).join(', ')} ${missing.length > 1 ? "don't" : "doesn't"} have an 11Labs voice assigned. Pick ${missing.length > 1 ? 'voices' : 'a voice'} for ${missing.length > 1 ? 'them' : 'it'} before generating.`
                     });
                     return;
                 }
@@ -863,12 +894,22 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             processQueue();
         }
     } catch (e: any) {
-            reportClientError('src/context/studio-provider.tsx:656', e); 
-        setIsGenerating(false); 
-        toast({ variant: 'destructive', title: 'Engine Error', description: e.message }); 
+            reportClientError('src/context/studio-provider.tsx:656', e);
+        setIsGenerating(false);
+        // 🔴 FIX: a thrown exception here (network error, timeout, etc. —
+        // as opposed to a `{success:false}` response, which already clears
+        // this above) used to leave hqProjectId stuck at 'PENDING_SUBMISSION'
+        // forever. That value is truthy, gets persisted to IndexedDB on the
+        // next save-draft pass, and is rehydrated on every future visit —
+        // so isHqActive stayed true permanently, hiding both ScriptEditor
+        // and CharacterAssignments on /studio until the user happened to
+        // hit "Start New". Clear it here so a failed submission actually
+        // resets, instead of only a cleanly-rejected one.
+        if (hqProjectId === 'PENDING_SUBMISSION') setHqProjectId(null);
+        toast({ variant: 'destructive', title: 'Engine Error', description: e.message });
     }
-    finally { 
-        submissionLock.current = false; 
+    finally {
+        submissionLock.current = false;
     }
   };
 

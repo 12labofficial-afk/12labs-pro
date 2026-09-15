@@ -1381,8 +1381,22 @@ def process_production_queue(project_id, data):
             return "narrator"
         return nm
 
-    voice_map = {normalize_name(c.get('name', '')): c.get('voice', 'Kore') for c in char_list}
-    if "narrator" not in voice_map: voice_map["narrator"] = "Kore"
+    # 🔴 FIX: `.get('voice', 'Kore')`'s default only fires when the `voice`
+    # key is missing entirely — the client always sends the key (possibly
+    # with an empty string), so this never actually caught an unassigned
+    # character. The real fallback happened later, at dispatch time
+    # (`voice_map.get(norm_name) or voice_map.get("narrator")`), which
+    # resolves an empty voice to the narrator's — but that resolution was
+    # never written back here, so `voice_map` (and anything built from it
+    # below, including the saved voiceAssignments) still showed the empty
+    # value even though the narrator's voice is what actually got spoken.
+    # Resolving it here, once, keeps voice_map — and everything derived
+    # from it — truthful about what each character actually sounds like.
+    voice_map = {normalize_name(c.get('name', '')): (c.get('voice') or '') for c in char_list}
+    if not voice_map.get("narrator"): voice_map["narrator"] = "Kore"
+    for _name, _voice in list(voice_map.items()):
+        if not _voice:
+            voice_map[_name] = voice_map["narrator"]
 
     age_map = {normalize_name(c.get('name', '')): c.get('age', 'adult') for c in char_list}
     if "narrator" not in age_map: age_map["narrator"] = "adult"
@@ -1736,7 +1750,13 @@ def process_production_queue(project_id, data):
         secure_url = upload_to_r2(file_path, mp3_bytes, 'audio/mpeg')
 
         completion_iso = datetime.now().isoformat()
-        final_sync_data = {"dialogues": dialogues, "timeline": timeline, "voiceAssignments": {str(c.get('name')): c.get('voice') for c in char_list}, "characterSettings": {c.get('name'): {"speed": 1.0, "pitch": 0} for c in char_list}, "clientTimestamp": client_ts_str or completion_iso}
+        # 🔴 FIX: was `c.get('voice')` — the raw, possibly-empty value the
+        # client submitted. Reading back through `voice_map` instead saves
+        # the actually-resolved voice (narrator fallback included), so the
+        # History/Voice Editor's "Project Cast" shows the voice that was
+        # really spoken instead of a blank "Assign persona..." for a
+        # character whose audio already exists.
+        final_sync_data = {"dialogues": dialogues, "timeline": timeline, "voiceAssignments": {str(c.get('name')): voice_map.get(normalize_name(c.get('name', '')), c.get('voice')) for c in char_list}, "characterSettings": {c.get('name'): {"speed": 1.0, "pitch": 0} for c in char_list}, "clientTimestamp": client_ts_str or completion_iso}
 
         rejected_nodes = rejected_count
 
