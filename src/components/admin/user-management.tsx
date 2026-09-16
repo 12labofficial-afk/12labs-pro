@@ -36,7 +36,7 @@ import {
     Bell, FileText, Settings2, ShieldX, ClipboardCopy, Check,
     CreditCard, Zap, RefreshCw, X, CalendarClock, PlusCircle,
     Activity, Gem, Save, Sliders, Edit, ChevronsUpDown, Store,
-    TrendingUp, IndianRupee, Award, Sparkles, ImageIcon, FilePenLine, ShoppingCart, Trophy, MonitorPlay, MicVocal,
+    IndianRupee, Award, Sparkles, ImageIcon, FilePenLine, ShoppingCart, Trophy, MonitorPlay, MicVocal,
     Gift, Undo2, Music, Download, MessageSquareText
 } from 'lucide-react';
 import {
@@ -1071,123 +1071,97 @@ function UserUnifiedViewDialog({
                                     )}
                                 </TabsContent>
 
-                                <TabsContent value="credits" className="m-0 space-y-10">
-                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                                        <Card className="bg-primary/5 border-primary/10 rounded-[2.5rem] shadow-xl overflow-hidden group relative">
-                                            <div className="p-8">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60 mb-2 px-1">Vault Balance</p>
-                                                <div className="text-5xl font-black flex items-center gap-4 tracking-tighter">
-                                                    <Coins className="h-10 w-10 text-primary animate-bounce-slow" />
-                                                    {user.credits.toLocaleString()}
+                                <TabsContent value="credits" className="m-0 space-y-5">
+                                     {/* 🔴 FIX: these three stats used to be full-size cards (text-5xl
+                                         numbers, big decorative icons, generous padding) stacked one per
+                                         row on mobile — together they pushed Credit History off screen,
+                                         requiring a lot of scrolling to reach it. Merged into one compact
+                                         card with a 3-up mini-stat row, small Plan Inventory capsules, and
+                                         the Consistency Plan controls folded into the same footer row. */}
+                                     <Card className="rounded-3xl border border-border shadow-sm overflow-hidden">
+                                        <CardContent className="p-5 space-y-4">
+                                            <div className="grid grid-cols-3 divide-x divide-border">
+                                                <div className="pr-3 space-y-0.5 min-w-0">
+                                                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground truncate">Vault Balance</p>
+                                                    <div className="flex items-center gap-1 text-lg sm:text-xl font-black text-primary min-w-0">
+                                                        <Coins className="h-4 w-4 shrink-0" />
+                                                        <span className="truncate">{user.credits.toLocaleString()}</span>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </Card>
-
-                                        <Card className={cn(
-                                            "border-none rounded-[2.5rem] shadow-xl overflow-hidden relative group h-full",
-                                            isRoyal ? "bg-gradient-to-br from-amber-100 to-yellow-50 border-2 border-amber-300" : "bg-green-50 dark:bg-green-900/5 border-green-500/10"
-                                        )}>
-                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-1000">
-                                                <TrendingUp className="h-32 w-32 -rotate-12" />
-                                            </div>
-                                            <div className="p-8 relative z-10 flex flex-col h-full">
-                                                <div className="flex-1">
-                                                    <div className="flex justify-between items-center mb-2 px-1">
-                                                        <p className={cn("text-[10px] font-black uppercase tracking-[0.3em]", isRoyal ? "text-amber-800" : "text-green-600")}>LIFETIME INVESTMENT</p>
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="icon" 
-                                                            className={cn("h-7 w-7 rounded-full bg-white/50 hover:bg-white", isRoyal ? "text-amber-600" : "text-green-600")}
+                                                <div className="px-3 space-y-0.5 min-w-0">
+                                                    <div className="flex items-center justify-between gap-1">
+                                                        <p className={cn("text-[8px] font-black uppercase tracking-widest truncate", isRoyal ? "text-amber-600" : "text-green-600")}>Investment</p>
+                                                        <button
                                                             onClick={handleSyncFinancials}
                                                             disabled={isReconstructing}
-                                                            title="Recalculate Node from History"
+                                                            title="Recalculate from history"
+                                                            className={cn("shrink-0", isRoyal ? "text-amber-600" : "text-green-600")}
                                                         >
-                                                            {isReconstructing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                                                            {isReconstructing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                                                        </button>
+                                                    </div>
+                                                    <div className={cn("flex items-center gap-1 text-lg sm:text-xl font-black min-w-0", isRoyal ? "text-amber-700" : "text-green-700 dark:text-green-400")}>
+                                                        <IndianRupee className="h-4 w-4 shrink-0" />
+                                                        <span className="truncate">{user.totalInvestment?.toLocaleString() || '0'}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="pl-3 space-y-0.5 min-w-0">
+                                                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground truncate">Consistency</p>
+                                                    {user.subscription ? (
+                                                        <div className="text-lg sm:text-xl font-black text-indigo-700 truncate">W{user.subscription.weeklyGrantCount}</div>
+                                                    ) : (
+                                                        <div className="text-lg sm:text-xl font-black text-muted-foreground/30">OFF</div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {planCapsules.length > 0 && (
+                                                <div className="flex flex-wrap gap-1.5 pt-3 border-t border-border/60">
+                                                    {planCapsules.map(p => {
+                                                        const isHighTier = p.label === 'ENTERPRISE TIER' || p.label === 'CONSISTENCY (AUTOPAY)';
+                                                        return (
+                                                            <Badge key={p.label} className={cn(
+                                                                "font-bold text-[9px] h-6 px-2 uppercase tracking-tight rounded-lg flex items-center gap-1",
+                                                                isHighTier ? "bg-amber-500 text-white border-none" : "bg-muted text-foreground/70 border border-border"
+                                                            )}>
+                                                                {p.hasDuplicate && <AlertTriangle className="h-2.5 w-2.5 text-red-500" />}
+                                                                {p.label} ×{p.count}
+                                                                <span className="opacity-60">+{p.credits.toLocaleString()}</span>
+                                                            </Badge>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/60">
+                                                <Badge variant="outline" className="text-[8px] h-5 px-2 font-black uppercase shrink-0">
+                                                    {isRoyal ? 'Royal Node' : 'Verified Node'}
+                                                </Badge>
+                                                {user.subscription ? (
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className="text-[9px] font-bold text-muted-foreground uppercase truncate hidden sm:inline">Next: {format(new Date(user.subscription.nextWeeklyGrantDate), 'do MMM')}</span>
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="sm"
+                                                            className="h-6 px-2 text-[9px] font-black uppercase rounded-lg gap-1 shrink-0"
+                                                            onClick={() => setConfirmAction({
+                                                                type: 'cancel_sub',
+                                                                title: 'Deactivate Consistency Plan?',
+                                                                description: `This will stop all upcoming consistency installments and deactivate the plan for ${user.name || user.email || 'this user'}.`
+                                                            })}
+                                                            disabled={isUpdating}
+                                                        >
+                                                            <X className="h-2.5 w-2.5" /> End Plan
                                                         </Button>
                                                     </div>
-                                                    <div className={cn("text-5xl font-black flex items-center gap-4 tracking-tighter", isRoyal ? "text-amber-700" : "text-green-700 dark:text-green-400")}>
-                                                        <IndianRupee className={cn("h-10 w-10", isRoyal ? "text-amber-600" : "text-green-600")} />
-                                                        {user.totalInvestment?.toLocaleString() || '0'}
-                                                    </div>
-                                                </div>
-                                                
-                                                {planCapsules.length > 0 ? (
-                                                    <div className="mt-8 space-y-4 animate-in fade-in slide-in-from-top-1 duration-500">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={cn("h-px flex-1", isRoyal ? "bg-amber-500/20" : "bg-green-500/20")} />
-                                                            <p className={cn("text-[9px] font-black uppercase tracking-widest whitespace-nowrap", isRoyal ? "text-amber-600/40" : "text-green-600/40")}>Plan Inventory</p>
-                                                            <div className={cn("h-px flex-1", isRoyal ? "bg-amber-500/20" : "bg-green-500/20")} />
-                                                        </div>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {planCapsules.map(p => {
-                                                                const isHighTier = p.label === 'ENTERPRISE TIER' || p.label === 'CONSISTENCY (AUTOPAY)';
-                                                                return (
-                                                                    <Badge key={p.label} className={cn(
-                                                                        "font-black text-[10px] h-8 px-3 uppercase tracking-tighter shadow-md rounded-xl flex items-center gap-1.5",
-                                                                        isHighTier
-                                                                            ? "bg-amber-500 text-white border-none"
-                                                                            : "bg-white dark:bg-zinc-800 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"
-                                                                    )}>
-                                                                        {p.hasDuplicate && <AlertTriangle className="h-3 w-3 text-red-500" />}
-                                                                        {p.label} × {p.count}
-                                                                        <span className="opacity-60 font-bold">· +{p.credits.toLocaleString()}</span>
-                                                                        {isHighTier && <Sparkles className="h-3 w-3 fill-current" />}
-                                                                    </Badge>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
                                                 ) : (
-                                                    <div className="mt-8 border-t border-green-500/10 pt-4">
-                                                        <p className="text-[8px] font-bold text-green-600/30 uppercase tracking-widest italic">NO PLAN OR GRANT RECORDS FOUND.</p>
-                                                    </div>
+                                                    <Button variant="ghost" size="sm" className="h-6 px-2 text-[9px] font-black uppercase bg-primary/10 text-primary rounded-lg shrink-0" onClick={handleGrantAutopay} disabled={isUpdating}>
+                                                        Grant Autopay
+                                                    </Button>
                                                 )}
-                                                
-                                                <div className="mt-auto pt-6">
-                                                    <Badge variant="outline" className="h-5 px-2 text-[8px] font-black uppercase">
-                                                        {isRoyal ? 'ROYAL NODE ACTIVE' : 'VERIFIED REVENUE NODE'}
-                                                    </Badge>
-                                                </div>
                                             </div>
-                                        </Card>
-                                        
-                                        <Card className={cn(
-                                            "rounded-[2.5rem] shadow-xl border-2 border-dashed transition-all duration-500",
-                                            user.subscription ? "bg-indigo-50 border-indigo-200" : "bg-muted/20 border-muted-foreground/10 opacity-60"
-                                        )}>
-                                            <div className="p-8">
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <p className={cn("text-[10px] font-black uppercase tracking-[0.3em]", user.subscription ? "text-indigo-600" : "text-muted-foreground")}>Consistency Plan</p>
-                                                    <div className="flex gap-2">
-                                                        {user.subscription && (
-                                                            <Button 
-                                                                variant="destructive" 
-                                                                size="sm" 
-                                                                className="h-7 px-3 text-[9px] font-black uppercase rounded-lg shadow-sm flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white cursor-pointer"
-                                                                onClick={() => setConfirmAction({
-                                                                    type: 'cancel_sub',
-                                                                    title: 'Deactivate Consistency Plan?',
-                                                                    description: `This will stop all upcoming consistency installments and deactivate the plan for ${user.name || user.email || 'this user'}.`
-                                                                })}
-                                                                disabled={isUpdating}
-                                                            >
-                                                                <X className="h-3 w-3" /> DEACTIVATE PLAN
-                                                            </Button>
-                                                        )}
-                                                        {!user.subscription && (
-                                                            <Button variant="ghost" size="sm" className="h-7 text-[9px] font-black uppercase bg-primary/10 text-primary rounded-lg" onClick={handleGrantAutopay} disabled={isUpdating}>GRANT</Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                {user.subscription ? (
-                                                    <div className="space-y-3">
-                                                        <div className="text-2xl font-black text-indigo-700 tracking-tight uppercase">W{user.subscription.weeklyGrantCount} ACTIVE</div>
-                                                        <Badge className="bg-white/50 text-indigo-500 border-indigo-200 font-black text-[9px] uppercase h-5 px-2">NEXT: {format(new Date(user.subscription.nextWeeklyGrantDate), 'do MMM')}</Badge>
-                                                    </div>
-                                                ) : <p className="text-lg font-black uppercase tracking-widest text-muted-foreground/30">OFFLINE</p>}
-                                            </div>
-                                        </Card>
-                                     </div>
+                                        </CardContent>
+                                     </Card>
 
                                     <div className="space-y-6">
                                      {/* 🔴 FIX: the old "Plans & Subscriptions History" card list showed
