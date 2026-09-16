@@ -883,18 +883,25 @@ function UserUnifiedViewDialog({
     // already amount > 0 only, so a capsule here can never show the
     // "+-" broken-sign bug.
     const planCapsules = useMemo(() => {
-        const map = new Map<string, { count: number; credits: number; hasDuplicate: boolean }>();
+        const map = new Map<string, { label: string; count: number; credits: number; hasDuplicate: boolean }>();
         planHistoryEntries.forEach(entry => {
             const details = getPlanDetails(entry);
-            const existing = map.get(details.planBadge) || { count: 0, credits: 0, hasDuplicate: false };
+            // 🔴 FIX: every entry that didn't match a recognized plan type
+            // fell into the same generic "CREDIT GRANT" bucket, so 3
+            // completely unrelated one-off grants (different reasons,
+            // different amounts, different dates) got merged into one
+            // "CREDIT GRANT × 3" capsule — reading as "this grant was
+            // given 3 times" when it never was. Only group under the
+            // generic bucket by the entry's own reason text, so a capsule
+            // only ever counts genuinely repeated entries.
+            const label = details.planBadge === 'CREDIT GRANT' ? (entry.reason || 'Credit Grant') : details.planBadge;
+            const existing = map.get(label) || { label, count: 0, credits: 0, hasDuplicate: false };
             existing.count += 1;
             existing.credits += entry.amount || 0;
             existing.hasDuplicate = existing.hasDuplicate || details.isDuplicate;
-            map.set(details.planBadge, existing);
+            map.set(label, existing);
         });
-        return Array.from(map.entries())
-            .map(([label, v]) => ({ label, ...v }))
-            .sort((a, b) => b.credits - a.credits);
+        return Array.from(map.values()).sort((a, b) => b.credits - a.credits);
     }, [planHistoryEntries]);
 
     const duplicateEntries = useMemo(
@@ -959,8 +966,8 @@ function UserUnifiedViewDialog({
                                             Live Online
                                         </Badge>
                                     ) : presence.lastSeen ? (
-                                        <Badge variant="outline" className="h-5 px-3 rounded-full text-[9px] font-black uppercase tracking-widest bg-muted/10 border-muted-foreground/15 text-muted-foreground/80 flex items-center gap-1">
-                                            <Clock className="h-2.5 w-2.5 opacity-60" />
+                                        <Badge variant="outline" className="py-1 px-3 rounded-full text-[9px] font-black uppercase tracking-widest bg-muted/10 border-muted-foreground/15 text-muted-foreground/80 flex items-center gap-1 whitespace-nowrap">
+                                            <Clock className="h-2.5 w-2.5 opacity-60 shrink-0" />
                                             Last Active: {(() => {
                                                 try {
                                                     return format(new Date(presence.lastSeen), "MMM d, yyyy • h:mm a");
@@ -987,11 +994,11 @@ function UserUnifiedViewDialog({
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
                     <div className="border-b bg-muted/20 shrink-0 overflow-x-auto">
                         <TabsList className="bg-transparent h-14 gap-6 px-8 flex w-max">
+                            <TabsTrigger value="overview" className="rounded-none h-full px-2 font-black uppercase text-[11px] tracking-wider text-muted-foreground hover:text-foreground data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary transition-all">Overview</TabsTrigger>
                             <TabsTrigger value="projects" className="rounded-none h-full px-2 font-black uppercase text-[11px] tracking-wider text-muted-foreground hover:text-foreground data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary transition-all">Projects</TabsTrigger>
                             <TabsTrigger value="credits" className="rounded-none h-full px-2 font-black uppercase text-[11px] tracking-wider text-muted-foreground hover:text-foreground data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary transition-all">Finances</TabsTrigger>
-                            <TabsTrigger value="notifications" className="rounded-none h-full px-2 font-black uppercase text-[11px] tracking-wider text-muted-foreground hover:text-foreground data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary transition-all">Logs</TabsTrigger>
                             <TabsTrigger value="actions" className="rounded-none h-full px-2 font-black uppercase text-[11px] tracking-wider text-muted-foreground hover:text-foreground data-[state=active]:text-destructive data-[state=active]:border-b-2 data-[state=active]:border-destructive transition-all">Security</TabsTrigger>
-                            <TabsTrigger value="overview" className="rounded-none h-full px-2 font-black uppercase text-[11px] tracking-wider text-muted-foreground hover:text-foreground data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary transition-all">Overview</TabsTrigger>
+                            <TabsTrigger value="notifications" className="rounded-none h-full px-2 font-black uppercase text-[11px] tracking-wider text-muted-foreground hover:text-foreground data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary transition-all">Logs</TabsTrigger>
                         </TabsList>
                     </div>
 
@@ -1080,8 +1087,14 @@ function UserUnifiedViewDialog({
                                          the Consistency Plan controls folded into the same footer row. */}
                                      <Card className="rounded-3xl border border-border shadow-sm overflow-hidden">
                                         <CardContent className="p-5 space-y-4">
+                                            {/* 🔴 FIX: "Verified Node" was a purely decorative label that
+                                                told the admin nothing, sitting in the footer while the
+                                                actual balance was buried in a small side column. Balance is
+                                                now the hero number up top (easy to see at a glance);
+                                                Investment/Streak sit right underneath instead of behind a
+                                                pointless badge. */}
                                             <div className="flex items-center justify-between gap-2">
-                                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Account Summary</p>
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Vault Balance</p>
                                                 <button
                                                     onClick={handleSyncFinancials}
                                                     disabled={isReconstructing}
@@ -1091,21 +1104,12 @@ function UserUnifiedViewDialog({
                                                     {isReconstructing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                                                 </button>
                                             </div>
-                                            {/* 🔴 FIX: at text-lg/xl with the refresh button squeezed into
-                                                the middle column's own row, both the label and the number
-                                                overflowed their ~110px-wide column on a phone and got cut
-                                                to "…" — the refresh button now lives in one header row above
-                                                (freeing every column to just its label+number), and the
-                                                numbers dropped to a size that fits a 6-7 digit balance
-                                                without truncating. */}
-                                            <div className="grid grid-cols-3 gap-2">
-                                                <div className="min-w-0">
-                                                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground truncate">Vault</p>
-                                                    <div className="flex items-center gap-1 text-sm sm:text-base font-black text-primary min-w-0">
-                                                        <Coins className="h-3.5 w-3.5 shrink-0" />
-                                                        <span className="truncate">{user.credits.toLocaleString()}</span>
-                                                    </div>
-                                                </div>
+                                            <div className="flex items-center gap-2 text-3xl font-black tracking-tighter text-primary">
+                                                <Coins className="h-7 w-7 shrink-0" />
+                                                <span className="truncate">{user.credits.toLocaleString()}</span>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border/60">
                                                 <div className="min-w-0">
                                                     <p className={cn("text-[8px] font-black uppercase tracking-widest truncate", isRoyal ? "text-amber-600" : "text-green-600")}>Invested</p>
                                                     <div className={cn("flex items-center gap-1 text-sm sm:text-base font-black min-w-0", isRoyal ? "text-amber-700" : "text-green-700 dark:text-green-400")}>
@@ -1114,9 +1118,9 @@ function UserUnifiedViewDialog({
                                                     </div>
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground truncate">Streak</p>
+                                                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground truncate">Consistency Streak</p>
                                                     {user.subscription ? (
-                                                        <div className="text-sm sm:text-base font-black text-indigo-700 truncate">W{user.subscription.weeklyGrantCount}</div>
+                                                        <div className="text-sm sm:text-base font-black text-indigo-700 truncate">W{user.subscription.weeklyGrantCount} · Next {format(new Date(user.subscription.nextWeeklyGrantDate), 'd MMM')}</div>
                                                     ) : (
                                                         <div className="text-sm sm:text-base font-black text-muted-foreground/30">Off</div>
                                                     )}
@@ -1141,13 +1145,9 @@ function UserUnifiedViewDialog({
                                                 </div>
                                             )}
 
-                                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/60">
-                                                <Badge variant="outline" className="text-[8px] h-5 px-2 font-black uppercase shrink-0">
-                                                    {isRoyal ? 'Royal Node' : 'Verified Node'}
-                                                </Badge>
+                                            <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/60">
                                                 {user.subscription ? (
                                                     <div className="flex items-center gap-2 min-w-0">
-                                                        <span className="text-[9px] font-bold text-muted-foreground uppercase truncate hidden sm:inline">Next: {format(new Date(user.subscription.nextWeeklyGrantDate), 'do MMM')}</span>
                                                         <Button
                                                             variant="destructive"
                                                             size="sm"
@@ -1295,15 +1295,15 @@ function UserUnifiedViewDialog({
                                                 <p className="text-xs font-semibold text-muted-foreground">Calculated on click to minimize database reads.</p>
                                             </div>
                                         </div>
-                                        <Button 
-                                            variant="outline" 
-                                            size="sm" 
-                                            onClick={fetchOverviewData} 
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={fetchOverviewData}
                                             disabled={isLoadingOverview}
-                                            className="h-9 px-4 rounded-xl text-xs font-black uppercase tracking-wider border-border hover:bg-muted gap-2 shrink-0 self-start sm:self-auto"
+                                            title="Refresh stats"
+                                            className="h-9 w-9 rounded-xl border-border hover:bg-muted shrink-0 self-start sm:self-auto"
                                         >
                                             <RefreshCw className={cn("h-3.5 w-3.5", isLoadingOverview && "animate-spin text-primary")} />
-                                            {isLoadingOverview ? "Calculating..." : "Recalculate Stats"}
                                         </Button>
                                     </div>
 
