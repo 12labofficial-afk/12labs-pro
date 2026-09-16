@@ -1633,7 +1633,7 @@ function UserUnifiedViewDialog({
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {viewingProject.characters.map((char: any, i: number) => {
-                                        const voiceName = voices.find(v => v.id === char.voice)?.name || char.voice;
+                                        const voiceName = char.voiceName || voices.find(v => v.id === char.voice)?.name || char.voice;
                                         const hasVoice = !!char.voice;
                                         const avatarColor = generateAvatarColor(char.name);
                                         return (

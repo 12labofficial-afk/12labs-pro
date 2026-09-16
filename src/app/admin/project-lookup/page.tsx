@@ -226,7 +226,7 @@ export default function ProjectLookupPage() {
                                         {viewingProject!.characters!.map((char: any, i: number) => {
                                             if (!char) return null;
                                             const charName = (typeof char.name === 'string' && char.name.trim()) ? char.name : `Character ${i + 1}`;
-                                            const voiceName = voices.find(v => v.id === char.voice)?.name || char.voice;
+                                            const voiceName = char.voiceName || voices.find(v => v.id === char.voice)?.name || char.voice;
                                             const hasVoice = !!char.voice;
                                             const avatarColor = generateAvatarColor(charName);
                                             return (

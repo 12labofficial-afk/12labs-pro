@@ -399,7 +399,7 @@ function HistoryPageContent() {
         voiceSummary = '\n\nVOICE ASSIGNMENTS:\n';
         viewingProject.characters.forEach((char: any, i: number) => {
             if (!char) return;
-            const voiceName = voices.find(v => v?.id === char.voice)?.name || char.voice || 'Voice';
+            const voiceName = char.voiceName || voices.find(v => v?.id === char.voice)?.name || char.voice || 'Voice';
             voiceSummary += `${char.name || `Character ${i + 1}`} (${char.emotion || 'Neutral'}): ${voiceName}\n`;
         });
     }
@@ -536,7 +536,7 @@ function HistoryPageContent() {
                                 {viewingProject.characters.map((char: any, i: number) => {
                                     if (!char) return null;
                                     const charName = (typeof char.name === 'string' && char.name.trim().length > 0) ? char.name : `Character ${i + 1}`;
-                                    const voiceName = voices.find(v => v?.id === char.voice)?.name || char.voice || 'Voice';
+                                    const voiceName = char.voiceName || voices.find(v => v?.id === char.voice)?.name || char.voice || 'Voice';
                                     const avatarColor = generateAvatarColor(charName);
                                     return (
                                         <div key={i} className="flex justify-between items-center p-4 px-6 rounded-[1.5rem] bg-muted/30 border border-primary/5 shadow-sm transition-all hover:bg-muted/40">

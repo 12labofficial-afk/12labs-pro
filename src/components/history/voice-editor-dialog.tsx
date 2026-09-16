@@ -604,6 +604,18 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
         return lowerKey ? assignments[lowerKey] : null;
     };
 
+    // 🔴 NEW: 11.py now saves a parallel `voiceNames` map (voice id has no
+    // static catalog for 11Labs the way Gemini voices do), so an assigned
+    // ElevenLabs voice can be labeled by name instead of falling back to
+    // the raw id hash.
+    const getAssignedVoiceName = (charName: string) => {
+        if (!syncData?.voiceNames) return null;
+        const names = syncData.voiceNames;
+        if (names[charName]) return names[charName];
+        const lowerKey = Object.keys(names).find(k => k.toLowerCase() === charName.toLowerCase());
+        return lowerKey ? names[lowerKey] : null;
+    };
+
     const getCharacterAge = (charName: string): 'Kid' | 'Adult' | 'Old' => {
         if (!syncData) return 'Adult';
         if (syncData.characters && Array.isArray(syncData.characters)) {
@@ -1417,10 +1429,11 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                                                     const currentVoice = activeVoicesList.find(v => v.id === currentVoiceId);
                                                     // Gemini's activeVoicesList has no entries for ElevenLabs voice_ids
                                                     // (different catalog entirely, loaded lazily inside
-                                                    // ElevenLabsVoicePicker below) — fall back to the raw id rather
-                                                    // than showing a misleading "Default".
+                                                    // ElevenLabsVoicePicker below) — prefer the saved display name
+                                                    // (voiceNames, from 11.py) and only fall back to the raw id if an
+                                                    // older project never had one saved.
                                                     const currentVoiceName = isElevenLabsProject
-                                                        ? (currentVoiceId || 'Default')
+                                                        ? (getAssignedVoiceName(charName) || currentVoiceId || 'Default')
                                                         : (currentVoice?.name || 'Default');
                                                     const currentAge = getCharacterAge(charName);
                                                     const dialogueCount = getDialogueCount(charName);

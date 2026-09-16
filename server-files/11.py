@@ -490,11 +490,32 @@ def _build_voice_map(data):
     return voice_map
 
 
+def _build_voice_id_to_name_map(data):
+    """Maps ElevenLabs voice_id -> its human-readable display name.
+
+    The studio already attaches `voiceName` alongside `voice` on every
+    character (it's not in a static catalog the way Gemini voices are —
+    see the Character type's comment on that field), but nothing server
+    side kept it. Indexing by voice_id (not character name) means a
+    character that ends up using ANOTHER character's voice via fallback
+    still resolves to that voice's real name, not a blank."""
+    id_to_name = {}
+    for ch in data.get("characters") or []:
+        if not isinstance(ch, dict):
+            continue
+        voice = (ch.get("voice") or "").strip()
+        name = (ch.get("voiceName") or "").strip()
+        if voice and name:
+            id_to_name[voice] = name
+    return id_to_name
+
+
 def process_11labs_project(project_id, data):
     uid = data.get("userId")
     project_name = data.get("projectName") or project_id
     email = data.get("userEmail") or "unknown"
     voice_map = _build_voice_map(data)
+    voice_id_to_name = _build_voice_id_to_name_map(data)
     fallback_voice_id = data.get("elevenLabsVoiceId")
     # 🔴 FIX: _run_one used to resolve an unassigned character's voice
     # inline (project-wide fallback, then any other character's voice) and
@@ -506,12 +527,14 @@ def process_11labs_project(project_id, data):
     # synthesis and the saved record keeps the two in sync.
     default_fallback_voice = fallback_voice_id or (next(iter(voice_map.values())) if voice_map else None)
     resolved_voice_map = {}
+    resolved_voice_name_map = {}
     for _ch in data.get("characters") or []:
         if not isinstance(_ch, dict):
             continue
         _name = (_ch.get("name") or "").strip()
         if _name:
             resolved_voice_map[_name] = voice_map.get(_name) or default_fallback_voice
+            resolved_voice_name_map[_name] = voice_id_to_name.get(resolved_voice_map[_name] or "", "")
     dialogues = data.get("dialogues") or (data.get("syncData") or {}).get("dialogues") or []
     credits_charged = data.get("creditCost") or data.get("cost") or 0
     total = len(dialogues)
@@ -678,6 +701,11 @@ def process_11labs_project(project_id, data):
             "dialogues": dialogues,
             "timeline": timeline,
             "voiceAssignments": {str(c.get("name")): resolved_voice_map.get((c.get("name") or "").strip(), c.get("voice")) for c in char_list if isinstance(c, dict)},
+            # 🔴 NEW: additive alongside voiceAssignments (still id-only, so
+            # nothing that already reads it breaks) — the History/Voice
+            # Editor and admin project-view dialogs can show a real voice
+            # name instead of a raw ElevenLabs id hash.
+            "voiceNames": {str(c.get("name")): resolved_voice_name_map.get((c.get("name") or "").strip(), "") for c in char_list if isinstance(c, dict)},
             "characterSettings": {
                 c.get("name"): {"speed": 1.0, "pitch": 0}
                 for c in char_list if isinstance(c, dict)
