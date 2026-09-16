@@ -1080,37 +1080,45 @@ function UserUnifiedViewDialog({
                                          the Consistency Plan controls folded into the same footer row. */}
                                      <Card className="rounded-3xl border border-border shadow-sm overflow-hidden">
                                         <CardContent className="p-5 space-y-4">
-                                            <div className="grid grid-cols-3 divide-x divide-border">
-                                                <div className="pr-3 space-y-0.5 min-w-0">
-                                                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground truncate">Vault Balance</p>
-                                                    <div className="flex items-center gap-1 text-lg sm:text-xl font-black text-primary min-w-0">
-                                                        <Coins className="h-4 w-4 shrink-0" />
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Account Summary</p>
+                                                <button
+                                                    onClick={handleSyncFinancials}
+                                                    disabled={isReconstructing}
+                                                    title="Recalculate from history"
+                                                    className="text-muted-foreground hover:text-foreground shrink-0"
+                                                >
+                                                    {isReconstructing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                                                </button>
+                                            </div>
+                                            {/* 🔴 FIX: at text-lg/xl with the refresh button squeezed into
+                                                the middle column's own row, both the label and the number
+                                                overflowed their ~110px-wide column on a phone and got cut
+                                                to "…" — the refresh button now lives in one header row above
+                                                (freeing every column to just its label+number), and the
+                                                numbers dropped to a size that fits a 6-7 digit balance
+                                                without truncating. */}
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <div className="min-w-0">
+                                                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground truncate">Vault</p>
+                                                    <div className="flex items-center gap-1 text-sm sm:text-base font-black text-primary min-w-0">
+                                                        <Coins className="h-3.5 w-3.5 shrink-0" />
                                                         <span className="truncate">{user.credits.toLocaleString()}</span>
                                                     </div>
                                                 </div>
-                                                <div className="px-3 space-y-0.5 min-w-0">
-                                                    <div className="flex items-center justify-between gap-1">
-                                                        <p className={cn("text-[8px] font-black uppercase tracking-widest truncate", isRoyal ? "text-amber-600" : "text-green-600")}>Investment</p>
-                                                        <button
-                                                            onClick={handleSyncFinancials}
-                                                            disabled={isReconstructing}
-                                                            title="Recalculate from history"
-                                                            className={cn("shrink-0", isRoyal ? "text-amber-600" : "text-green-600")}
-                                                        >
-                                                            {isReconstructing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                                                        </button>
-                                                    </div>
-                                                    <div className={cn("flex items-center gap-1 text-lg sm:text-xl font-black min-w-0", isRoyal ? "text-amber-700" : "text-green-700 dark:text-green-400")}>
-                                                        <IndianRupee className="h-4 w-4 shrink-0" />
+                                                <div className="min-w-0">
+                                                    <p className={cn("text-[8px] font-black uppercase tracking-widest truncate", isRoyal ? "text-amber-600" : "text-green-600")}>Invested</p>
+                                                    <div className={cn("flex items-center gap-1 text-sm sm:text-base font-black min-w-0", isRoyal ? "text-amber-700" : "text-green-700 dark:text-green-400")}>
+                                                        <IndianRupee className="h-3.5 w-3.5 shrink-0" />
                                                         <span className="truncate">{user.totalInvestment?.toLocaleString() || '0'}</span>
                                                     </div>
                                                 </div>
-                                                <div className="pl-3 space-y-0.5 min-w-0">
-                                                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground truncate">Consistency</p>
+                                                <div className="min-w-0">
+                                                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground truncate">Streak</p>
                                                     {user.subscription ? (
-                                                        <div className="text-lg sm:text-xl font-black text-indigo-700 truncate">W{user.subscription.weeklyGrantCount}</div>
+                                                        <div className="text-sm sm:text-base font-black text-indigo-700 truncate">W{user.subscription.weeklyGrantCount}</div>
                                                     ) : (
-                                                        <div className="text-lg sm:text-xl font-black text-muted-foreground/30">OFF</div>
+                                                        <div className="text-sm sm:text-base font-black text-muted-foreground/30">Off</div>
                                                     )}
                                                 </div>
                                             </div>
