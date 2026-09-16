@@ -79,7 +79,6 @@ import {
     recalculateUserFinancials,
     fixUserDuplicateGrants,
     getActiveConsistencyPlanUsers,
-    logCreditExpiry
 } from '@/app/admin/users/actions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
@@ -805,9 +804,16 @@ function UserUnifiedViewDialog({
     const isEnterprise = !!user.purchasedPlans?.["999"];
     const isRoyal = isAutopay || isEnterprise;
 
-    // Filter plan purchases and subscription installments
+    // Filter plan purchases and subscription installments.
+    // 🔴 FIX: this used to match on `r.includes('pro')` with no amount
+    // check — a spend entry like "HQ Gen: HQ AI Project" got pulled in
+    // here (and mislabeled PRO TIER) purely because "Project" contains
+    // "pro". A grant is always a positive credit addition and a spend is
+    // always non-positive, so requiring amount > 0 up front is the real
+    // fix — 'pro' is also now word-bounded so it can't match "Project".
     const planHistoryEntries = useMemo(() => {
         return fullUnifiedHistory.filter(entry => {
+            if (!entry.amount || entry.amount <= 0) return false;
             const r = (entry.reason || '').toLowerCase();
             return (
                 r.includes('purchase') ||
@@ -815,10 +821,11 @@ function UserUnifiedViewDialog({
                 r.includes('consistency') ||
                 r.includes('grant') ||
                 r.includes('starter') ||
-                r.includes('pro') ||
+                /\bpro\b/.test(r) ||
                 r.includes('business') ||
                 r.includes('enterprise') ||
                 r.includes('manual approval') ||
+                r.includes('admin') ||
                 (entry.amountPaid && entry.amountPaid > 0)
             );
         });
@@ -827,7 +834,7 @@ function UserUnifiedViewDialog({
     const getPlanDetails = (entry: CreditHistoryEntry) => {
         const r = (entry.reason || '').toLowerCase();
         let price = 0;
-        let planBadge = "PLAN";
+        let planBadge = "CREDIT GRANT";
         let isConsistency = false;
 
         if (entry.amountPaid && entry.amountPaid > 0) {
@@ -836,7 +843,7 @@ function UserUnifiedViewDialog({
         } else if (r.includes('starter') || r.includes('139')) {
             price = 139;
             planBadge = "STARTER TIER";
-        } else if ((r.includes('pro') || r.includes('331') || r.includes('336')) && !r.includes('autopay')) {
+        } else if ((/\bpro\b/.test(r) || r.includes('331') || r.includes('336')) && !r.includes('autopay')) {
             price = 331;
             planBadge = "PRO TIER";
         } else if (r.includes('business') || r.includes('534') || r.includes('540')) {
@@ -849,6 +856,8 @@ function UserUnifiedViewDialog({
             price = 700;
             planBadge = "CONSISTENCY (AUTOPAY)";
             isConsistency = true;
+        } else if (r.includes('admin')) {
+            planBadge = "ADMIN GRANT";
         }
 
         // Check if duplicate entry exists
@@ -862,6 +871,34 @@ function UserUnifiedViewDialog({
 
         return { price: Math.round(price), planBadge, isConsistency, isDuplicate: sameMatches.length > 0 };
     };
+
+    // 🔴 NEW: compact "which plan, how many times, purchased vs admin/HQ
+    // grant" breakdown for the Lifetime Investment card, replacing the
+    // old full-size "Plans & Subscriptions History" card list (which took
+    // a lot of vertical space for what is, per user, small-print info).
+    // Paid purchases are excluded here since user.purchasedPlans already
+    // shows those as its own chip row — this only covers non-purchase
+    // grants (admin adjustments, consistency/autopay installments, etc.)
+    // so nothing is double-counted between the two rows.
+    const grantBreakdown = useMemo(() => {
+        const map = new Map<string, { count: number; credits: number; hasDuplicate: boolean }>();
+        planHistoryEntries.forEach(entry => {
+            if (entry.amountPaid && entry.amountPaid > 0) return;
+            const details = getPlanDetails(entry);
+            if (['STARTER TIER', 'PRO TIER', 'BUSINESS TIER', 'ENTERPRISE TIER'].includes(details.planBadge)) return;
+            const existing = map.get(details.planBadge) || { count: 0, credits: 0, hasDuplicate: false };
+            existing.count += 1;
+            existing.credits += entry.amount || 0;
+            existing.hasDuplicate = existing.hasDuplicate || details.isDuplicate;
+            map.set(details.planBadge, existing);
+        });
+        return Array.from(map.entries()).map(([label, v]) => ({ label, ...v }));
+    }, [planHistoryEntries]);
+
+    const duplicateEntries = useMemo(
+        () => planHistoryEntries.filter(entry => getPlanDetails(entry).isDuplicate),
+        [planHistoryEntries]
+    );
 
     const handleRevertSingleDuplicate = async (entry: CreditHistoryEntry) => {
         setIsUpdating(true);
@@ -881,28 +918,6 @@ function UserUnifiedViewDialog({
             }
         } catch (e: any) {
             reportClientError('src/components/admin/user-management.tsx:778', e);
-            toast({ variant: 'destructive', title: 'Error', description: e.message });
-        } finally {
-            setIsUpdating(false);
-        }
-    };
-
-    const handleExpireCredits = async () => {
-        if (!user.credits || user.credits <= 0) return;
-        if (!confirm(`Are you sure you want to expire ${user.credits.toLocaleString()} remaining credits for ${user.name || user.email}? This will deduct the credits and create an explicit 'Credit Expired' history record.`)) return;
-        setIsUpdating(true);
-        try {
-            const res = await logCreditExpiry(user.uid, user.credits, 'Plan Credits Expired (30-Day Cycle Ended)');
-            if (res.success) {
-                toast({ title: 'Credits Expired', description: `Successfully logged credit expiry for ${user.name || user.email}.` });
-                await fetchData();
-                const updated = await getUserProfileFromServer(user.uid);
-                if (updated) onProfileUpdate(updated);
-            } else {
-                toast({ variant: 'destructive', title: 'Expiry Failed', description: res.error });
-            }
-        } catch (e: any) {
-            reportClientError('src/components/admin/user-management.tsx:799', e);
             toast({ variant: 'destructive', title: 'Error', description: e.message });
         } finally {
             setIsUpdating(false);
@@ -1058,21 +1073,7 @@ function UserUnifiedViewDialog({
                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                                         <Card className="bg-primary/5 border-primary/10 rounded-[2.5rem] shadow-xl overflow-hidden group relative">
                                             <div className="p-8">
-                                                <div className="flex items-center justify-between mb-2 px-1">
-                                                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Vault Balance</p>
-                                                    {user.credits > 0 && (
-                                                        <Button 
-                                                            variant="outline" 
-                                                            size="sm" 
-                                                            className="h-7 px-2.5 text-[9px] font-black uppercase rounded-lg border-red-500/30 text-red-600 bg-red-500/10 hover:bg-red-500/20 shadow-sm"
-                                                            onClick={handleExpireCredits}
-                                                            disabled={isUpdating}
-                                                            title="Expire remaining credits"
-                                                        >
-                                                            <Clock className="h-3 w-3 mr-1" /> Expire Credits
-                                                        </Button>
-                                                    )}
-                                                </div>
+                                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60 mb-2 px-1">Vault Balance</p>
                                                 <div className="text-5xl font-black flex items-center gap-4 tracking-tighter">
                                                     <Coins className="h-10 w-10 text-primary animate-bounce-slow" />
                                                     {user.credits.toLocaleString()}
@@ -1121,8 +1122,8 @@ function UserUnifiedViewDialog({
                                                                 return (
                                                                     <Badge key={price} className={cn(
                                                                         "font-black text-[10px] h-8 px-3 uppercase tracking-tighter shadow-md rounded-xl flex items-center gap-2",
-                                                                        isHighTierPlan 
-                                                                            ? "bg-amber-500 text-white border-none animate-pulse" 
+                                                                        isHighTierPlan
+                                                                            ? "bg-amber-500 text-white border-none animate-pulse"
                                                                             : "bg-white dark:bg-zinc-800 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"
                                                                     )}>
                                                                         ₹{price} × {count}
@@ -1135,6 +1136,25 @@ function UserUnifiedViewDialog({
                                                 ) : (
                                                     <div className="mt-8 border-t border-green-500/10 pt-4">
                                                         <p className="text-[8px] font-bold text-green-600/30 uppercase tracking-widest italic">NO SPECIFIC PLAN RECORDS FOUND.</p>
+                                                    </div>
+                                                )}
+
+                                                {/* 🔴 NEW: small-print breakdown of non-purchase credit grants
+                                                    (admin manual adjustments, consistency/autopay installments,
+                                                    etc.) — replaces the old full-page "Plans & Subscriptions
+                                                    History" card list with exactly what was asked for: which
+                                                    plan/source, how many times, right here in small text. */}
+                                                {grantBreakdown.length > 0 && (
+                                                    <div className="mt-4 space-y-2">
+                                                        {grantBreakdown.map(g => (
+                                                            <div key={g.label} className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wide">
+                                                                <span className={cn("flex items-center gap-1.5 truncate", isRoyal ? "text-amber-700/70" : "text-green-700/70 dark:text-green-400/70")}>
+                                                                    {g.hasDuplicate && <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />}
+                                                                    {g.label} × {g.count}
+                                                                </span>
+                                                                <span className={cn("font-black shrink-0", isRoyal ? "text-amber-700" : "text-green-700 dark:text-green-400")}>+{g.credits.toLocaleString()}</span>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 )}
                                                 
@@ -1185,108 +1205,45 @@ function UserUnifiedViewDialog({
                                      </div>
 
                                     <div className="space-y-6">
-{/* 📦 PLANS & SUBSCRIPTIONS HISTORY SECTION */}
-                                     <div className="space-y-4 mb-6">
-                                         <div className="flex items-center justify-between px-3">
-                                             <div className="flex items-center gap-2">
-                                                 <CreditCard className="h-4 w-4 text-primary" />
-                                                 <h3 className="font-black text-[11px] text-primary uppercase tracking-[0.25em]">
-                                                     Plans & Subscriptions History ({planHistoryEntries.length})
-                                                 </h3>
-                                             </div>
-                                             {planHistoryEntries.some(p => getPlanDetails(p).isDuplicate) && (
-                                                 <Badge variant="destructive" className="font-black text-[9px] uppercase px-2.5 h-6 animate-pulse flex items-center gap-1">
-                                                     <AlertTriangle className="h-3 w-3" /> Duplicate Grants Detected
-                                                 </Badge>
-                                             )}
-                                         </div>
-
-                                         {planHistoryEntries.length > 0 ? (
-                                             <div className="space-y-3">
-                                                 {planHistoryEntries.map((entry, idx) => {
-                                                     const details = getPlanDetails(entry);
-                                                     return (
-                                                         <div 
-                                                             key={`plan-${entry.timestamp}-${idx}`} 
-                                                             className={cn(
-                                                                 "p-5 rounded-[2rem] border-2 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm",
-                                                                 details.isDuplicate 
-                                                                     ? "bg-red-500/5 border-red-500/30 dark:bg-red-950/20" 
-                                                                     : "bg-background border-primary/10 hover:border-primary/20"
-                                                             )}
-                                                         >
-                                                             <div className="flex items-start sm:items-center gap-4">
-                                                                 <div className={cn(
-                                                                     "h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 shadow-inner",
-                                                                     details.isDuplicate ? "bg-red-100 text-red-600 dark:bg-red-900/40" : "bg-primary/10 text-primary"
-                                                                 )}>
-                                                                     {details.isConsistency ? <Sparkles className="h-6 w-6" /> : <CreditCard className="h-6 w-6" />}
-                                                                 </div>
-                                                                 <div className="space-y-1 min-w-0">
-                                                                     <div className="flex items-center gap-2 flex-wrap">
-                                                                         <p className="font-black text-sm uppercase tracking-tight text-foreground">{entry.reason}</p>
-                                                                         <Badge className={cn(
-                                                                             "text-[9px] font-black uppercase px-2 h-5 rounded-md",
-                                                                             details.isConsistency ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300" : "bg-primary/10 text-primary"
-                                                                         )}>
-                                                                             {details.planBadge}
-                                                                         </Badge>
-                                                                         {details.isDuplicate && (
-                                                                             <Badge className="bg-red-600 text-white text-[9px] font-black uppercase px-2 h-5 rounded-md flex items-center gap-1 shadow-sm">
-                                                                                 <AlertTriangle className="h-3 w-3" /> DUPLICATE GRANT
-                                                                             </Badge>
-                                                                         )}
-                                                                     </div>
-                                                                     <div className="flex items-center gap-3 text-[10px] font-bold text-muted-foreground uppercase flex-wrap">
-                                                                         <span className="flex items-center gap-1">
-                                                                             <Clock className="h-3 w-3 opacity-60" /> {format(new Date(entry.timestamp), 'PPpp')}
-                                                                         </span>
-                                                                         {details.price > 0 && (
-                                                                             <span className="flex items-center gap-0.5 font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                                                                                 <IndianRupee className="h-3 w-3" />{details.price.toLocaleString()}
-                                                                             </span>
-                                                                         )}
-                                                                     </div>
-                                                                 </div>
+                                     {/* 🔴 FIX: the old "Plans & Subscriptions History" card list showed
+                                         every plan/grant entry at full size (a lot of space for what's
+                                         small-print info) and — because it filtered by the same buggy
+                                         'pro' substring — could mix in unrelated spend entries. That
+                                         breakdown now lives compactly inside the Lifetime Investment
+                                         card above; only a real problem (a detected duplicate grant)
+                                         surfaces its own section here, and only when one exists. */}
+                                     {duplicateEntries.length > 0 && (
+                                         <Card className="rounded-[2rem] border-2 border-red-500/30 bg-red-500/5 dark:bg-red-950/10 overflow-hidden">
+                                             <CardContent className="p-5 sm:p-6 space-y-3">
+                                                 <div className="flex items-center gap-2 text-red-600 font-black text-[11px] uppercase tracking-widest">
+                                                     <AlertTriangle className="h-4 w-4" /> Duplicate Grants Detected ({duplicateEntries.length})
+                                                 </div>
+                                                 <div className="space-y-2">
+                                                     {duplicateEntries.map((entry, idx) => (
+                                                         <div key={`dup-${entry.timestamp}-${idx}`} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-background border border-red-500/20">
+                                                             <div className="min-w-0">
+                                                                 <p className="text-xs font-bold truncate">{entry.reason}</p>
+                                                                 <p className="text-[9px] text-muted-foreground uppercase font-bold">{format(new Date(entry.timestamp), 'PPp')} · +{entry.amount.toLocaleString()}</p>
                                                              </div>
-
-                                                             <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-muted">
-                                                                 <div className="text-right">
-                                                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Credits Granted</p>
-                                                                     <p className={cn(
-                                                                         "text-lg font-black tracking-tight",
-                                                                         details.isDuplicate ? "text-red-600" : "text-emerald-600 dark:text-emerald-400"
-                                                                     )}>
-                                                                         +{entry.amount.toLocaleString()}
-                                                                     </p>
-                                                                 </div>
-
-                                                                 {details.isDuplicate && (
-                                                                     <Button 
-                                                                         variant="destructive" 
-                                                                         size="sm" 
-                                                                         className="h-9 px-3 rounded-xl font-black text-[10px] uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white shadow-md flex items-center gap-1.5"
-                                                                         onClick={() => handleRevertSingleDuplicate(entry)}
-                                                                         disabled={isUpdating}
-                                                                     >
-                                                                         <Undo2 className="h-3.5 w-3.5" /> Revert & Deduct
-                                                                     </Button>
-                                                                 )}
-                                                             </div>
+                                                             <Button
+                                                                 variant="destructive"
+                                                                 size="sm"
+                                                                 className="h-8 px-3 rounded-lg text-[9px] font-black uppercase shrink-0 gap-1"
+                                                                 onClick={() => handleRevertSingleDuplicate(entry)}
+                                                                 disabled={isUpdating}
+                                                             >
+                                                                 <Undo2 className="h-3 w-3" /> Revert
+                                                             </Button>
                                                          </div>
-                                                     );
-                                                 })}
-                                             </div>
-                                         ) : (
-                                             <div className="p-8 rounded-[2rem] border-2 border-dashed border-muted text-center space-y-1">
-                                                 <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/50">No plan purchases recorded yet</p>
-                                             </div>
-                                         )}
-                                     </div>
+                                                     ))}
+                                                 </div>
+                                             </CardContent>
+                                         </Card>
+                                     )}
 
                                      <Separator />
 
-                                     <h3 className="font-black text-[10px] text-primary/60 uppercase tracking-[0.3em] px-3 mt-6">All Activity Ledger</h3>
+                                     <h3 className="font-black text-[10px] text-primary/60 uppercase tracking-[0.3em] px-3 mt-6">Credit History</h3>
                                         {isLoadingData ? (
                                             <div className="space-y-3">
                                                 {[1,2,3].map(i => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
