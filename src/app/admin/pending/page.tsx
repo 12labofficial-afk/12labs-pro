@@ -281,7 +281,7 @@ function PendingProjectCard({ project, onComplete, onDelete, onStartProcessing, 
                 <DialogContent className="max-w-3xl h-[85vh] flex flex-col rounded-[2.5rem] p-0 overflow-hidden shadow-3xl">
                     <DialogHeader className="p-8 pb-4 border-b shrink-0 bg-muted/20">
                         <DialogTitle className="text-3xl font-black uppercase text-center tracking-tight">Manuscript Review</DialogTitle>
-                        <DialogDescription className="text-center font-bold text-[10px] uppercase tracking-widest text-muted-foreground opacity-60">Production Brief Nodes</DialogDescription>
+                        <DialogDescription className="text-center font-bold text-[10px] uppercase tracking-widest text-muted-foreground opacity-60">Production Brief</DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="flex-1">
                         <div className="p-8 space-y-10">

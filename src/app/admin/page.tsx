@@ -135,7 +135,7 @@ function LiveUsers() {
                                 </div>
                             );
                         }) : (
-                            <div className="text-center py-20 opacity-20 italic flex flex-col items-center gap-2"><Users className="h-10 w-10" /><p className="text-[10px] font-black uppercase tracking-[0.4em]">Node Registry Empty</p></div>
+                            <div className="text-center py-20 opacity-20 italic flex flex-col items-center gap-2"><Users className="h-10 w-10" /><p className="text-[10px] font-black uppercase tracking-[0.4em]">No Active Users</p></div>
                         )}
                     </div>
                 </ScrollArea>
@@ -614,7 +614,7 @@ export default function AdminPage() {
             <GlobalUsersStat total={stats.totalUsers} today={stats.newUsersToday} isLoading={statsLoading} />
             <Card className="rounded-[2.5rem] border-none shadow-2xl bg-card overflow-hidden group h-full">
                 <CardHeader className="pb-2 p-8"><div className="flex justify-between items-start"><CardTitle className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground">PRODUCTION LOAD</CardTitle><div className="p-3 bg-purple-500/5 rounded-2xl group-hover:scale-110 transition-transform duration-500"><Cpu className="h-4 w-4 text-purple-600" /></div></div></CardHeader>
-                <CardContent className="px-8 pb-8">{statsLoading ? <Skeleton className="h-12 w-32 rounded-xl" /> : (<div className="space-y-0"><div className="text-5xl font-black tracking-tighter leading-none">{stats.totalProjects.toLocaleString()}</div><p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-4 opacity-40">Verified Output Nodes</p></div>)}</CardContent>
+                <CardContent className="px-8 pb-8">{statsLoading ? <Skeleton className="h-12 w-32 rounded-xl" /> : (<div className="space-y-0"><div className="text-5xl font-black tracking-tighter leading-none">{stats.totalProjects.toLocaleString()}</div><p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-4 opacity-40">Total Projects</p></div>)}</CardContent>
             </Card>
         </div>
       </div>

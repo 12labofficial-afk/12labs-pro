@@ -299,7 +299,7 @@ export function MusicLibraryManager() {
 
             if (res.success) {
                 setUploadProgressPct(100);
-                toast({ title: 'Production Node Ready', description: 'Asset dispatched to public and private hubs.' });
+                toast({ title: 'Track Published', description: 'Asset dispatched to public and private hubs.' });
                 setIsUploadOpen(false);
                 setNewTrack({ prompt: '', category: 'Cinematic', price: 0 });
                 setAudioFile(null);
@@ -325,14 +325,14 @@ export function MusicLibraryManager() {
             });
             const data = await apiRes.json();
             if (data.success) {
-                toast({ title: 'Nodes Purged' });
+                toast({ title: 'Tracks Deleted' });
                 return;
             }
         } catch (e) {
             reportClientError('src/components/admin/music-library-manager.tsx:278', e);}
         
         const res = await deleteLibraryMusicAction(track.id, track.url, track.privateUrl, adminUser?.email || 'Admin', track.imageUrl);
-        if (res.success) toast({ title: 'Nodes Purged' });
+        if (res.success) toast({ title: 'Tracks Deleted' });
         else toast({ variant: 'destructive', title: 'Delete Failed' });
     };
 
@@ -545,7 +545,7 @@ export function MusicLibraryManager() {
                     <Card className="rounded-[2.5rem] border-none shadow-xl bg-primary text-white overflow-hidden relative">
                         <div className="absolute top-0 right-0 p-4 opacity-10 rotate-12"><Activity className="h-24 w-24" /></div>
                         <div className="p-8 relative z-10">
-                            <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-2">Total Library Nodes</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-2">Total Tracks</p>
                             <div className="text-6xl font-black tracking-tighter">{tracks.length}</div>
                         </div>
                     </Card>
@@ -653,7 +653,7 @@ export function MusicLibraryManager() {
                             <Zap className="h-5 w-5 text-primary" />
                             Dispatch Asset
                         </DialogTitle>
-                        <DialogDescription className="text-[9px] font-bold uppercase tracking-widest mt-0.5 opacity-50">Node Injection Hub</DialogDescription>
+                        <DialogDescription className="text-[9px] font-bold uppercase tracking-widest mt-0.5 opacity-50">Upload a new track</DialogDescription>
                     </DialogHeader>
 
                     <div className="p-5 sm:p-8 space-y-4 sm:space-y-6">

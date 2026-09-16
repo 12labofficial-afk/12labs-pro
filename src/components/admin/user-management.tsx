@@ -652,7 +652,7 @@ function UserUnifiedViewDialog({
             }
             onProfileUpdate(updatedProfile);
             setConfirmAction(null);
-            toast({ title: 'System Node Updated' });
+            toast({ title: 'User Updated' });
         } catch (e: any) {
             reportClientError('src/components/admin/user-management.tsx:642', e);
             toast({ variant: 'destructive', title: 'Action Failed', description: e.message });
@@ -694,7 +694,7 @@ function UserUnifiedViewDialog({
         try {
             const res = await recalculateUserFinancials(user.uid);
             if (res.success) {
-                toast({ title: 'Financial Node Synchronized' });
+                toast({ title: 'Financials Recalculated' });
                 const updated = await getUserProfileFromServer(user.uid);
                 if (updated) onProfileUpdate(updated);
             } else throw new Error(res.error);
@@ -1319,7 +1319,7 @@ function UserUnifiedViewDialog({
                                                 <Card className="md:col-span-2 bg-card border border-border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
                                                     <div>
                                                         <div className="flex items-center justify-between gap-2 mb-3">
-                                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Member Identity & Nodes</p>
+                                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Member Identity</p>
                                                             <Badge variant="outline" className="text-[9px] font-black uppercase px-2 h-5 text-foreground border-border">
                                                                 {user.role === 'admin' ? 'System Administrator' : 'Standard Member'}
                                                             </Badge>
@@ -1536,7 +1536,7 @@ function UserUnifiedViewDialog({
                                     </Badge>
                                 )}
                             </div>
-                            <DialogDescription className="font-bold text-[10px] uppercase tracking-widest opacity-60">Source Manuscript Node</DialogDescription>
+                            <DialogDescription className="font-bold text-[10px] uppercase tracking-widest opacity-60">Project Script</DialogDescription>
                         </div>
                     </div>
                     <DialogClose className="absolute right-6 top-6 rounded-full p-2 hover:bg-muted transition-colors"><X className="h-5 w-5" /></DialogClose>
@@ -1803,7 +1803,7 @@ export function UserManagement() {
     <div className="space-y-8 pb-20">
       <div className="flex flex-col gap-1">
         <h1 className="text-4xl font-black uppercase tracking-tight flex items-center gap-4"><Users className="h-10 w-10 text-primary" /> User Hub</h1>
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Full Platform Node Oversight</p>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Full Platform Oversight</p>
       </div>
 
       <Card className="border-none shadow-2xl bg-card/50 backdrop-blur-sm rounded-[2rem]">

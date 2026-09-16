@@ -247,7 +247,7 @@ export default function BuyCreditsPage() {
 
     // 2. Razorpay SDK Availability Check (CRITICAL)
     if (typeof window === 'undefined' || !(window as any).Razorpay) {
-        toast({ variant: 'destructive', title: 'Payment Node Syncing', description: 'The payment module is still loading. Please try again in 3 seconds.' });
+        toast({ variant: 'destructive', title: 'Payment Module Loading', description: 'The payment module is still loading. Please try again in 3 seconds.' });
         return;
     }
 
@@ -500,7 +500,7 @@ export default function BuyCreditsPage() {
                                 {user.subscription.planId === 'test_sub' ? 'Test Sub (Weekly)' : 'Consistent Creator'}
                             </h3>
                             <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-none">
-                                Automatic Weekly Grant Node
+                                Automatic Weekly Credit Grant
                             </p>
                         </div>
                     </div>

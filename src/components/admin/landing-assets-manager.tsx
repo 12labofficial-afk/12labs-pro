@@ -101,14 +101,14 @@ export function LandingAssetsManager() {
                 <CardHeader className="bg-primary/5 pb-6 border-b border-primary/10">
                     <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-3">
                         <ImageIcon className="h-6 w-6 text-primary" />
-                        Global Identity Node
+                        Site Branding
                     </CardTitle>
                     <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Configure logos for branding and security watermarking.</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-8 space-y-6">
                     {/* Master Logo */}
                     <div className="space-y-4 p-5 rounded-2xl bg-muted/30 border border-primary/5 relative">
-                        <Badge variant="outline" className="absolute -top-2.5 right-4 bg-background h-5 px-2 text-[8px] font-black uppercase">Identity Node</Badge>
+                        <Badge variant="outline" className="absolute -top-2.5 right-4 bg-background h-5 px-2 text-[8px] font-black uppercase">Branding</Badge>
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground px-1 flex items-center gap-2"><Link2 className="h-3 w-3" /> Master Logo (Branding)</Label>
                             <Input 
@@ -132,7 +132,7 @@ export function LandingAssetsManager() {
 
                     {/* Watermark Logo */}
                     <div className="space-y-4 p-5 rounded-2xl bg-primary/5 border border-primary/10 relative">
-                        <Badge variant="outline" className="absolute -top-2.5 right-4 bg-background h-5 px-2 text-[8px] font-black uppercase text-primary border-primary/20">Security Node</Badge>
+                        <Badge variant="outline" className="absolute -top-2.5 right-4 bg-background h-5 px-2 text-[8px] font-black uppercase text-primary border-primary/20">Watermark</Badge>
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-muted-foreground px-1 flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Watermark Logo (Production)</Label>
                             <Input 

@@ -628,7 +628,7 @@ export default function VoiceCloningPage() {
         
         await deleteHistoryItemFromLocalDB(id);
         await remove(ref(database, `cloningHistory/${user.uid}/${id}`));
-        toast({ title: 'Node Purged' });
+        toast({ title: 'Voice Deleted' });
     };
 
     const handleClearAllHistory = async () => {
@@ -706,7 +706,7 @@ export default function VoiceCloningPage() {
                                 <div className="flex justify-between items-center px-1"><p className="text-[9px] font-bold text-muted-foreground uppercase opacity-40">Min 20 chars</p><span className={cn("text-[10px] font-black font-mono", isOverLimit ? "text-destructive" : "text-primary/60")}>{charCount}/1000</span></div>
                             </div>
                             <div className="space-y-4">
-                                <div className="flex items-center justify-between px-1"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Source Reference Node</Label><div className="flex items-center gap-3"><Badge variant="secondary" className="h-7 px-4 text-[10px] font-black uppercase bg-muted/50 border-none shadow-sm text-muted-foreground">3 SEC MIN</Badge><Badge variant="secondary" className="h-7 px-4 text-[10px] font-black uppercase bg-muted/50 border-none shadow-sm text-muted-foreground">10 SEC MAX</Badge></div></div>
+                                <div className="flex items-center justify-between px-1"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Source Reference Audio</Label><div className="flex items-center gap-3"><Badge variant="secondary" className="h-7 px-4 text-[10px] font-black uppercase bg-muted/50 border-none shadow-sm text-muted-foreground">3 SEC MIN</Badge><Badge variant="secondary" className="h-7 px-4 text-[10px] font-black uppercase bg-muted/50 border-none shadow-sm text-muted-foreground">10 SEC MAX</Badge></div></div>
                                 <input id="audio-upload" type="file" className="hidden" onChange={handleFileChange} accept="audio/*" disabled={isLoading}/>
                                 {referenceAudio ? (
                                     <div className="p-5 rounded-2xl border-2 border-primary/20 bg-primary/5 flex items-center justify-between group animate-in zoom-in-95 shadow-inner">
@@ -743,7 +743,7 @@ export default function VoiceCloningPage() {
                         </CardFooter>
                     </Card>
                     <div className="space-y-4">
-                        <Button variant="ghost" onClick={() => setShowAdvanced(!showAdvanced)} className="w-full h-12 rounded-2xl font-black uppercase tracking-[0.2em] text-[9px] text-muted-foreground/60 gap-3 border border-dashed border-primary/5 hover:bg-primary/5"><Settings2 className="h-4 w-4" />{showAdvanced ? 'Hide Advanced Settings' : 'Advanced Tuning Node'}{showAdvanced ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</Button>
+                        <Button variant="ghost" onClick={() => setShowAdvanced(!showAdvanced)} className="w-full h-12 rounded-2xl font-black uppercase tracking-[0.2em] text-[9px] text-muted-foreground/60 gap-3 border border-dashed border-primary/5 hover:bg-primary/5"><Settings2 className="h-4 w-4" />{showAdvanced ? 'Hide Advanced Settings' : 'Show Advanced Settings'}{showAdvanced ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</Button>
                         {showAdvanced && (
                             <Card className="rounded-[2.5rem] border-none shadow-xl bg-card overflow-hidden animate-in slide-in-from-top-4 duration-500">
                                 <CardHeader className="bg-muted/30 border-b pb-4">

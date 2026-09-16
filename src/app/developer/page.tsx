@@ -111,7 +111,7 @@ export default function DeveloperDashboardPage() {
         return;
     }
     if (typeof window === 'undefined' || !(window as any).Razorpay) {
-        toast({ variant: 'destructive', title: 'Payment Node Syncing', description: 'The payment module is still loading. Please try again in 3 seconds.' });
+        toast({ variant: 'destructive', title: 'Payment Module Loading', description: 'The payment module is still loading. Please try again in 3 seconds.' });
         return;
     }
 

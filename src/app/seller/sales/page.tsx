@@ -356,7 +356,7 @@ export default function SellerSalesPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-4xl font-black uppercase tracking-tighter leading-none flex items-center gap-4">
             <IndianRupee className="h-10 w-10 text-primary" />
-            Revenue Node
+            Revenue
         </h1>
         <p className="text-muted-foreground font-bold text-xs uppercase tracking-[0.2em] opacity-60">Sales, Commissions & Distributions</p>
       </div>
@@ -476,7 +476,7 @@ export default function SellerSalesPage() {
                             <Table>
                                 <TableHeader className="bg-muted/50 h-14 sticky top-0 z-20 shadow-sm">
                                     <TableRow className="border-none">
-                                        <TableHead className="pl-8 font-black uppercase text-[10px] tracking-widest">Asset Node</TableHead>
+                                        <TableHead className="pl-8 font-black uppercase text-[10px] tracking-widest">Product</TableHead>
                                         <TableHead className="text-right font-black uppercase text-[10px] tracking-widest pr-8">Sale Revenue</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -595,7 +595,7 @@ export default function SellerSalesPage() {
              <Table>
                 <TableHeader className="bg-muted/50 h-14">
                     <TableRow className="border-none">
-                    <TableHead className="pl-8 font-black uppercase tracking-widest text-[10px]">Asset Node</TableHead>
+                    <TableHead className="pl-8 font-black uppercase tracking-widest text-[10px]">Product</TableHead>
                     <TableHead className="font-black uppercase tracking-widest text-[10px] hidden sm:table-cell">Cycle Date</TableHead>
                     <TableHead className="text-right font-black uppercase tracking-widest text-[10px] pr-8">Sale Amount</TableHead>
                     </TableRow>

@@ -1193,7 +1193,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                                                 className="flex-1 min-w-[140px] h-9 rounded-xl border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 text-purple-600 dark:text-purple-400 font-black uppercase text-[10px] gap-1.5"
                                             >
                                                 {isZipping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Archive className="h-3.5 w-3.5" />}
-                                                Download Nodes (.zip)
+                                                Download All (.zip)
                                             </Button>
                                         </div>
 
@@ -1581,7 +1581,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                             )}
                         </Card>
 
-                        {/* Dialogue Line Nodes */}
+                        {/* Dialogue Lines */}
                         <div className="space-y-3">
                             <div className="flex items-center justify-between px-1">
                                 <div className="flex items-center gap-2">

@@ -506,7 +506,7 @@ export function GenerationSettings() {
                     <div className="flex items-center gap-4 text-xs font-black text-destructive p-5 bg-destructive/10 rounded-[2rem] border border-destructive/20 animate-in slide-in-from-top-2">
                         <AlertTriangle className="h-6 w-6 flex-shrink-0" />
                         <div className="space-y-1">
-                            <p className="uppercase tracking-widest text-destructive">Premium Node Restricted</p>
+                            <p className="uppercase tracking-widest text-destructive">Premium Feature Locked</p>
                             <p className="text-[10px] font-bold opacity-70">Purchase credits to unlock this tool.</p>
                         </div>
                     </div>

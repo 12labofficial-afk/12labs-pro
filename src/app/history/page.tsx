@@ -498,7 +498,7 @@ function HistoryPageContent() {
                         )}
                     </>
                 ) : (
-                    <div className="text-center py-32 border-4 border-dashed rounded-[4rem] opacity-30 flex flex-col items-center justify-center"><HistoryIcon className="mx-auto h-20 w-20 text-muted-foreground mb-6" /><h3 className="text-2xl font-black uppercase tracking-widest">No Projects Found</h3><Button asChild className="mt-8 rounded-2xl h-14 px-10 font-black uppercase"><Link href="/studio">Open Studio Node</Link></Button></div>
+                    <div className="text-center py-32 border-4 border-dashed rounded-[4rem] opacity-30 flex flex-col items-center justify-center"><HistoryIcon className="mx-auto h-20 w-20 text-muted-foreground mb-6" /><h3 className="text-2xl font-black uppercase tracking-widest">No Projects Found</h3><Button asChild className="mt-8 rounded-2xl h-14 px-10 font-black uppercase"><Link href="/studio">Open Studio</Link></Button></div>
                 )}
             </TabsContent>
             <TabsContent value="purchases" className="mt-0">
@@ -516,7 +516,7 @@ function HistoryPageContent() {
                         <DialogTitle className="text-xl sm:text-2xl font-black uppercase tracking-tight truncate">{viewingProject?.projectName || 'Project Details'}</DialogTitle>
                         <div className="flex items-center gap-2 mt-1">
                             <DialogDescription className="font-black text-[10px] uppercase tracking-[0.2em] text-primary/60">NARRATIVE LOG SOURCE</DialogDescription>
-                            {isFetchingFull && <Badge variant="outline" className="h-4 px-1 text-[7px] font-black uppercase border-primary/20 animate-pulse">Syncing Full Node...</Badge>}
+                            {isFetchingFull && <Badge variant="outline" className="h-4 px-1 text-[7px] font-black uppercase border-primary/20 animate-pulse">Syncing...</Badge>}
                         </div>
                     </div>
                 </div>

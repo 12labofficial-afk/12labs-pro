@@ -110,7 +110,7 @@ export function EditProjectDialog({ project, open, onOpenChange, onUpdate }: Edi
 
         const result = await adminUpdateProjectAction(project.id, finalData, adminUid);
         if (result.success) {
-          toast({ title: 'Project Node Updated' });
+          toast({ title: 'Project Updated' });
           onUpdate();
           onOpenChange(false);
         } else {
@@ -151,7 +151,7 @@ export function EditProjectDialog({ project, open, onOpenChange, onUpdate }: Edi
                       name="projectName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="font-black text-[10px] uppercase tracking-widest px-1">Project Name Node</FormLabel>
+                          <FormLabel className="font-black text-[10px] uppercase tracking-widest px-1">Project Name</FormLabel>
                           <FormControl><Input {...field} className="rounded-xl h-12 bg-background font-bold" /></FormControl>
                           <FormMessage />
                         </FormItem>

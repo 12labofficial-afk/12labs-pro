@@ -209,7 +209,7 @@ function AdminEditDialog({ product, open, onOpenChange, onUpdate }: { product: S
 
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
-                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 pl-3 border-l-4 border-primary/20">Media Preview Nodes</h4>
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 pl-3 border-l-4 border-primary/20">Media Previews</h4>
                                     <Button size="sm" variant="ghost" className="h-6 text-[8px] font-black uppercase" onClick={addPreview}>
                                         <Plus className="h-3 w-3 mr-1" /> Add Slot
                                     </Button>
@@ -270,7 +270,7 @@ function AdminEditDialog({ product, open, onOpenChange, onUpdate }: { product: S
 
                             {isScript && (
                                 <div className="space-y-6 animate-in fade-in duration-500">
-                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 pl-3 border-l-4 border-primary/20">Script Content Node</h4>
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 pl-3 border-l-4 border-primary/20">Script Content</h4>
                                     <div className="space-y-4">
                                         <div className="space-y-2">
                                             <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">GCS Preview URL (Direct Text)</Label>
@@ -430,7 +430,7 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
                         }
                     }
                 } catch (e) {
-                    console.error("GCS Preview Node unreachable.");
+                    console.error("GCS preview unreachable.");
                 } finally {
                     setIsFetchingPreview(false);
                 }

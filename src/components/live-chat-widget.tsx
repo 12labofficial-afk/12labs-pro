@@ -302,7 +302,7 @@ export function LiveChatWidget() {
         if (!result.success) throw new Error(result.message);
     } catch (error: any) {
             reportClientError('src/components/live-chat-widget.tsx:302', error);
-        toast({ variant: 'destructive', title: 'Security Node Error', description: error.message });
+        toast({ variant: 'destructive', title: 'Security Check Failed', description: error.message });
         setMessages(prev => prev.filter(m => m.clientMessageId !== clientMessageId));
     } finally {
         setIsSending(false);
@@ -338,7 +338,7 @@ export function LiveChatWidget() {
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetContent side={isMobile ? "bottom" : "right"} className={cn("flex w-full flex-col p-0 sm:max-w-lg border-none shadow-3xl overflow-hidden", isMobile ? "h-[85vh] rounded-t-[2.5rem]" : "h-screen")}>
           <SheetHeader className="p-6 border-b text-left bg-muted/20 relative">
-            <div className="flex items-center gap-2 absolute top-2 right-12 opacity-30 text-[8px] font-black uppercase tracking-widest"><ShieldCheck className="h-2.5 w-2.5" /> Encrypted Identity Node</div>
+            <div className="flex items-center gap-2 absolute top-2 right-12 opacity-30 text-[8px] font-black uppercase tracking-widest"><ShieldCheck className="h-2.5 w-2.5" /> Encrypted & Secure</div>
             <SheetTitle className="text-2xl font-black uppercase tracking-tight">Private Support</SheetTitle>
             <SheetDescription className="font-bold text-xs opacity-70">Secured line for {user.name || 'Account ID'}</SheetDescription>
           </SheetHeader>

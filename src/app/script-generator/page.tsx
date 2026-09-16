@@ -429,7 +429,7 @@ function ScriptNodeCard({
                             {fullText || node.teaser || 'Final manuscript node received.'}
                         </pre>
                     </ScrollArea>
-                    {isFetchingFull && <div className="absolute top-4 right-4 flex items-center gap-2 bg-background/80 backdrop-blur-md px-3 py-1 rounded-full border shadow-sm animate-in fade-in"><Loader2 className="h-3 w-3 animate-spin text-primary" /><span className="text-[8px] font-black uppercase tracking-widest">Updating Full Node...</span></div>}
+                    {isFetchingFull && <div className="absolute top-4 right-4 flex items-center gap-2 bg-background/80 backdrop-blur-md px-3 py-1 rounded-full border shadow-sm animate-in fade-in"><Loader2 className="h-3 w-3 animate-spin text-primary" /><span className="text-[8px] font-black uppercase tracking-widest">Updating...</span></div>}
                     <div className="absolute top-4 left-6 pointer-events-none opacity-40"><Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest bg-background/80">{isFetchingFull ? 'SYNCING...' : 'FULL MANUSCRIPT'}</Badge></div>
                 </div>
                 <div className="grid grid-cols-1 gap-4">

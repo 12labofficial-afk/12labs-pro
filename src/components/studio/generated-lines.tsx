@@ -325,7 +325,7 @@ function DownloadOptions() {
                         )}
                         <Separator className="bg-border dark:bg-white/5" />
                         <Button onClick={onDownloadZip} variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/5">
-                             <Archive className="mr-2 h-4 w-4" /> Download Nodes (.zip)
+                             <Archive className="mr-2 h-4 w-4" /> Download All (.zip)
                         </Button>
                     </div>
                 </div>
@@ -420,7 +420,7 @@ export function GeneratedLines() {
             voiceOverride: editVoiceId
         });
         setEditingIndex(null);
-        toast({ title: 'Draft Node Saved', description: 'Saved locally. Generation will execute when you start project.' });
+        toast({ title: 'Draft Saved', description: 'Saved locally. Generation will execute when you start project.' });
     };
 
     const handleSyncLine = async (lineId: string) => {
@@ -553,7 +553,7 @@ export function GeneratedLines() {
                                             </div>
                                             <div className="flex justify-between items-center">
                                                 <Button variant="ghost" size="sm" className="h-8 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest text-primary/60 hover:bg-primary/10 hover:text-primary transition-all gap-2 border border-border dark:border-white/5 hover:border-primary/20" onClick={() => startEditing(index, line)}>
-                                                    <Edit className="h-3.5 w-3.5" /> {isDone ? 'Edit Performance' : 'Edit Draft Node'}
+                                                    <Edit className="h-3.5 w-3.5" /> {isDone ? 'Edit Performance' : 'Edit Draft'}
                                                 </Button>
                                                 
                                                 {!isDone && (

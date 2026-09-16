@@ -201,7 +201,7 @@ function ApprovalDialog({ product: initialProduct, productId, onApprove, trigger
 
                              <div className="bg-muted/10 p-6 rounded-[2rem] border-2 border-primary/5 space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary px-1">Admin Preview Node Control</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary px-1">Admin Preview Controls</p>
                                     <Button size="sm" variant="ghost" className="h-6 text-[8px] font-black" onClick={() => setAdminPreviews([...adminPreviews, { type: 'image', url: '' }])}><Plus className="h-2 w-2 mr-1"/> ADD SLOT</Button>
                                 </div>
                                 <div className="space-y-3">

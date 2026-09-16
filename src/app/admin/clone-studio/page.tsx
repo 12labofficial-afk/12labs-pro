@@ -92,7 +92,7 @@ export default function CloneStudioManager() {
         try {
             const { id, ...data } = editingVoice;
             await update(ref(database, `clone_studio/${id}`), data);
-            toast({ title: 'Persona Node Updated' });
+            toast({ title: 'Persona Updated' });
             setEditingVoice(null);
         } catch (e: any) {
             reportClientError('src/app/admin/clone-studio/page.tsx:95', e);
@@ -162,7 +162,7 @@ export default function CloneStudioManager() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                 <Card className="rounded-[2.5rem] border-none shadow-xl bg-card overflow-hidden">
                     <CardHeader className="bg-primary/5 border-b pb-6">
-                        <CardTitle className="text-lg font-black uppercase">Add Persona Node</CardTitle>
+                        <CardTitle className="text-lg font-black uppercase">Add Persona</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-8 space-y-6">
                         <div className="space-y-2">

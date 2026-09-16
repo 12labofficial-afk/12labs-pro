@@ -54,7 +54,7 @@ export function PushNotificationManager() {
             <CardHeader className="bg-primary/5 border-b border-primary/10 p-8">
                 <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
                     <Smartphone className="h-5 w-5 text-primary" />
-                    Targeted Push Node
+                    Targeted Push Notification
                 </CardTitle>
                 <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Send instant browser notifications to a specific user.</CardDescription>
             </CardHeader>

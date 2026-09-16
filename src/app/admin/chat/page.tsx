@@ -256,7 +256,7 @@ function ChatView({ session, onBack, onSessionDeleted }: { session: LiveChatSess
         try {
             if (imageToSend && imagePreview) {
                 setIsUploading(true);
-                // Use Private GCS Node for Admin uploads too
+                // Use the private GCS bucket for admin uploads too
                 const uploadRes = await uploadChatImageToGCS(session.userId, imagePreview);
                 if (uploadRes.success && uploadRes.url) {
                     imageUrl = uploadRes.url;
@@ -400,7 +400,7 @@ function ChatView({ session, onBack, onSessionDeleted }: { session: LiveChatSess
                      {isLoading ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-3 opacity-30">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            <p className="text-[10px] font-black uppercase tracking-widest">Syncing Nodes...</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest">Syncing...</p>
                         </div>
                      ) : (
                         messages?.map(message => {
@@ -541,7 +541,7 @@ function ChatView({ session, onBack, onSessionDeleted }: { session: LiveChatSess
                     {viewingImage && (
                         <img 
                             src={viewingImage} 
-                            alt="Node details" 
+                            alt="Image preview"
                             className="max-w-full max-h-full object-contain rounded-lg animate-in zoom-in-95 duration-300" 
                         />
                     )}

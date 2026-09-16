@@ -151,7 +151,7 @@ export function NotificationPopover({ user }: { user: User }) {
         </ScrollArea>
         {notifications.length > 0 && (
             <div className="p-3 border-t bg-muted/10 text-center">
-                <p className="text-[8px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">Secure Sync Node Active</p>
+                <p className="text-[8px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">Synced Securely</p>
             </div>
         )}
       </PopoverContent>

@@ -42,7 +42,7 @@ export default function ScriptMigratorPage() {
         try {
             const res = await migrateSingleScriptAction(id);
             if (res.success) {
-                toast({ title: 'Node Migrated' });
+                toast({ title: 'Script Migrated' });
                 // Update local state to show completion
                 setScripts(prev => prev.map(s => s.id === id ? { ...s, hasGcs: true } : s));
             } else throw new Error(res.message);
@@ -70,7 +70,7 @@ export default function ScriptMigratorPage() {
                     <CardHeader className="bg-primary/5 border-b p-8">
                         <CardTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-3">
                             <Zap className="h-6 w-6 text-primary" />
-                            Control Node
+                            Sync Controls
                         </CardTitle>
                         <CardDescription className="text-sm font-medium leading-relaxed">
                             फेच करने के बाद आप हर स्क्रिप्ट को बारी-बारी माइग्रेट कर सकते हैं। पुराने क्लाउडिनरी लिंक्स सुरक्षित रहेंगे।
@@ -150,7 +150,7 @@ export default function ScriptMigratorPage() {
             </div>
 
             <footer className="text-center py-10 opacity-30 text-[10px] font-bold uppercase tracking-widest">
-                12Labs Migration Node v1.2 • GCS Protocol Enabled
+                12Labs Script Migrator v1.2 • GCS Enabled
             </footer>
         </div>
     );

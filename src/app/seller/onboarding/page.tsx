@@ -272,7 +272,7 @@ export default function SellerOnboardingPage() {
                 <Rocket className="h-12 w-12 text-primary animate-bounce-slow" />
             </div>
             <div className="space-y-2">
-                <h1 className="text-4xl md:text-5xl font-black tracking-tight uppercase leading-none">Initialize <br className="sm:hidden" /> <span className="text-primary">Seller Node</span></h1>
+                <h1 className="text-4xl md:text-5xl font-black tracking-tight uppercase leading-none">Become a <br className="sm:hidden" /> <span className="text-primary">Seller</span></h1>
                 <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] opacity-60">Identity & Payout Verification</p>
             </div>
         </div>
