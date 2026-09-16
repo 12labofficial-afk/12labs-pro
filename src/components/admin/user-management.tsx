@@ -872,27 +872,29 @@ function UserUnifiedViewDialog({
         return { price: Math.round(price), planBadge, isConsistency, isDuplicate: sameMatches.length > 0 };
     };
 
-    // 🔴 NEW: compact "which plan, how many times, purchased vs admin/HQ
-    // grant" breakdown for the Lifetime Investment card, replacing the
-    // old full-size "Plans & Subscriptions History" card list (which took
-    // a lot of vertical space for what is, per user, small-print info).
-    // Paid purchases are excluded here since user.purchasedPlans already
-    // shows those as its own chip row — this only covers non-purchase
-    // grants (admin adjustments, consistency/autopay installments, etc.)
-    // so nothing is double-counted between the two rows.
-    const grantBreakdown = useMemo(() => {
+    // 🔴 NEW: single compact "which plan/grant, how many times" capsule
+    // row for the Lifetime Investment card — covers EVERYTHING that adds
+    // credits (paid purchases, admin manual grants, consistency/autopay
+    // installments) in one place, replacing both the old full-size
+    // "Plans & Subscriptions History" card list AND the separate
+    // purchasedPlans-only chip row, which between them still missed a
+    // purchase like a custom-amount Enterprise deal that never matched a
+    // fixed price key. Built straight from planHistoryEntries, which is
+    // already amount > 0 only, so a capsule here can never show the
+    // "+-" broken-sign bug.
+    const planCapsules = useMemo(() => {
         const map = new Map<string, { count: number; credits: number; hasDuplicate: boolean }>();
         planHistoryEntries.forEach(entry => {
-            if (entry.amountPaid && entry.amountPaid > 0) return;
             const details = getPlanDetails(entry);
-            if (['STARTER TIER', 'PRO TIER', 'BUSINESS TIER', 'ENTERPRISE TIER'].includes(details.planBadge)) return;
             const existing = map.get(details.planBadge) || { count: 0, credits: 0, hasDuplicate: false };
             existing.count += 1;
             existing.credits += entry.amount || 0;
             existing.hasDuplicate = existing.hasDuplicate || details.isDuplicate;
             map.set(details.planBadge, existing);
         });
-        return Array.from(map.entries()).map(([label, v]) => ({ label, ...v }));
+        return Array.from(map.entries())
+            .map(([label, v]) => ({ label, ...v }))
+            .sort((a, b) => b.credits - a.credits);
     }, [planHistoryEntries]);
 
     const duplicateEntries = useMemo(
@@ -1109,7 +1111,7 @@ function UserUnifiedViewDialog({
                                                     </div>
                                                 </div>
                                                 
-                                                {user.purchasedPlans && Object.keys(user.purchasedPlans).length > 0 ? (
+                                                {planCapsules.length > 0 ? (
                                                     <div className="mt-8 space-y-4 animate-in fade-in slide-in-from-top-1 duration-500">
                                                         <div className="flex items-center gap-2">
                                                             <div className={cn("h-px flex-1", isRoyal ? "bg-amber-500/20" : "bg-green-500/20")} />
@@ -1117,17 +1119,19 @@ function UserUnifiedViewDialog({
                                                             <div className={cn("h-px flex-1", isRoyal ? "bg-amber-500/20" : "bg-green-500/20")} />
                                                         </div>
                                                         <div className="flex flex-wrap gap-2">
-                                                            {Object.entries(user.purchasedPlans).map(([price, count]) => {
-                                                                const isHighTierPlan = price === '999' || price === '700';
+                                                            {planCapsules.map(p => {
+                                                                const isHighTier = p.label === 'ENTERPRISE TIER' || p.label === 'CONSISTENCY (AUTOPAY)';
                                                                 return (
-                                                                    <Badge key={price} className={cn(
-                                                                        "font-black text-[10px] h-8 px-3 uppercase tracking-tighter shadow-md rounded-xl flex items-center gap-2",
-                                                                        isHighTierPlan
-                                                                            ? "bg-amber-500 text-white border-none animate-pulse"
+                                                                    <Badge key={p.label} className={cn(
+                                                                        "font-black text-[10px] h-8 px-3 uppercase tracking-tighter shadow-md rounded-xl flex items-center gap-1.5",
+                                                                        isHighTier
+                                                                            ? "bg-amber-500 text-white border-none"
                                                                             : "bg-white dark:bg-zinc-800 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"
                                                                     )}>
-                                                                        ₹{price} × {count}
-                                                                        {isHighTierPlan && <Sparkles className="h-3 w-3 fill-current" />}
+                                                                        {p.hasDuplicate && <AlertTriangle className="h-3 w-3 text-red-500" />}
+                                                                        {p.label} × {p.count}
+                                                                        <span className="opacity-60 font-bold">· +{p.credits.toLocaleString()}</span>
+                                                                        {isHighTier && <Sparkles className="h-3 w-3 fill-current" />}
                                                                     </Badge>
                                                                 );
                                                             })}
@@ -1135,26 +1139,7 @@ function UserUnifiedViewDialog({
                                                     </div>
                                                 ) : (
                                                     <div className="mt-8 border-t border-green-500/10 pt-4">
-                                                        <p className="text-[8px] font-bold text-green-600/30 uppercase tracking-widest italic">NO SPECIFIC PLAN RECORDS FOUND.</p>
-                                                    </div>
-                                                )}
-
-                                                {/* 🔴 NEW: small-print breakdown of non-purchase credit grants
-                                                    (admin manual adjustments, consistency/autopay installments,
-                                                    etc.) — replaces the old full-page "Plans & Subscriptions
-                                                    History" card list with exactly what was asked for: which
-                                                    plan/source, how many times, right here in small text. */}
-                                                {grantBreakdown.length > 0 && (
-                                                    <div className="mt-4 space-y-2">
-                                                        {grantBreakdown.map(g => (
-                                                            <div key={g.label} className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wide">
-                                                                <span className={cn("flex items-center gap-1.5 truncate", isRoyal ? "text-amber-700/70" : "text-green-700/70 dark:text-green-400/70")}>
-                                                                    {g.hasDuplicate && <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />}
-                                                                    {g.label} × {g.count}
-                                                                </span>
-                                                                <span className={cn("font-black shrink-0", isRoyal ? "text-amber-700" : "text-green-700 dark:text-green-400")}>+{g.credits.toLocaleString()}</span>
-                                                            </div>
-                                                        ))}
+                                                        <p className="text-[8px] font-bold text-green-600/30 uppercase tracking-widest italic">NO PLAN OR GRANT RECORDS FOUND.</p>
                                                     </div>
                                                 )}
                                                 
