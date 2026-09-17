@@ -47,13 +47,14 @@ voice fields, since the frontend doesn't ask for them here.
 import os
 import re
 import json
+import math
 import time
 import threading
 import traceback
 from datetime import datetime
 
 import requests
-from firebase_admin import db, auth as firebase_auth
+from firebase_admin import db, auth as firebase_auth, firestore
 
 import google.auth
 from google.auth.transport.requests import Request as GoogleRequest
@@ -80,6 +81,49 @@ def _get_user_email(user_id):
         return firebase_auth.get_user(user_id).email or "unknown"
     except Exception:
         return "unknown"
+
+# --- 💳 CREDITS / PRICING (READ-ONLY — Telegram display only. This worker
+# never writes to a user's credit balance.) Balance pattern mirrors
+# studio.py's refund_credits(): Firestore users/{uid}.credits via
+# firestore.client(database_id=FIRESTORE_DATABASE_ID). Rate pattern mirrors
+# the frontend's settings/pricing RTDB read (studio-provider.tsx), same
+# studioNormal default (1.2) used there. ---
+FIRESTORE_DATABASE_ID = os.environ.get("FIRESTORE_DATABASE_ID", "(default)")
+FIRESTORE_USERS_COLLECTION = "users"
+FIRESTORE_CREDITS_FIELD = "credits"
+DEFAULT_STUDIO_NORMAL_RATE = 1.2  # matches the frontend's own fallback
+
+def _get_user_credit_balance(user_id):
+    """Best-effort live balance read — never raises; returns None on any
+    failure so a lookup problem can only blank the Telegram line, never
+    break the job."""
+    try:
+        snap = (
+            firestore.client(database_id=FIRESTORE_DATABASE_ID)
+            .collection(FIRESTORE_USERS_COLLECTION)
+            .document(user_id)
+            .get()
+        )
+        credits = (snap.to_dict() or {}).get(FIRESTORE_CREDITS_FIELD)
+        return credits if isinstance(credits, (int, float)) else None
+    except Exception as e:
+        log_warn(f"Credit-balance lookup failed for {user_id} (display-only, non-fatal): {str(e)[:200]}")
+        return None
+
+def _get_studio_normal_rate():
+    """Best-effort read of settings/pricing.studioNormal (RTDB) — same node
+    the frontend reads. Falls back to the frontend's own default on any
+    failure/missing value."""
+    try:
+        val = db.reference('settings/pricing').get() or {}
+        rate = val.get('studioNormal')
+        return float(rate) if isinstance(rate, (int, float)) else DEFAULT_STUDIO_NORMAL_RATE
+    except Exception:
+        return DEFAULT_STUDIO_NORMAL_RATE
+
+def _fmt(n):
+    """Thousands-separated display — same convention as 11.py's _fmt()."""
+    return f"{n:,}" if isinstance(n, (int, float)) else str(n)
 
 # --- 📡 TELEGRAM / NETLIFY RELAY (same relay endpoint as script_generation.py,
 # so analysis events show up in the same bot log as script generation). ---
@@ -757,6 +801,30 @@ def _process_pending_job(user_id, job_id, job_data):
         dialogue_count = len(analysis.get("dialogues", []))
         engine_label = {"gemini": "Google Gemini (direct)", "vertex": "Vertex AI", "openrouter": "OpenRouter"}.get(engine, engine)
         user_email = _get_user_email(user_id)
+
+        # --- 💳 READ-ONLY display data for Telegram only — NOT a credit
+        # charge/deduction. Live balance (Firestore) + an estimated
+        # Gemini-engine generation cost computed from the REAL analyzed
+        # dialogue text (not the raw pre-analysis script length), mirroring
+        # the frontend's own cost math (totalDialogueChars * studioNormal
+        # rate, ceil'd). Both external reads are individually best-effort
+        # already; this block is additionally wrapped so a failure here can
+        # NEVER turn a successful analysis into a logged failure — it only
+        # blanks the affected line(s) to "N/A".
+        balance_txt = "N/A"
+        est_cost_txt = "N/A"
+        try:
+            credit_balance = _get_user_credit_balance(user_id)
+            if credit_balance is not None:
+                balance_txt = _fmt(credit_balance)
+
+            total_dialogue_chars = sum(len(d.get("line") or "") for d in analysis.get("dialogues", []))
+            if total_dialogue_chars:
+                studio_rate = _get_studio_normal_rate()
+                est_cost_txt = _fmt(math.ceil(total_dialogue_chars * studio_rate))
+        except Exception:
+            log_warn(f"Credit/cost display lookup failed for {user_id}/{job_id} (Telegram-only, non-fatal): {traceback.format_exc()[-300:]}")
+
         log_success(
             f"Analysis complete: {user_id}/{job_id} via {engine}:{model_used} "
             f"({char_count} character(s), {dialogue_count} dialogue line(s)) "
@@ -769,7 +837,8 @@ def _process_pending_job(user_id, job_id, job_data):
             f"📧 <b>Email:</b> {escape_html(user_email)}\n"
             f"🧠 <b>Engine:</b> {escape_html(engine_label)} | <b>Model:</b> {escape_html(model_used)}\n"
             f"🎭 <b>Characters:</b> {char_count} | <b>Dialogues:</b> {dialogue_count}\n"
-            f"📂 <b>Path:</b> <code>pending_script_analysis/{escape_html(user_id)}/{escape_html(job_id)}</code>"
+            f"💳 <b>Credit Balance:</b> {balance_txt}\n"
+            f"💰 <b>Est. Generation Cost (Gemini):</b> {est_cost_txt}"
         )
         _cleanup_job_later(user_id, job_id)
     except Exception:
