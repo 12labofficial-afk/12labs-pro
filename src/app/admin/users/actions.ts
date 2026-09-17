@@ -43,11 +43,17 @@ export async function searchAuthUsers(
       const userRecord = await auth.getUserByEmail(query);
       userRecords.push(userRecord);
     } catch (error: any) {
-      // 'auth/user-not-found' just means the query wasn't an email that
-      // matches a user (e.g. admin searched by UID instead) — that's a
-      // normal, expected outcome of this lookup-by-email-then-by-uid flow,
-      // not a real server error, so it should not page the Telegram bot.
-      if (error.code !== 'auth/user-not-found') {
+      // 'auth/user-not-found' means the query WAS a valid email but no
+      // user matches it. 'auth/invalid-email' means the query isn't even
+      // shaped like an email — e.g. admin searched by UID or by name,
+      // which is exactly what triggers the getUser(uid) fallback below.
+      // Both are normal, expected outcomes of this lookup-by-email-then-
+      // by-uid flow, not real server errors, so neither should page the
+      // Telegram bot. (Previously only 'user-not-found' was excluded, so
+      // every UID/name search — the fallback's whole reason for existing —
+      // was wrongly reported as "The email address is improperly
+      // formatted.")
+      if (error.code !== 'auth/user-not-found' && error.code !== 'auth/invalid-email') {
         reportServerError('src/app/admin/users/actions.ts#1', error);
       }
       if (error.code !== 'auth/user-not-found') {
