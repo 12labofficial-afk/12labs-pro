@@ -1139,14 +1139,20 @@ function UserUnifiedViewDialog({
                                                 <div className="flex flex-wrap gap-1.5 pt-3 border-t border-border/60">
                                                     {planCapsules.map(p => {
                                                         const isHighTier = p.label === 'ENTERPRISE TIER' || p.label === 'CONSISTENCY (AUTOPAY)';
+                                                        const isAdminGrant = p.label === 'ADMIN GRANT';
                                                         return (
                                                             <Badge key={p.label} className={cn(
                                                                 "font-bold text-[9px] h-6 px-2 uppercase tracking-tight rounded-lg flex items-center gap-1",
-                                                                isHighTier ? "bg-amber-500 text-white border-none" : "bg-muted text-foreground/70 border border-border"
+                                                                isHighTier ? "bg-amber-500 text-white border-none"
+                                                                    : isAdminGrant ? "bg-purple-500 text-white border-none"
+                                                                    : "bg-muted text-foreground/70 border border-border"
                                                             )}>
                                                                 {p.hasDuplicate && <AlertTriangle className="h-2.5 w-2.5 text-red-500" />}
-                                                                {p.label} ×{p.count}
-                                                                <span className="opacity-60">+{p.credits.toLocaleString()}</span>
+                                                                {/* 🔴 Admin Grant: just the total given, no "× count" —
+                                                                    how many separate times an admin topped this user up
+                                                                    isn't useful here, only how much. */}
+                                                                {isAdminGrant ? p.label : `${p.label} ×${p.count}`}
+                                                                <span className={isAdminGrant ? "opacity-80" : "opacity-60"}>+{p.credits.toLocaleString()}</span>
                                                             </Badge>
                                                         );
                                                     })}
