@@ -945,17 +945,17 @@ function UserUnifiedViewDialog({
         <>
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 overflow-hidden rounded-[3rem] border-none shadow-3xl bg-background">
-                <DialogHeader className="p-10 pb-6 border-b bg-muted/20 shrink-0">
-                    <div className="flex items-start gap-6">
-                        <Avatar className="h-20 w-20 border-4 border-background shadow-xl shrink-0">
-                            <AvatarFallback className={cn("font-black text-3xl", generateAvatarColor(user.email).bg, generateAvatarColor(user.email).text)}>
+                <DialogHeader className="p-5 sm:p-6 border-b bg-muted/20 shrink-0">
+                    <div className="flex items-start gap-3">
+                        <Avatar className="h-11 w-11 border-2 border-background shadow-md shrink-0">
+                            <AvatarFallback className={cn("font-black text-sm", generateAvatarColor(user.email).bg, generateAvatarColor(user.email).text)}>
                                 {user.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
-                        <div className="flex-grow min-w-0 pt-1">
-                            <div className="flex flex-wrap items-center gap-3">
-                                <DialogTitle className="text-3xl font-black uppercase tracking-tight break-words leading-tight">{user.name}</DialogTitle>
-                                
+                        <div className="flex-grow min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <DialogTitle className="text-base font-black uppercase tracking-tight break-words leading-tight">{user.name}</DialogTitle>
+
                                 {/* Account Status Badge with high-contrast, beautiful layout */}
                                 <Badge className={cn(
                                     "font-black text-[9px] h-5 px-3 rounded-full border shadow-md uppercase tracking-widest",
