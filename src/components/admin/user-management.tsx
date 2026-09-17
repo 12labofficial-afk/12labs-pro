@@ -852,7 +852,15 @@ function UserUnifiedViewDialog({
         } else if (r.includes('enterprise') || r.includes('999')) {
             price = 999;
             planBadge = "ENTERPRISE TIER";
-        } else if (r.includes('consistency') || r.includes('autopay') || r.includes('700') || r.includes('week 1')) {
+        } else if (r.includes('consistency') || r.includes('consistent creator') || r.includes('autopay') || r.includes('700') || /week\s*\d+/.test(r)) {
+            // 🔴 FIX: was only `r.includes('week 1')` — catching just the
+            // first weekly installment. Every later one ("Consistent
+            // Creator: Week 2/3/4 Grant" — note "consistent", not
+            // "consistency", so the first check never matched them either)
+            // fell through to the generic bucket and got its own capsule,
+            // one per week, instead of joining the same Consistency Plan
+            // capsule. Broadened to catch any "Week N" wording so all
+            // installments — past or future — collapse into one capsule.
             price = 700;
             planBadge = "CONSISTENCY (AUTOPAY)";
             isConsistency = true;
