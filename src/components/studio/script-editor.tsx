@@ -345,22 +345,22 @@ export function ScriptEditor() {
                         </label>
                     </div>
 
-                    {/* Right: Counters & Balances in Single Line */}
-                    <div className="flex items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                    {/* Right: Counters & Balances — wraps instead of overflowing on narrow screens */}
+                    <div className="flex flex-wrap items-center justify-between sm:justify-end gap-1.5 sm:gap-2.5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
                         {/* Character count pill */}
-                        <div className="flex items-center gap-1.5 bg-background/80 border border-border px-3 py-1.5 rounded-xl text-foreground shadow-2xs">
-                            <Zap className={cn("h-3.5 w-3.5 fill-primary text-primary", characterCount > 0 ? "animate-pulse" : "opacity-30")} />
-                            <div className="text-[11px] font-bold font-mono whitespace-nowrap">
+                        <div className="flex items-center gap-1 sm:gap-1.5 bg-background/80 border border-border px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-foreground shadow-2xs">
+                            <Zap className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5 fill-primary text-primary shrink-0", characterCount > 0 ? "animate-pulse" : "opacity-30")} />
+                            <div className="text-[10px] sm:text-[11px] font-bold font-mono whitespace-nowrap">
                                 <span className={cn(
                                     (!isMinCharCountValid && characterCount > 0 && !isAnalyzed) || !isMaxCharCountValid ? "text-destructive" : "text-foreground font-extrabold"
                                 )}>
                                     {billableCharacterCount.toLocaleString()}
                                 </span>
-                                <span className="text-muted-foreground text-[10px]">/30k</span>
+                                <span className="text-muted-foreground text-[9px] sm:text-[10px]">/30k</span>
                             </div>
                             {characterCount > 0 && !isAnalyzed && (
-                                <button disabled={isAnalyzing} className="text-destructive/60 hover:text-destructive transition-colors ml-1 p-0.5 rounded" onClick={() => setScript('')} title="Clear Text">
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                <button disabled={isAnalyzing} className="text-destructive/60 hover:text-destructive transition-colors ml-0.5 sm:ml-1 p-0.5 rounded shrink-0" onClick={() => setScript('')} title="Clear Text">
+                                    <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                                 </button>
                             )}
                         </div>
@@ -369,13 +369,13 @@ export function ScriptEditor() {
                         {(() => {
                             const userCredits = Number(user?.credits ?? 0);
                             return (
-                                <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/25 px-3 py-1.5 rounded-xl shadow-2xs">
-                                    <Coins className="h-3.5 w-3.5 text-amber-500" />
-                                    <div className="flex items-baseline gap-1 font-mono">
-                                        <span className="text-xs font-black text-foreground">
+                                <div className="flex items-center gap-1 sm:gap-2 bg-amber-500/10 border border-amber-500/25 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl shadow-2xs">
+                                    <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500 shrink-0" />
+                                    <div className="flex items-baseline gap-1 font-mono whitespace-nowrap">
+                                        <span className="text-[11px] sm:text-xs font-black text-foreground">
                                             {userCredits.toLocaleString()}
                                         </span>
-                                        <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                                        <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
                                             Credits
                                         </span>
                                     </div>

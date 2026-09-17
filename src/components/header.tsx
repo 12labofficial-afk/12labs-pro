@@ -171,7 +171,7 @@ export function Header() {
   return (
     <header className="site-header sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-lg">
       <div className="container flex h-16 items-center justify-between px-4">
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1.5 sm:gap-4">
           {!isLoading && user && (
             <div className="flex items-center md:hidden">
               <Sheet>
@@ -182,7 +182,7 @@ export function Header() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 rounded-xl border border-border/60 bg-card/60 backdrop-blur anim-surface-border anim-surface-press"
+                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl border border-border/60 bg-card/60 backdrop-blur anim-surface-border anim-surface-press shrink-0"
                   >
                     <span className="flex flex-col items-start justify-center gap-[5px]">
                       <span className="block h-[2px] w-[18px] rounded-full bg-foreground" />
@@ -384,24 +384,24 @@ export function Header() {
           )}
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-0.5 sm:gap-2">
           {!isLoading && user ? (
             <>
-            <Button variant="ghost" size="icon" className="relative" onClick={() => setIsCartOpen(true)}>
-                <ShoppingCart className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="relative h-9 w-9 sm:h-10 sm:w-10" onClick={() => setIsCartOpen(true)}>
+                <ShoppingCart className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
                 {itemCount > 0 && <div className="absolute top-1 right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">{itemCount}</div>}
             </Button>
             <NotificationPopover user={user} />
             <DropdownMenu onOpenChange={(open) => { if(!open) setIsSocialExpanded(false); }}>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative flex items-center gap-2 px-2 h-10 rounded-full border border-primary/10 group">
-                  <Avatar className={cn("h-8 w-8 border", isImpersonating ? "border-orange-500 border-2" : "border-primary/20")}>
+                <Button variant="ghost" className="relative flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2 h-9 sm:h-10 rounded-full border border-primary/10 group">
+                  <Avatar className={cn("h-7 w-7 sm:h-8 sm:w-8 border shrink-0", isImpersonating ? "border-orange-500 border-2" : "border-primary/20")}>
                     <AvatarImage src={getDisplayUrl(user.photoURL) || ''} />
-                    <AvatarFallback className={cn("font-bold text-sm", avatarColor.bg, avatarColor.text)}>
+                    <AvatarFallback className={cn("font-bold text-xs sm:text-sm", avatarColor.bg, avatarColor.text)}>
                       {(user.name || user.email || 'U').charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <ChevronDown className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <ChevronDown className="hidden sm:block h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-64 p-2 rounded-xl shadow-2xl border-primary/10 z-[120]" align="end" sideOffset={10}>

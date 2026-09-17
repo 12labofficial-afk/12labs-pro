@@ -944,23 +944,23 @@ function UserUnifiedViewDialog({
     return (
         <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 overflow-hidden rounded-[3rem] border-none shadow-3xl bg-background">
-                <DialogHeader className="p-5 sm:p-6 border-b bg-muted/20 shrink-0">
-                    <div className="flex items-start gap-3">
-                        <Avatar className="h-11 w-11 border-2 border-background shadow-md shrink-0">
-                            <AvatarFallback className={cn("font-black text-sm", generateAvatarColor(user.email).bg, generateAvatarColor(user.email).text)}>
+            <DialogContent className="max-w-5xl h-[92vh] flex flex-col p-0 overflow-hidden rounded-[3rem] border-none shadow-3xl bg-background">
+                <DialogHeader className="px-4 py-2.5 sm:px-5 sm:py-3 border-b bg-muted/20 shrink-0">
+                    <div className="flex items-center gap-2">
+                        <Avatar className="h-8 w-8 border-2 border-background shadow-md shrink-0">
+                            <AvatarFallback className={cn("font-black text-xs", generateAvatarColor(user.email).bg, generateAvatarColor(user.email).text)}>
                                 {user.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex-grow min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <DialogTitle className="text-base font-black uppercase tracking-tight break-words leading-tight">{user.name}</DialogTitle>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <DialogTitle className="text-sm font-black uppercase tracking-tight break-words leading-tight">{user.name}</DialogTitle>
 
                                 {/* Account Status Badge with high-contrast, beautiful layout */}
                                 <Badge className={cn(
-                                    "font-black text-[9px] h-5 px-3 rounded-full border shadow-md uppercase tracking-widest",
-                                    user.status === 'active' 
-                                        ? 'bg-emerald-600 text-white border-emerald-500' 
+                                    "font-black text-[8px] h-4 px-2 rounded-full border shadow-md uppercase tracking-widest",
+                                    user.status === 'active'
+                                        ? 'bg-emerald-600 text-white border-emerald-500'
                                         : 'bg-red-600 text-white border-red-500'
                                 )}>
                                     {user.status}
@@ -969,12 +969,12 @@ function UserUnifiedViewDialog({
                                 {/* Live Presence and Last Seen Tracker */}
                                 {presence && (
                                     presence.status === 'online' ? (
-                                        <Badge className="bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20 shadow-sm animate-pulse flex items-center gap-1.5 h-5 px-3 text-[9px] font-black uppercase tracking-widest">
-                                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                        <Badge className="bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20 shadow-sm animate-pulse flex items-center gap-1 h-4 px-2 text-[8px] font-black uppercase tracking-widest">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                             Live Online
                                         </Badge>
                                     ) : presence.lastSeen ? (
-                                        <Badge variant="outline" className="py-1 px-3 rounded-full text-[9px] font-black uppercase tracking-widest bg-muted/10 border-muted-foreground/15 text-muted-foreground/80 flex items-center gap-1 whitespace-nowrap">
+                                        <Badge variant="outline" className="py-0.5 px-2 rounded-full text-[8px] font-black uppercase tracking-widest bg-muted/10 border-muted-foreground/15 text-muted-foreground/80 flex items-center gap-1 whitespace-nowrap">
                                             <Clock className="h-2.5 w-2.5 opacity-60 shrink-0" />
                                             Last Active: {(() => {
                                                 try {
@@ -988,12 +988,12 @@ function UserUnifiedViewDialog({
                                     ) : null
                                 )}
 
-                                {user.isSponsor && <Badge className="bg-amber-100 text-amber-800 border-none h-5 px-3 text-[9px] font-black uppercase tracking-widest gap-1"><Gem className="h-3 w-3" /> SPONSOR</Badge>}
+                                {user.isSponsor && <Badge className="bg-amber-100 text-amber-800 border-none h-4 px-2 text-[8px] font-black uppercase tracking-widest gap-1"><Gem className="h-2.5 w-2.5" /> SPONSOR</Badge>}
                             </div>
-                            <DialogDescription className="font-mono text-xs flex items-center gap-2 mt-2 opacity-60">
-                                <Fingerprint className="h-3.5 w-3.5" />
+                            <DialogDescription className="font-mono text-[10px] flex items-center gap-1.5 mt-0.5 opacity-60">
+                                <Fingerprint className="h-3 w-3" />
                                 <span className="truncate">{user.uid}</span>
-                                <button onClick={() => { navigator.clipboard.writeText(user.uid); toast({ title: 'UID Copied' }) }} className="p-1 hover:bg-muted rounded-md transition-colors"><Copy className="h-3 w-3" /></button>
+                                <button onClick={() => { navigator.clipboard.writeText(user.uid); toast({ title: 'UID Copied' }) }} className="p-1 hover:bg-muted rounded-md transition-colors"><Copy className="h-2.5 w-2.5" /></button>
                             </DialogDescription>
                         </div>
                     </div>
