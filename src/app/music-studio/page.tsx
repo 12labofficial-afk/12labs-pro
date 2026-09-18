@@ -6,11 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/auth-provider';
 import { useToast } from '@/hooks/use-toast';
-import { 
-    Music, Sparkles, Loader2, Zap, Trash2, 
-    Coins, CheckCircle2, Clock, Mic2, Volume2, 
-    Radio, Play, ArrowLeft, Plus, Sliders, Settings,
-    FileText, Headphones, Disc, Guitar, Languages, Info, ChevronDown,
+import {
+    Music, Sparkles, Loader2, Zap, Trash2,
+    CheckCircle2, Clock, Mic2, Volume2,
+    Radio, FileText, Headphones, Disc, ChevronDown,
     ExternalLink, Download, Copy, Link as LinkIcon, X, Check
 } from 'lucide-react';
 import { submitMusicProjectRequestAction, deleteMusicProjectRequestAction } from './actions';
@@ -21,89 +20,7 @@ import Link from 'next/link';
 import { cn, getDisplayUrl } from '@/lib/utils';
 import { initializeFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { reportClientError } from '@/lib/report-client-error';
-
-// 🎵 VOCAL SONG PARAMETERS
-const SONG_GENRES = [
-    "EDM", "Rock", "Pop", "Hip-Hop", "R&B", "Acoustic", 
-    "Synthwave", "Classical", "Devotional", "Metal", "Rap", "Jazz"
-];
-
-const LANGUAGES = ["English", "Hindi", "Hinglish", "Bengali", "Spanish", "Japanese", "Punjabi", "Tamil"];
-
-const SONG_MOODS = [
-    "Upbeat & Energetic", "Chill & Relaxed", "Romantic & Soft", 
-    "Emotional & Sad", "Dark & Moody", "Anthemic & Powerful"
-];
-
-// 🎹 BACKGROUND MUSIC PARAMETERS
-const BGM_CATEGORIES = [
-    "Cinematic", "Ambient", "Lo-Fi", "Cartoon BGM", "Horror", 
-    "Action & Epic", "Corporate", "Suspenseful", "Gaming", "Relaxing"
-];
-
-const BGM_INSTRUMENTS = [
-    "Piano", "Violin", "Synthesizer", "Drums", "Flute", 
-    "Electric Guitar", "Acoustic Guitar", "Orchestral Strings", "Saxophone"
-];
-
-const BGM_MOODS = [
-    "Calm & Peaceful", "Tense & Suspenseful", "Inspiring & Motivating", 
-    "Playful & Happy", "Dark & Eerie", "Epic & Grand"
-];
-
-// Shared Durations
-const DURATIONS = ["1:00", "2:00", "3:00", "4:00"];
-
-// Separated Presets for Quick Configuration
-const SONG_PRESETS = [
-    {
-        label: "Pop Love Song",
-        prompt: "A beautiful, uplifting romantic pop song with acoustic guitars, sweet synth chords, and a catchy energetic chorus.",
-        tags: ["Pop", "Acoustic"],
-        mood: "Romantic & Soft",
-        language: "English"
-    },
-    {
-        label: "Energetic EDM Track",
-        prompt: "A high-octane modern EDM dance festival track with driving basslines, massive lead synth drops, and energetic vocal builds.",
-        tags: ["EDM", "Synthwave"],
-        mood: "Upbeat & Energetic",
-        language: "English"
-    },
-    {
-        label: "Sufi Devotional Dev",
-        prompt: "A soul-stirring spiritual Sufi devotional track with atmospheric harmonium, soft tabla beats, and heavy emotional vocal textures.",
-        tags: ["Devotional", "Acoustic"],
-        mood: "Emotional & Sad",
-        language: "Hindi"
-    }
-];
-
-const BGM_PRESETS = [
-    {
-        label: "Chill Lo-Fi Beat",
-        prompt: "Relaxing lo-fi hip hop background beat with a warm vinyl crackle, dusty drum groove, and lazy jazz piano chords.",
-        category: "Lo-Fi",
-        instruments: ["Piano", "Synthesizer"],
-        mood: "Calm & Peaceful"
-    },
-    {
-        label: "Epic Action Trailer",
-        prompt: "An intense cinematic backing track with heavy thunderous drums, staccato orchestral strings, and powerful brass building tension.",
-        category: "Action & Epic",
-        instruments: ["Drums", "Orchestral Strings"],
-        mood: "Epic & Grand"
-    },
-    {
-        label: "Playful Cartoon Score",
-        prompt: "Cheerful and fast-paced background score featuring bright xylophone melodies, pizzicato strings, and funny sound effects.",
-        category: "Cartoon BGM",
-        instruments: ["Flute", "Orchestral Strings"],
-        mood: "Playful & Happy"
-    }
-];
 
 export default function MusicStudioPage() {
     const { user, setUser, loading: authLoading } = useAuth();
@@ -126,20 +43,10 @@ export default function MusicStudioPage() {
     // 🎤 Song State Variables
     const [songPrompt, setSongPrompt] = useState('');
     const [songLyrics, setSongLyrics] = useState('');
-    const [selectedSongGenres, setSelectedSongGenres] = useState<string[]>(["Pop"]);
-    const [songLanguage, setSongLanguage] = useState('English');
-    const [songMood, setSongMood] = useState('Upbeat & Energetic');
 
     // 🎹 BGM State Variables
     const [bgmPrompt, setBgmPrompt] = useState('');
-    const [selectedBgmCategory, setSelectedBgmCategory] = useState('Cinematic');
-    const [selectedBgmInstruments, setSelectedBgmInstruments] = useState<string[]>(["Piano"]);
-    const [bgmMood, setBgmMood] = useState('Inspiring & Motivating');
 
-    // Shared Configuration
-    const [selectedDuration, setSelectedDuration] = useState('2:00');
-    const [tempo, setTempo] = useState('Medium');
-    
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [historyLimit, setHistoryLimit] = useState(5);
@@ -181,37 +88,6 @@ export default function MusicStudioPage() {
         }
     }, [myMusicRequests, activeJobId, toast]);
 
-    // Toggle Multi-select Song Genres
-    const toggleSongGenre = (genre: string) => {
-        setSelectedSongGenres(prev => 
-            prev.includes(genre) ? prev.filter(g => g !== genre) : [...prev, genre]
-        );
-    };
-
-    // Toggle Multi-select BGM Instruments
-    const toggleBgmInstrument = (inst: string) => {
-        setSelectedBgmInstruments(prev => 
-            prev.includes(inst) ? prev.filter(i => i !== inst) : [...prev, inst]
-        );
-    };
-
-    // Apply Presets
-    const applySongPreset = (preset: typeof SONG_PRESETS[0]) => {
-        setSongPrompt(preset.prompt);
-        setSelectedSongGenres(preset.tags);
-        setSongMood(preset.mood);
-        setSongLanguage(preset.language);
-        toast({ title: `Preset Applied`, description: `Loaded "${preset.label}" configuration.` });
-    };
-
-    const applyBgmPreset = (preset: typeof BGM_PRESETS[0]) => {
-        setBgmPrompt(preset.prompt);
-        setSelectedBgmCategory(preset.category);
-        setSelectedBgmInstruments(preset.instruments);
-        setBgmMood(preset.mood);
-        toast({ title: `Preset Applied`, description: `Loaded "${preset.label}" configuration.` });
-    };
-
     const cost = 2000;
     const insufficientCredits = !user || (user.credits < cost);
 
@@ -235,12 +111,11 @@ export default function MusicStudioPage() {
 
         setIsSubmitting(true);
 
-        // Package params based on production mode
+        // Package params based on production mode. Style/category/mood/duration
+        // are no longer picked in the UI — the backend action already falls
+        // back to sensible defaults (English, 2:00, Medium, etc.) when omitted.
         const finalPrompt = activePrompt.trim();
-        const finalLanguage = productionMode === 'vocal' ? songLanguage : 'Instrumental';
-        const finalTags = productionMode === 'vocal' ? selectedSongGenres : [selectedBgmCategory, ...selectedBgmInstruments];
         const finalLyrics = productionMode === 'vocal' ? songLyrics.trim() : '';
-        const finalMood = productionMode === 'vocal' ? songMood : bgmMood;
 
         try {
             const res = await submitMusicProjectRequestAction({
@@ -249,15 +124,9 @@ export default function MusicStudioPage() {
                 userEmail: user.email || 'N/A',
                 prompt: finalPrompt,
                 productionMode,
-                selectedLanguage: finalLanguage,
-                selectedTags: finalTags,
+                selectedLanguage: 'English',
+                selectedTags: [],
                 lyrics: finalLyrics,
-                mood: finalMood,
-                duration: selectedDuration,
-                tempo,
-                genre: productionMode === 'vocal' ? selectedSongGenres.join(', ') : selectedBgmCategory,
-                category: productionMode === 'instrumental' ? selectedBgmCategory : 'Vocal',
-                instruments: productionMode === 'instrumental' ? selectedBgmInstruments : []
             });
 
             if (res.success && res.projectId) {
@@ -406,43 +275,22 @@ export default function MusicStudioPage() {
                         {/* ========================================================= */}
                         {productionMode === 'vocal' && (
                             <div className="space-y-8 animate-in fade-in duration-300">
-                                
-                                {/* A. Presets for Song */}
-                                <div className="space-y-3">
-                                    <Label className="text-[11px] font-bold uppercase tracking-wider text-pink-400 flex items-center gap-1.5">
-                                        <Sparkles className="h-3.5 w-3.5" /> Quick Song Starters
-                                    </Label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {SONG_PRESETS.map((preset) => (
-                                            <button
-                                                key={preset.label}
-                                                type="button"
-                                                id={`preset-song-${preset.label.toLowerCase().replace(/\s+/g, '-')}`}
-                                                onClick={() => applySongPreset(preset)}
-                                                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] hover:bg-pink-500/10 hover:border-pink-500/30 text-[11px] font-medium transition-all text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5"
-                                            >
-                                                <Disc className="h-3 w-3 text-pink-400 animate-spin" style={{ animationDuration: '4s' }} />
-                                                <span>{preset.label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
 
-                                {/* B. Song Prompt Description */}
+                                {/* A. Song Prompt Description */}
                                 <div className="space-y-3">
                                     <Label className="text-[11px] font-bold uppercase tracking-wider text-pink-400 flex items-center gap-1.5">
                                         <Headphones className="h-3.5 w-3.5" /> What should the song be about?
                                     </Label>
-                                    <Textarea 
+                                    <Textarea
                                         id="input-song-prompt"
-                                        placeholder="Describe the mood, topic, story, and style of your song (e.g., 'An upbeat pop song with bright synthesizer drums about driving down the highway at sunset with happy female vocals')..." 
+                                        placeholder="Describe the mood, topic, story, and style of your song (e.g., 'An upbeat pop song with bright synthesizer drums about driving down the highway at sunset with happy female vocals')..."
                                         value={songPrompt}
                                         onChange={e => setSongPrompt(e.target.value)}
                                         className="min-h-[110px] text-xs sm:text-sm font-medium rounded-2xl bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 p-4 focus-visible:ring-pink-500 text-slate-900 dark:text-white"
                                     />
                                 </div>
 
-                                {/* C. Song Custom Lyrics */}
+                                {/* B. Song Custom Lyrics */}
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-center">
                                         <Label className="text-[11px] font-bold uppercase tracking-wider text-pink-400 flex items-center gap-1.5">
@@ -450,92 +298,13 @@ export default function MusicStudioPage() {
                                         </Label>
                                         <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-500 uppercase">Optional</span>
                                     </div>
-                                    <Textarea 
+                                    <Textarea
                                         id="input-song-lyrics"
-                                        placeholder="Enter your custom lyrics line-by-line (or leave blank to let the AI auto-generate professional lyrics for you)..." 
+                                        placeholder="Enter your custom lyrics line-by-line (or leave blank to let the AI auto-generate professional lyrics for you)..."
                                         value={songLyrics}
                                         onChange={e => setSongLyrics(e.target.value)}
                                         className="min-h-[110px] text-xs font-mono rounded-2xl bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 p-4 focus-visible:ring-pink-500 text-slate-900 dark:text-white"
                                     />
-                                </div>
-
-                                {/* D. Song Genres & Tone Tags */}
-                                <div className="space-y-3">
-                                    <Label className="text-[11px] font-bold uppercase tracking-wider text-pink-400 flex items-center gap-1.5">
-                                        <Guitar className="h-3.5 w-3.5" /> Choose Genres & Tones
-                                    </Label>
-                                    <div className="flex flex-wrap gap-2 p-3 bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-2xl">
-                                        {SONG_GENRES.map(genre => {
-                                            const isSelected = selectedSongGenres.includes(genre);
-                                            return (
-                                                <button
-                                                    key={genre}
-                                                    type="button"
-                                                    id={`tag-song-genre-${genre.toLowerCase()}`}
-                                                    onClick={() => toggleSongGenre(genre)}
-                                                    className={cn(
-                                                        "px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border",
-                                                        isSelected 
-                                                            ? "bg-pink-600 text-white border-pink-400 shadow-md shadow-pink-500/20 scale-[1.03]" 
-                                                            : "bg-slate-100 dark:bg-[#252525] text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-white/5 hover:bg-slate-200 dark:hover:bg-[#2d2d2d] hover:text-slate-900 dark:hover:text-white"
-                                                    )}
-                                                >
-                                                    {genre}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* E. Song Parameters Selection */}
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    <div className="space-y-1.5">
-                                        <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-zinc-400 px-1 flex items-center gap-1"><Languages className="h-3 w-3" /> Language</p>
-                                        <Select value={songLanguage} onValueChange={setSongLanguage}>
-                                            <SelectTrigger id="select-song-language" className="h-11 rounded-xl bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 font-bold text-xs text-slate-900 dark:text-white">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl bg-white dark:bg-[#252525] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
-                                                {LANGUAGES.map(l => <SelectItem key={l} value={l} className="hover:bg-pink-500/10 focus:bg-pink-500/10">{l}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-zinc-400 px-1 flex items-center gap-1"><Sliders className="h-3 w-3" /> Mood & Vibe</p>
-                                        <Select value={songMood} onValueChange={setSongMood}>
-                                            <SelectTrigger id="select-song-mood" className="h-11 rounded-xl bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 font-bold text-xs text-slate-900 dark:text-white">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl bg-white dark:bg-[#252525] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
-                                                {SONG_MOODS.map(m => <SelectItem key={m} value={m} className="hover:bg-pink-500/10 focus:bg-pink-500/10">{m}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-zinc-400 px-1 flex items-center gap-1"><Clock className="h-3 w-3" /> Duration</p>
-                                        <Select value={selectedDuration} onValueChange={setSelectedDuration}>
-                                            <SelectTrigger id="select-song-duration" className="h-11 rounded-xl bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 font-bold text-xs text-slate-900 dark:text-white">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl bg-white dark:bg-[#252525] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
-                                                {DURATIONS.map(d => <SelectItem key={d} value={d} className="hover:bg-pink-500/10 focus:bg-pink-500/10">{d} Mins</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-zinc-400 px-1 flex items-center gap-1"><Zap className="h-3 w-3" /> Tempo</p>
-                                        <Select value={tempo} onValueChange={setTempo}>
-                                            <SelectTrigger id="select-song-tempo" className="h-11 rounded-xl bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 font-bold text-xs text-slate-900 dark:text-white">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl bg-white dark:bg-[#252525] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
-                                                {["Slow", "Medium", "Fast", "Very Fast"].map(t => <SelectItem key={t} value={t} className="hover:bg-pink-500/10 focus:bg-pink-500/10">{t}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
                                 </div>
 
                             </div>
@@ -546,135 +315,19 @@ export default function MusicStudioPage() {
                         {/* ========================================================= */}
                         {productionMode === 'instrumental' && (
                             <div className="space-y-8 animate-in fade-in duration-300">
-                                
-                                {/* A. Presets for BGM */}
-                                <div className="space-y-3">
-                                    <Label className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                                        <Sparkles className="h-3.5 w-3.5" /> Quick BGM Starters
-                                    </Label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {BGM_PRESETS.map((preset) => (
-                                            <button
-                                                key={preset.label}
-                                                type="button"
-                                                id={`preset-bgm-${preset.label.toLowerCase().replace(/\s+/g, '-')}`}
-                                                onClick={() => applyBgmPreset(preset)}
-                                                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/[0.03] hover:bg-indigo-500/10 hover:border-indigo-500/30 text-[11px] font-medium transition-all text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5"
-                                            >
-                                                <Play className="h-3 w-3 text-indigo-400 fill-current" />
-                                                <span>{preset.label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
 
-                                {/* B. BGM Scene/Vibe Prompt */}
+                                {/* BGM Scene/Vibe Prompt */}
                                 <div className="space-y-3">
                                     <Label className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
                                         <Headphones className="h-3.5 w-3.5" /> Describe the Scene or Vibe
                                     </Label>
-                                    <Textarea 
+                                    <Textarea
                                         id="input-bgm-prompt"
-                                        placeholder="Describe where this background music will be played (e.g., 'A dramatic cinematic trailer opening with intense slow drum buildup and haunting solo cello melodies for a thriller movie')..." 
+                                        placeholder="Describe where this background music will be played (e.g., 'A dramatic cinematic trailer opening with intense slow drum buildup and haunting solo cello melodies for a thriller movie')..."
                                         value={bgmPrompt}
                                         onChange={e => setBgmPrompt(e.target.value)}
                                         className="min-h-[110px] text-xs sm:text-sm font-medium rounded-2xl bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 p-4 focus-visible:ring-indigo-500 text-slate-900 dark:text-white"
                                     />
-                                </div>
-
-                                {/* C. BGM Category selection */}
-                                <div className="space-y-3">
-                                    <Label className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                                        <Disc className="h-3.5 w-3.5" /> Select Music Category
-                                    </Label>
-                                    <div className="flex flex-wrap gap-2 p-3 bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-2xl">
-                                        {BGM_CATEGORIES.map(category => {
-                                            const isSelected = selectedBgmCategory === category;
-                                            return (
-                                                <button
-                                                    key={category}
-                                                    type="button"
-                                                    id={`btn-bgm-cat-${category.toLowerCase().replace(/\s+/g, '-')}`}
-                                                    onClick={() => setSelectedBgmCategory(category)}
-                                                    className={cn(
-                                                        "px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border",
-                                                        isSelected 
-                                                            ? "bg-indigo-600 text-white border-indigo-400 shadow-md shadow-indigo-500/20 scale-[1.03]" 
-                                                            : "bg-slate-100 dark:bg-[#252525] text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-white/5 hover:bg-slate-200 dark:hover:bg-[#2d2d2d] hover:text-slate-900 dark:hover:text-white"
-                                                    )}
-                                                >
-                                                    {category}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* D. Lead Instruments Selection */}
-                                <div className="space-y-3">
-                                    <Label className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                                        <Guitar className="h-3.5 w-3.5" /> Select Lead Instruments
-                                    </Label>
-                                    <div className="flex flex-wrap gap-2 p-3 bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-2xl">
-                                        {BGM_INSTRUMENTS.map(inst => {
-                                            const isSelected = selectedBgmInstruments.includes(inst);
-                                            return (
-                                                <button
-                                                    key={inst}
-                                                    type="button"
-                                                    id={`tag-bgm-inst-${inst.toLowerCase().replace(/\s+/g, '-')}`}
-                                                    onClick={() => toggleBgmInstrument(inst)}
-                                                    className={cn(
-                                                        "px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border",
-                                                        isSelected 
-                                                            ? "bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-500/20 scale-[1.03]" 
-                                                            : "bg-slate-100 dark:bg-[#252525] text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-white/5 hover:bg-slate-200 dark:hover:bg-[#2d2d2d] hover:text-slate-900 dark:hover:text-white"
-                                                    )}
-                                                >
-                                                    {inst}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* E. BGM Parameters Selection (No Language needed!) */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-zinc-400 px-1 flex items-center gap-1"><Sliders className="h-3 w-3" /> Mood & Tone</p>
-                                        <Select value={bgmMood} onValueChange={setBgmMood}>
-                                            <SelectTrigger id="select-bgm-mood" className="h-11 rounded-xl bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 font-bold text-xs text-slate-900 dark:text-white">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl bg-white dark:bg-[#252525] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
-                                                {BGM_MOODS.map(m => <SelectItem key={m} value={m} className="hover:bg-indigo-500/10 focus:bg-indigo-500/10">{m}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-zinc-400 px-1 flex items-center gap-1"><Clock className="h-3 w-3" /> Duration</p>
-                                        <Select value={selectedDuration} onValueChange={setSelectedDuration}>
-                                            <SelectTrigger id="select-bgm-duration" className="h-11 rounded-xl bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 font-bold text-xs text-slate-900 dark:text-white">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl bg-white dark:bg-[#252525] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
-                                                {DURATIONS.map(d => <SelectItem key={d} value={d} className="hover:bg-indigo-500/10 focus:bg-indigo-500/10">{d} Mins</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <p className="text-[10px] font-bold uppercase text-slate-500 dark:text-zinc-400 px-1 flex items-center gap-1"><Zap className="h-3 w-3" /> Tempo</p>
-                                        <Select value={tempo} onValueChange={setTempo}>
-                                            <SelectTrigger id="select-bgm-tempo" className="h-11 rounded-xl bg-slate-50 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 font-bold text-xs text-slate-900 dark:text-white">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl bg-white dark:bg-[#252525] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white">
-                                                {["Slow", "Medium", "Fast", "Very Fast"].map(t => <SelectItem key={t} value={t} className="hover:bg-indigo-500/10 focus:bg-indigo-500/10">{t}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
                                 </div>
 
                             </div>
