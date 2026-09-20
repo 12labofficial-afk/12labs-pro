@@ -19,20 +19,18 @@ import {
   ShoppingBag,
   MicVocal,
   Terminal,
-  Activity,
-  Sparkles
+  Activity
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
-// Back to one flat nav for the whole admin panel — the earlier two-hub
-// split (separate Operations/Content bars with a "Switch Panel" link)
-// was undone at the user's request; "Content" is just one more item
-// here now, same as every other section.
+// One flat nav for the whole admin panel. Content/Quotes/Landing/Music/
+// Messaging/Pricing live as tabs inside the Overview page itself (see
+// admin/page.tsx) — not a separate route — matching how this looked
+// before any of the split/un-split churn.
 const adminNavItems = [
   { href: '/admin', label: 'Overview', icon: <BarChart3 className="h-4 w-4" /> },
-  { href: '/admin/content', label: 'Content', icon: <Sparkles className="h-4 w-4" /> },
   { href: '/admin/users', label: 'Users', icon: <Users className="h-4 w-4" /> },
   // Live Chat moved off the admin panel — replaced by the floating reply
   // dock in the site hero (src/components/admin/admin-chat-dock.tsx), so

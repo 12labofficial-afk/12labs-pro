@@ -27,6 +27,10 @@ import {
   PlusCircle,
   Database,
   LayoutGrid,
+  Quote,
+  Image as ImageIcon,
+  Bell,
+  DollarSign,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-provider';
 import { initializeFirebase } from '@/firebase';
@@ -55,6 +59,12 @@ import {
   getAdminDashboardStatsAction
 } from '@/app/admin/actions';
 import { reportClientError } from '@/lib/report-client-error';
+import { LandingAssetsManager } from '@/components/admin/landing-assets-manager';
+import { MusicLibraryManager } from '@/components/admin/music-library-manager';
+import { PushNotificationManager } from '@/components/admin/push-notification-manager';
+import { BroadcastNotification } from '@/components/admin/broadcast-notification';
+import { PricingSettingsManager } from '@/components/admin/pricing-settings-manager';
+import { QuotesManager } from '@/components/admin/quotes-manager';
 
 function LiveUsers() {
     const { database } = initializeFirebase();
@@ -626,6 +636,11 @@ export default function AdminPage() {
                         { value: 'overview',  label: 'Dashboard', icon: <LayoutGrid className="h-4 w-4" /> },
                         { value: 'users',     label: 'Users',     icon: <Users className="h-4 w-4" /> },
                         { value: 'neural',    label: 'Backend',   icon: <Cpu className="h-4 w-4" /> },
+                        { value: 'quotes',    label: 'Quotes',    icon: <Quote className="h-4 w-4" /> },
+                        { value: 'site',      label: 'Landing',   icon: <ImageIcon className="h-4 w-4" /> },
+                        { value: 'music',     label: 'Music',     icon: <Music className="h-4 w-4" /> },
+                        { value: 'push',      label: 'Messaging', icon: <Bell className="h-4 w-4" /> },
+                        { value: 'pricing',   label: 'Pricing',   icon: <DollarSign className="h-4 w-4" /> },
                     ].map((t) => (
                         <TabsTrigger
                             key={t.value}
@@ -682,6 +697,12 @@ export default function AdminPage() {
                 <EditingHfBackendSettings />
             </div>
         </TabsContent>
+
+        <TabsContent value="quotes" className="mt-4"><QuotesManager /></TabsContent>
+        <TabsContent value="site" className="mt-4"><LandingAssetsManager /></TabsContent>
+        <TabsContent value="music" className="mt-4"><MusicLibraryManager /></TabsContent>
+        <TabsContent value="push" className="mt-4 space-y-8"><div className="grid grid-cols-1 lg:grid-cols-2 gap-8"><PushNotificationManager /><BroadcastNotification /></div></TabsContent>
+        <TabsContent value="pricing" className="mt-4"><PricingSettingsManager /></TabsContent>
 
       </Tabs>
     </div>
