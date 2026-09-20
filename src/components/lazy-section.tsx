@@ -15,7 +15,11 @@ export function LazySection({
   fallback,
   minHeight = '300px',
   threshold = 0.01,
-  rootMargin = '150px',
+  // Bumped from 150px: on a fast fling (confirmed via a screen recording —
+  // the observer simply can't keep up with a hard scroll before the
+  // section is already in view), a bigger buffer means more sections have
+  // already started mounting by the time they'd otherwise come on screen.
+  rootMargin = '600px',
 }: LazySectionProps) {
   const [isIntersected, setIsIntersected] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -65,8 +69,15 @@ export function LazySection({
         children
       ) : (
         fallback || (
-          <div 
-            className="w-full bg-muted/5 animate-pulse rounded-[2.5rem] border border-muted/50 flex items-center justify-center text-muted-foreground/30 text-sm font-medium"
+          // 🔴 A screen recording showed this: on a fast scroll, sections
+          // that hadn't mounted yet weren't just "not there for a moment" —
+          // bg-muted/5 (5% opacity) is close enough to the page background
+          // that it reads as a blank/broken gap, not a loading state. A
+          // real, visibly-pulsing skeleton (bg-muted, same as the rest of
+          // the site's loading states) makes it obviously "still loading"
+          // instead of looking like the page hung.
+          <div
+            className="w-full bg-muted animate-pulse rounded-[2.5rem] flex items-center justify-center text-muted-foreground/50 text-sm font-medium"
             style={{ height: minHeight }}
           >
             Loading Section...
