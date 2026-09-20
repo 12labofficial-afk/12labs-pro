@@ -81,11 +81,10 @@ export async function GET(req: NextRequest) {
           break;
         }
       } catch (err) {
-        reportServerError('src/app/api/download/route.ts:83', err);
         // Expected: we're probing several candidate key shapes and most
-        // will 404 until one hits. Don't report these as server errors —
-        // only the caller cares if every candidate ultimately fails
-        // (handled below, once, after the loop).
+        // will 404 (NoSuchKey) until one hits. Don't report these as server
+        // errors — only the caller cares if every candidate ultimately
+        // fails, which is handled below, once, after the loop.
       }
     }
   }

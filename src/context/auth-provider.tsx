@@ -137,9 +137,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
         unsubscribe();
-        if (user) updatePresence('offline');
+        // 🔴 FIX: this cleanup also runs the instant `user` flips to null on
+        // logout (React runs the previous effect's cleanup with the OLD
+        // closure before the new render). By then auth.currentUser is
+        // already signed out — the very thing that triggered `user` to go
+        // null — so this write has no valid auth token and always comes
+        // back PERMISSION_DENIED. onDisconnect (registered above) already
+        // marks presence offline server-side once the socket actually
+        // drops, so skip the write entirely unless we're still genuinely
+        // signed in as this user (a normal unmount/dependency change, not
+        // a logout race).
+        if (user && auth?.currentUser?.uid === user.uid) updatePresence('offline');
     };
-  }, [user, database]);
+  }, [user, database, auth]);
 
   // Subscription Sync (runs for logged in user or impersonated user)
   useEffect(() => {
