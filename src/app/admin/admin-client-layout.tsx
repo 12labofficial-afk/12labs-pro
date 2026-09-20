@@ -8,11 +8,10 @@ import { useRouter, usePathname } from "next/navigation";
 import { 
   BarChart3, 
   Users, 
-  FolderSearch, 
-  ListTodo, 
-  IndianRupee, 
-  MessageCircle, 
-  Loader2, 
+  FolderSearch,
+  ListTodo,
+  IndianRupee,
+  Loader2,
   Tag, 
   Package, 
   Landmark, 
@@ -30,7 +29,11 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 const adminNavItems = [
   { href: '/admin', label: 'Overview', icon: <BarChart3 className="h-4 w-4" /> },
   { href: '/admin/users', label: 'Users', icon: <Users className="h-4 w-4" /> },
-  { href: '/admin/chat', label: 'Live Chat', icon: <MessageCircle className="h-4 w-4" /> },
+  // Live Chat moved off the admin panel — replaced by the floating reply
+  // dock in the site hero (src/components/admin/admin-chat-dock.tsx), so
+  // there's no admin-panel round trip just to answer a pending message.
+  // The /admin/chat page itself is left in place (full history, bulk
+  // delete, image replies) for anyone who navigates to it directly.
   { href: '/admin/payments', label: 'Payments', icon: <IndianRupee className="h-4 w-4" /> },
   { href: '/admin/pending', label: 'Processing', icon: <ListTodo className="h-4 w-4" /> },
   { href: '/admin/clone-studio', label: 'Clone Hub', icon: <MicVocal className="h-4 w-4" /> },

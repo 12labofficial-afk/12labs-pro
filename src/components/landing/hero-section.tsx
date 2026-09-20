@@ -4,8 +4,10 @@ import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import type { User } from '@/lib/types';
-import { Sparkles, ArrowRight, Radio } from 'lucide-react';
+import { Sparkles, ArrowRight, Radio, LayoutDashboard } from 'lucide-react';
 import { FeatureMarquee } from '@/components/landing/feature-marquee';
+import { useAuth } from '@/context/auth-provider';
+import { AdminChatDock } from '@/components/admin/admin-chat-dock';
 
 /**
  * The hero runs ONE orchestrated load sequence — pill, orb, headline,
@@ -21,6 +23,12 @@ import { FeatureMarquee } from '@/components/landing/feature-marquee';
  */
 
 export function HeroSection({ user }: { user: User | null }) {
+  const { loading: authLoading } = useAuth();
+  // Gated on !authLoading, not just the role check, so this never flashes
+  // visible for a moment before we actually know the visitor isn't an
+  // admin — the same class of bug the mobile header nav had.
+  const isAdmin = !authLoading && user?.role === 'admin';
+
   return (
     <section className="relative w-full min-h-[82vh] py-16 md:py-24 overflow-hidden flex flex-col items-center justify-center text-center px-4 font-['Poppins'] bg-background">
       {/* ---------- Ambient background layers ----------
@@ -30,6 +38,19 @@ export function HeroSection({ user }: { user: User | null }) {
       <div className="absolute top-[22%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[820px] h-[520px] bg-primary/12 blur-[120px] rounded-full pointer-events-none -z-10" />
 
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(99,102,241,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(99,102,241,0.05)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_70%_55%_at_50%_38%,#000_70%,transparent_100%)] pointer-events-none -z-10" />
+
+      {/* Admin-only quick access — never rendered for a regular visitor,
+          not even briefly while auth is resolving. */}
+      {isAdmin && (
+        <Link
+          href="/admin"
+          title="Admin Panel"
+          className="absolute top-16 left-4 sm:top-20 sm:left-6 z-20 h-10 w-10 sm:h-11 sm:w-11 rounded-full border border-border/60 bg-card/80 backdrop-blur anim-surface-border anim-surface-press shadow-lg flex items-center justify-center hover:bg-card transition-colors"
+        >
+          <LayoutDashboard className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-primary" />
+        </Link>
+      )}
+      {isAdmin && <AdminChatDock />}
 
       <div className="relative z-10 max-w-5xl mx-auto flex flex-col items-center">
         {/* 1 — Status pill */}
