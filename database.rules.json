@@ -33,10 +33,6 @@
       ".read": "auth != null && (root.child('admins').child(auth.uid).val() === true)",
       ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true)"
     },
-    "dailyTickets": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
     "modelUsage": {
       ".read": "auth != null && (root.child('admins').child(auth.uid).val() === true)",
       ".write": "auth != null"
@@ -66,16 +62,6 @@
         ".read": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)",
         ".write": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)",
         "$scriptId": {
-          ".read": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)",
-          ".write": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)"
-        }
-      }
-    },
-    "UserSeoHistory": {
-      "$userId": {
-        ".read": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)",
-        ".write": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)",
-        "$mappingId": {
           ".read": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)",
           ".write": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)"
         }
@@ -120,22 +106,6 @@
         }
       }
     },
-    "analysisJobs": {
-      "$userId": {
-        ".read": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)",
-        ".write": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)"
-      }
-    },
-    "newstudio_projects": {
-      "$userId": {
-        ".read": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)",
-        ".write": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)",
-        "$projectId": {
-          ".read": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)",
-          ".write": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)"
-        }
-      }
-    },
     "userScriptAnalysisLimits": {
       ".read": true,
       "$userId": {
@@ -152,14 +122,6 @@
         }
       }
     },
-    "thumbnailDailyLimits": {
-      ".read": true,
-      "$userId": {
-        "$date": {
-          ".write": "auth != null && auth.uid === $userId && !data.exists()"
-        }
-      }
-    },
     "userDailyLimits": {
       ".read": true,
       "$userId": {
@@ -167,14 +129,6 @@
           "scriptGenerations": {
             ".write": "auth != null && auth.uid === $userId && !data.exists()"
           }
-        }
-      }
-    },
-    "userTrials": {
-      "$trialType": {
-        "$userId": {
-          ".read": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)",
-          ".write": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)"
         }
       }
     },
@@ -237,14 +191,6 @@
           ".read": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)",
           ".write": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)"
         }
-      }
-    },
-    "new_ai_pending_projects": {
-      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
-      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
-      "$projectId": {
-        ".read": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid || root.child('admins').child(auth.uid).val() === true)",
-        ".write": "auth != null && (newData.child('userId').val() === auth.uid || data.child('userId').val() === auth.uid || root.child('admins').child(auth.uid).val() === true)"
       }
     },
     "pro_projects": {
@@ -344,14 +290,6 @@
         ".write": "auth != null && (auth.uid === $userId || root.child('admins').child(auth.uid).val() === true)"
       }
     },
-    "productComments": {
-      "$productId": {
-        ".read": true,
-        "$commentId": {
-          ".write": "auth != null && (data.child('userId').val() === auth.uid || root.child('admins').child(auth.uid).val() === true)"
-        }
-      }
-    },
     "productLikes": {
       "$productId": {
         ".read": true,
@@ -367,15 +305,6 @@
       ".read": true,
       "$productId": {
         ".write": "auth != null && (auth.uid === data.child('sellerId').val() || auth.uid === newData.child('sellerId').val() || root.child('admins').child(auth.uid).val() === true)"
-      }
-    },
-    "userThumbnails": {
-      "$userId": {
-        ".read": "auth != null && auth.uid === $userId",
-        "hasGeneratedFreeThumbnail": {
-          ".write": "auth != null && auth.uid === $userId && !data.exists()",
-          ".validate": "newData.isBoolean() && newData.val() === true"
-        }
       }
     },
     "feedback": {
