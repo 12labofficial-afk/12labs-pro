@@ -3,6 +3,7 @@
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { getCurrentUserEmail } from '@/lib/current-user-email';
+import { notifyStaleBuildIfNeeded } from '@/lib/stale-build-guard';
 
 // Cooldown so a hot error path doesn't spam the bot (per browser tab).
 const COOLDOWN_MS = 10 * 60 * 1000;
@@ -27,6 +28,12 @@ export function reportClientError(context: string, error: unknown, extra?: Recor
     const last = lastReported.get(key) || 0;
 
     console.error(`[Client:${context}]`, err);
+
+    // Runs unconditionally (ahead of the Telegram cooldown gate below,
+    // which is a separate concern) — a user on a stale build deserves the
+    // refresh prompt regardless of how many other call sites already
+    // reported the same underlying error this session.
+    notifyStaleBuildIfNeeded(err);
 
     if (now - last <= COOLDOWN_MS) return;
     lastReported.set(key, now);

@@ -5,6 +5,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { getCurrentUserEmail } from '@/lib/current-user-email';
 import { reportClientError } from '@/lib/report-client-error';
+import { notifyStaleBuildIfNeeded } from '@/lib/stale-build-guard';
 
 // Cooldown so a hot error path doesn't spam the bot (per browser tab).
 const COOLDOWN_MS = 10 * 60 * 1000;
@@ -34,6 +35,11 @@ function isIgnorableError(message: string): boolean {
 
 function report(context: string, message: string, stack?: string, extra?: Record<string, string>) {
   if (isIgnorableError(message)) return;
+
+  // Same stale-build detection as reportClientError — this path catches
+  // whatever slipped past a local try/catch (uncaught errors, unawaited
+  // rejections), which a version-skewed Server Action call often does.
+  notifyStaleBuildIfNeeded(new Error(message));
 
   const key = `${context}::${message}`;
   const now = Date.now();
