@@ -20,10 +20,20 @@ export async function GET(req: NextRequest) {
   let candidateKeys: string[] = [];
   const urlStr = rawUrl.trim();
 
-  // Determine content type by file extension if possible
+  // Determine content type by file extension if possible. Falls back to
+  // audio/mpeg only when nothing matches — this used to be the default
+  // for EVERY file including images, so an image served with a missing
+  // or non-2xx object response (e.g. a stale/legacy record) rendered as
+  // a broken <img> even once the bytes were fixed, because the browser
+  // was told it was audio.
   if (urlStr.endsWith('.wav')) contentType = 'audio/wav';
   else if (urlStr.endsWith('.ogg')) contentType = 'audio/ogg';
   else if (urlStr.endsWith('.m4a') || urlStr.endsWith('.mp4')) contentType = 'audio/mp4';
+  else if (urlStr.endsWith('.webp')) contentType = 'image/webp';
+  else if (urlStr.endsWith('.png')) contentType = 'image/png';
+  else if (urlStr.endsWith('.jpg') || urlStr.endsWith('.jpeg')) contentType = 'image/jpeg';
+  else if (urlStr.endsWith('.gif')) contentType = 'image/gif';
+  else if (urlStr.endsWith('.svg')) contentType = 'image/svg+xml';
   else contentType = 'audio/mpeg';
 
   if (urlStr.startsWith("pub://")) {

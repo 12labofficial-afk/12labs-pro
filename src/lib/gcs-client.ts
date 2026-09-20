@@ -35,15 +35,69 @@ export interface UploadOptions {
     maxSizeMb?: number; // default: 50MB
 }
 
+// Formats that must NOT go through the canvas re-encode: GIF would lose
+// animation (canvas only ever captures a single frame), and SVG is already
+// vector/tiny and canvas would rasterize it, so both pass through untouched.
+const SKIP_COMPRESSION_TYPES = new Set(['image/gif', 'image/svg+xml']);
+const MAX_IMAGE_DIMENSION = 2048;
+const WEBP_QUALITY = 0.82;
+
+/**
+ * 🖼️ CLIENT-SIDE IMAGE COMPRESSOR (Canvas -> WebP)
+ * -----------------------------------------------------------
+ * Every image uploaded anywhere on the site goes through
+ * uploadFileDirectly, so compressing here — instead of at each of the
+ * dozen call sites — covers all of them at once (QR codes, product
+ * thumbnails, avatars, store assets, etc). Downscales anything larger
+ * than MAX_IMAGE_DIMENSION on its longest side, then re-encodes as WebP.
+ * Never throws: any failure (unsupported browser, corrupt image, etc.)
+ * falls back to uploading the original file untouched.
+ */
+async function compressImageToWebP(file: File | Blob, fileName: string): Promise<{ blob: Blob; fileName: string; contentType: string } | null> {
+    if (typeof document === 'undefined' || typeof createImageBitmap === 'undefined') return null;
+    const type = file.type || '';
+    if (!type.startsWith('image/') || SKIP_COMPRESSION_TYPES.has(type)) return null;
+
+    try {
+        const bitmap = await createImageBitmap(file);
+        let { width, height } = bitmap;
+        if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+            const scale = MAX_IMAGE_DIMENSION / Math.max(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(bitmap, 0, 0, width, height);
+        bitmap.close?.();
+
+        const blob = await new Promise<Blob | null>((resolve) => {
+            canvas.toBlob((b) => resolve(b), 'image/webp', WEBP_QUALITY);
+        });
+        // Some browsers silently fall back to PNG from toBlob('image/webp', ...)
+        // when WebP encoding isn't supported — only use the result if it's
+        // genuinely smaller than the original and actually WebP.
+        if (!blob || blob.type !== 'image/webp' || blob.size >= file.size) return null;
+
+        const webpName = fileName.replace(/\.[a-zA-Z0-9]+$/, '') + '.webp';
+        return { blob, fileName: webpName, contentType: 'image/webp' };
+    } catch {
+        return null;
+    }
+}
+
 /**
  * 🛰️ UNIVERSAL CLIENT-SIDE DIRECT UPLOADER (v5.0 - HIGH-RELIABILITY NODE)
  * -----------------------------------------------------------
- * Directly uploads files via dedicated /api/upload endpoint with 
+ * Directly uploads files via dedicated /api/upload endpoint with
  * automatic S3 signed URL and Server Action fallback pipelines.
  */
 export async function uploadFileDirectly(options: UploadOptions): Promise<string> {
     const {
-        file,
         fileName,
         bucketType,
         folder,
@@ -53,8 +107,21 @@ export async function uploadFileDirectly(options: UploadOptions): Promise<string
         maxSizeMb = 100
     } = options;
 
-    const actualFileName = fileName || (file as File).name || `file_${Date.now()}`;
-    const contentType = file.type || 'audio/mpeg';
+    let file: File | Blob = options.file;
+    let actualFileName = fileName || (file as File).name || `file_${Date.now()}`;
+    let contentType = file.type || 'audio/mpeg';
+
+    // Compress + convert images to WebP before anything else touches
+    // `file`/`contentType`/size — every route below (presigned R2, the
+    // server-action fallback, and the /api/upload fallback) reads these
+    // same three variables, so this one pass covers all of them.
+    const compressed = await compressImageToWebP(file, actualFileName);
+    if (compressed) {
+        file = compressed.blob;
+        actualFileName = compressed.fileName;
+        contentType = compressed.contentType;
+    }
+
     const fileSize = file.size;
 
     // 1. Client-side Size Validation

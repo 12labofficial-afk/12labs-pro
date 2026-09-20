@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { CheckCircle, Sparkles, Coins, ShieldCheck, MoveRight, Youtube, Zap, CalendarCheck } from 'lucide-react';
@@ -12,6 +12,25 @@ import { motion } from 'framer-motion';
 
 export function PricingSection() {
   const displayPlans = plans.filter((p) => !p.isTest);
+  const railRef = useRef<HTMLDivElement>(null);
+  // Tracks whether the rail has room left to scroll — the "Swipe to
+  // compare" hint only makes sense while there's another card to reach.
+  // Without this it kept telling people to swipe even after they'd
+  // already swiped all the way to the last card.
+  const [hasMoreToSwipe, setHasMoreToSwipe] = useState(true);
+
+  const updateSwipeHint = useCallback(() => {
+    const el = railRef.current;
+    if (!el) return;
+    const remaining = el.scrollWidth - el.clientWidth - el.scrollLeft;
+    setHasMoreToSwipe(remaining > 12);
+  }, []);
+
+  useEffect(() => {
+    updateSwipeHint();
+    window.addEventListener('resize', updateSwipeHint);
+    return () => window.removeEventListener('resize', updateSwipeHint);
+  }, [updateSwipeHint, displayPlans.length]);
 
   return (
     <section id="pricing" className="w-full py-16 md:py-24 bg-background relative overflow-hidden border-t border-border/50">
@@ -62,9 +81,10 @@ export function PricingSection() {
           >
             <CalendarCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" />
             <p className="text-xs sm:text-sm text-muted-foreground font-medium leading-relaxed">
-              <span className="text-foreground font-semibold">Your credits do not expire.</span>{' '}
-              They stay in your account for as long as you keep using 12Labs. Credits may
-              only be expired if an account stays completely inactive for a full year.
+              <span className="text-foreground font-semibold">One-time credit pack purchases don&apos;t expire.</span>{' '}
+              They stay in your account for as long as you keep using 12Labs. The weekly
+              Consistent Creator plan below is different — its credits follow a 30-day cycle,
+              as shown on that card.
             </p>
           </motion.div>
         </div>
@@ -75,7 +95,10 @@ export function PricingSection() {
             apart instead of three screens apart. The negative margin lets
             cards run to the screen edge so it reads as scrollable. */}
         <div className="relative -mx-4 md:mx-0">
-          <div className={cn(
+          <div
+            ref={railRef}
+            onScroll={updateSwipeHint}
+            className={cn(
             "flex gap-5 overflow-x-auto snap-x snap-mandatory scroll-smooth items-stretch",
             "px-4 md:px-0 pb-4",
             // Hide the scrollbar chrome; the peeking next card is the affordance.
@@ -224,10 +247,14 @@ export function PricingSection() {
           })}
           </div>
 
-          {/* Swipe hint — only where the rail actually overflows. */}
-          <p className="lg:hidden text-center text-[11px] font-semibold text-muted-foreground/70 tracking-wide mt-1">
-            Swipe to compare plans
-          </p>
+          {/* Swipe hint — only while there's actually another card left to
+              reach. Once the rail is scrolled all the way to the last
+              plan, showing this was actively wrong. */}
+          {hasMoreToSwipe && (
+            <p className="lg:hidden text-center text-[11px] font-semibold text-muted-foreground/70 tracking-wide mt-1">
+              Swipe to compare plans
+            </p>
+          )}
         </div>
 
         <motion.div
