@@ -168,8 +168,13 @@ export function Header() {
   const isLoading = !isMounted || authLoading;
   const currentTheme = resolvedTheme || 'light';
 
+  // backdrop-blur-lg (16px) on a `sticky` bar has to re-sample everything
+  // scrolling underneath it on every single frame — one of the most
+  // common real causes of janky/laggy-feeling scroll on mobile. A lighter
+  // blur plus a more opaque background reads almost identically but is
+  // far cheaper to keep recomputing every frame.
   return (
-    <header className="site-header sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-lg">
+    <header className="site-header sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-1.5 sm:gap-4">
           {!isLoading && user && (

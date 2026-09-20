@@ -113,7 +113,7 @@ def _get_api_key():
     return (os.environ.get("ELEVENLABS_API_KEY") or "").strip()
 
 
-ELEVENLABS_MODEL_ID = os.environ.get("ELEVENLABS_MODEL_ID", "eleven_v3_conversational")
+ELEVENLABS_MODEL_ID = os.environ.get("ELEVENLABS_MODEL_ID", "eleven_v3")
 ELEVENLABS_OUTPUT_FORMAT = "pcm_24000"  # matches BYTES_PER_SEC math below
 
 
@@ -135,7 +135,7 @@ class _VoiceBusy(Exception):
 
 def build_age_delivery_hint(age_group):
     """ElevenLabs has no Gemini-style natural-language prompt to steer
-    delivery — but the v3 conversational model DOES support inline
+    delivery — but the v3 model DOES support inline
     bracketed audio-direction tags in the text itself (e.g. "[whispers]",
     "[old, frail voice]"). This is the ElevenLabs-side equivalent of
     voice_replacement.py's build_age_directive() for Gemini — same intent

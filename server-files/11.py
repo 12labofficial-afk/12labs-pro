@@ -137,11 +137,12 @@ def _get_api_key():
 # scattered 429s. Retries above now absorb those, but starting lower means
 # fewer of them; raise it if your plan allows more.
 ELEVENLABS_CONCURRENCY = int(os.environ.get("ELEVENLABS_CONCURRENCY", "3"))
-# Eleven v3 Conversational — more expressive, lower-latency delivery than
-# plain eleven_v3, which is what we want for dialogue lines. Still
-# overridable per-Space via the ELEVENLABS_MODEL_ID secret if a future
-# model supersedes it.
-ELEVENLABS_MODEL_ID = os.environ.get("ELEVENLABS_MODEL_ID", "eleven_v3_conversational")
+# Eleven v3 — the flagship/main model. "eleven_v3_conversational" (the
+# previous default) trades expressiveness for lower latency, which is
+# built for real-time voice agents, not narration/dialogue delivery — v3
+# reads better for our use case. Still overridable per-Space via the
+# ELEVENLABS_MODEL_ID secret if a future model supersedes it.
+ELEVENLABS_MODEL_ID = os.environ.get("ELEVENLABS_MODEL_ID", "eleven_v3")
 ELEVENLABS_OUTPUT_FORMAT = "pcm_24000"
 PCM_SAMPLE_RATE = 24000
 
