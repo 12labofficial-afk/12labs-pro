@@ -3,33 +3,43 @@
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
+import { initializeFirebase } from '@/firebase/server';
+import crypto from 'crypto';
 
 /**
  * Post-generation like/dislike feedback.
  *
- * NOTHING IS STORED. This deliberately writes to no database — not
- * Firestore, not RTDB, not a log collection. The rating goes to the
- * Telegram bot and that is the whole lifecycle of it. If someone later
- * wants dashboards or per-user history, that is a separate decision with
- * separate privacy consequences; don't quietly add a write here.
+ * Likes still go to the Telegram bot log only, same as always — a bare
+ * thumbs-up is still signal worth seeing, but it isn't something anyone
+ * needs to follow up on with the user directly.
  *
- * Every case is reported, including a like with no reason typed — a bare
- * thumbs-up is still signal worth seeing.
+ * Dislikes are different: they get dropped straight into that user's Live
+ * Chat thread (as if they'd said it themselves) instead of a Telegram
+ * post, so an admin who wants to follow up can just open that chat and
+ * ask — no separate bot-log-vs-chat context switch. Nothing else is
+ * stored — this is the message's only home.
  */
 export async function submitGenerationFeedbackAction(input: {
   rating: 'like' | 'dislike';
   reason?: string;
   projectName?: string;
   userEmail?: string;
+  userId?: string;
+  userName?: string;
   engine?: string;
   mode?: string;
 }): Promise<{ success: boolean }> {
   try {
-    const { rating, reason, projectName, userEmail, engine, mode } = input;
+    const { rating, reason, projectName, userEmail, userId, userName, engine, mode } = input;
+    const trimmedReason = (reason || '').trim();
+
+    if (rating === 'dislike' && userId) {
+      await postDislikeToLiveChat({ userId, userName, userEmail, projectName, engine, mode, reason: trimmedReason });
+      return { success: true };
+    }
 
     const isLike = rating === 'like';
     const header = isLike ? '👍 <b>LIKED</b>' : '👎 <b>DISLIKED</b>';
-    const trimmedReason = (reason || '').trim();
 
     const lines = [
       `${header} — generation feedback`,
@@ -55,4 +65,57 @@ export async function submitGenerationFeedbackAction(input: {
     // did their part. Swallow it and report success-shaped silence.
     return { success: false };
   }
+}
+
+/**
+ * Writes a dislike as a regular message in the user's own Live Chat
+ * thread — same RTDB shape sendUserChatMessage uses, so it shows up in
+ * the admin chat dock (isReadByAdmin: false) exactly like a real message
+ * the user typed, and the admin can just reply in place to ask about it.
+ *
+ * Called twice per dislike (immediately on pick, then again if the user
+ * adds a reason) — writing two short chat messages reads naturally as a
+ * conversation ("disliked this" then "reason: ...") rather than the
+ * duplicate-Telegram-post problem this replaces.
+ */
+async function postDislikeToLiveChat(input: {
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  projectName?: string;
+  engine?: string;
+  mode?: string;
+  reason: string;
+}) {
+  const { userId, userName, userEmail, projectName, engine, mode, reason } = input;
+  const { database } = initializeFirebase();
+
+  let text: string;
+  if (reason) {
+    text = `Reason: ${reason}`;
+  } else {
+    const details = [`Project: ${projectName || 'Untitled'}`];
+    if (mode) details.push(`Mode: ${mode}`);
+    if (engine) details.push(`Engine: ${engine}`);
+    text = `👎 Disliked a generation — ${details.join(' · ')}`;
+  }
+
+  const clientMessageId = crypto.randomUUID();
+  const timestamp = new Date().toISOString();
+
+  const updates: { [key: string]: any } = {};
+  updates[`chats/${userId}/messages/${clientMessageId}`] = {
+    sender: 'user',
+    timestamp,
+    clientMessageId,
+    text,
+  };
+  updates[`chats/${userId}/userId`] = userId;
+  updates[`chats/${userId}/userName`] = userName || userEmail || 'N/A';
+  updates[`chats/${userId}/userEmail`] = userEmail || 'N/A';
+  updates[`chats/${userId}/lastMessage`] = text;
+  updates[`chats/${userId}/lastMessageTimestamp`] = timestamp;
+  updates[`chats/${userId}/isReadByAdmin`] = false;
+
+  await database.ref().update(updates);
 }

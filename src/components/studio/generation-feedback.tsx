@@ -41,6 +41,8 @@ export function GenerationFeedback({
       reason: withReason,
       projectName,
       userEmail: user?.email || undefined,
+      userId: user?.uid || undefined,
+      userName: user?.name || user?.email || undefined,
       engine,
       mode,
     });
