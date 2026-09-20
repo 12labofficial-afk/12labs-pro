@@ -29,3 +29,7 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# Python backend (HF Space) — deployed manually, not through this repo's
+# GitHub push. Kept out of the repo so it never ends up on GitHub.
+/server-files/
