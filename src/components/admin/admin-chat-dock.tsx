@@ -22,13 +22,15 @@ import {
 } from '@/components/ui/dialog';
 
 /**
- * Floating live-chat reply dock for the hero section. Replaces having to
- * open the full admin panel just to answer a pending user message — one
- * small avatar bubble per unread conversation, click to reply right here.
+ * Floating live-chat reply bubbles in the hero — up to 3 unread
+ * conversations on the left, 3 more on the right, so replying to a
+ * pending user message never requires opening the full admin panel.
+ * Each bubble bounces to actually catch the eye (a static badge was easy
+ * to miss against everything else going on in the hero).
  *
  * Admin-only, and deliberately gated on `!loading` (not just a role
  * check) so it never flashes visible for a moment before the real
- * (non-admin) role is known — same fix as the hero admin shortcut.
+ * (non-admin) role is known.
  */
 export function AdminChatDock() {
   const { user, loading } = useAuth();
@@ -55,8 +57,11 @@ export function AdminChatDock() {
 
   if (!isAdmin) return null;
 
-  const visible = sessions.slice(0, 5);
-  const overflowCount = sessions.length - visible.length;
+  // 3 on the left, 3 on the right — anything past that gets a small
+  // overflow badge on the right stack instead of a 7th+ bubble.
+  const leftSessions = sessions.slice(0, 3);
+  const rightSessions = sessions.slice(3, 6);
+  const overflowCount = sessions.length - 6;
 
   return (
     <>
@@ -64,34 +69,22 @@ export function AdminChatDock() {
           `sessions` list on the next snapshot — that used to also unmount
           the dialog below (both were behind the same early-return), which
           is why tapping a chat looked like it just vanished instead of
-          opening a reply box. The icon cluster and the dialog are now
-          independent: the cluster hides when there's nothing unread, but
-          the dialog stays open under `openSession`'s own state regardless
-          of what happens to the list that spawned it. */}
-      {sessions.length > 0 && (
-        <div className="absolute top-16 right-4 sm:top-20 sm:right-6 z-20 flex flex-col items-center gap-2">
-          {visible.map((session) => {
-            const avatarColor = generateAvatarColor(session.userEmail);
-            return (
-              <button
-                key={session.id}
-                type="button"
-                onClick={() => setOpenSession(session)}
-                title={`Reply to ${session.userName}`}
-                className="relative h-10 w-10 sm:h-11 sm:w-11 rounded-full border-2 border-background shadow-lg anim-surface-press transition-transform hover:scale-105"
-              >
-                <Avatar className="h-full w-full">
-                  <AvatarFallback className={cn('font-black text-xs', avatarColor.bg, avatarColor.text)}>
-                    {session.userName.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-primary border border-background" />
-                </span>
-              </button>
-            );
-          })}
+          opening a reply box. The bubble clusters and the dialog are now
+          independent: a cluster hides once its side is empty, but the
+          dialog stays open under `openSession`'s own state regardless of
+          what happens to the list that spawned it. */}
+      {leftSessions.length > 0 && (
+        <div className="absolute top-16 left-4 sm:top-20 sm:left-6 z-20 flex flex-col items-center gap-3">
+          {leftSessions.map((session) => (
+            <ChatBubble key={session.id} session={session} onClick={() => setOpenSession(session)} />
+          ))}
+        </div>
+      )}
+      {rightSessions.length > 0 && (
+        <div className="absolute top-16 right-4 sm:top-20 sm:right-6 z-20 flex flex-col items-center gap-3">
+          {rightSessions.map((session) => (
+            <ChatBubble key={session.id} session={session} onClick={() => setOpenSession(session)} />
+          ))}
           {overflowCount > 0 && (
             <div
               title={`${overflowCount} more pending chat${overflowCount > 1 ? 's' : ''}`}
@@ -105,6 +98,28 @@ export function AdminChatDock() {
 
       <AdminChatReplyDialog session={openSession} onClose={() => setOpenSession(null)} />
     </>
+  );
+}
+
+function ChatBubble({ session, onClick }: { session: LiveChatSession; onClick: () => void }) {
+  const avatarColor = generateAvatarColor(session.userEmail);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={`Reply to ${session.userName}`}
+      className="relative h-10 w-10 sm:h-11 sm:w-11 rounded-full border-2 border-background shadow-lg animate-bounce anim-surface-press transition-transform hover:scale-110"
+    >
+      <Avatar className="h-full w-full">
+        <AvatarFallback className={cn('font-black text-xs', avatarColor.bg, avatarColor.text)}>
+          {session.userName.charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+        <span className="relative inline-flex rounded-full h-3 w-3 bg-primary border border-background" />
+      </span>
+    </button>
   );
 }
 
