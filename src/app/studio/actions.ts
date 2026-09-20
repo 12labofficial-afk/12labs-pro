@@ -246,7 +246,19 @@ export async function processHighQualityGenerationAndDeductCredits(
     const rate = await getEngineRate(voiceEngine);
     const serverCost = Math.ceil(totalChars * rate);
     const cost = typeof customCost === 'number' && customCost > serverCost ? customCost : serverCost;
-    const projectId = providedProjectId || `HQ_${Date.now()}_${Math.random().toString(36).substring(7).toUpperCase()}`;
+    // 🔴 FIX: providedProjectId (the client's hqSubmissionId) is minted once
+    // per script ANALYSIS, not per generation — if the same analysis gets
+    // generated with both engines (e.g. a quick engine switch before the
+    // first submission's state reset lands), both calls carried the exact
+    // same providedProjectId, so the second transaction.set() below fully
+    // overwrote the first engine's Firestore project doc — one generation
+    // silently vanished from History. Suffixing with the engine keeps a
+    // legitimate same-engine resume mapped to the same doc as before
+    // (deterministic), while a cross-engine reuse now lands in a separate
+    // doc instead of colliding.
+    const projectId = providedProjectId
+        ? `${providedProjectId}_${voiceEngine}`
+        : `HQ_${Date.now()}_${Math.random().toString(36).substring(7).toUpperCase()}`;
     const createdAt = syncData?.clientTimestamp || new Date().toISOString();
 
     const isElevenLabs = voiceEngine === 'elevenlabs';
