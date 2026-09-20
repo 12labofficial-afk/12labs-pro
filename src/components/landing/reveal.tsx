@@ -34,7 +34,7 @@ export function Reveal({
   children,
   animation = 'anim-in-rise',
   delay = 0,
-  threshold = 0.15,
+  threshold = 0.01,
   repeat = false,
   className,
   as = 'div',
@@ -62,7 +62,17 @@ export function Reveal({
           setShown(false);
         }
       },
-      { threshold, rootMargin: '0px 0px -8% 0px' }
+      // 🔴 The old '0px 0px -8% 0px' margin (plus threshold 0.15) meant an
+      // element only started revealing once it was already well into the
+      // viewport. On a normal, slow scroll that reads as "resolves as you
+      // reach it" (the intended effect) — but on a fast scroll/fling the
+      // section is fully on screen (its container, from the parent
+      // LazySection, mounts immediately) well before this fires, so the
+      // text/icon inside sit blank for a beat and then pop in — the
+      // "jhatka" the container-vs-content split produces. Triggering 300px
+      // before the element would otherwise enter view means it's already
+      // revealed by the time it's actually on screen, at any scroll speed.
+      { threshold, rootMargin: '300px 0px -5% 0px' }
     );
 
     observer.observe(el);
