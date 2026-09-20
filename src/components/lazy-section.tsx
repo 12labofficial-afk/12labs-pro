@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, ReactNode } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, ReactNode } from 'react';
 
 interface LazySectionProps {
   children: ReactNode;
@@ -33,6 +33,15 @@ export function LazySection({
   const [settledHeight, setSettledHeight] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  // The height value currently reflected in the box, so each settle knows
+  // its OWN delta from whatever was there before — starts at the initial
+  // guess (parsed once) so the FIRST settle's delta is measured against
+  // that guess, not against itself.
+  const lastAppliedHeightRef = useRef<number | null>(null);
+  if (lastAppliedHeightRef.current === null) {
+    const parsed = parseFloat(minHeight);
+    lastAppliedHeightRef.current = Number.isNaN(parsed) ? 0 : parsed;
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -96,6 +105,50 @@ export function LazySection({
   // changes what happens when content turns out to be SHORTER than
   // guessed, which used to just leave empty space below it.
   const effectiveMinHeight = settledHeight != null ? `${settledHeight}px` : minHeight;
+
+  // 🔴 FIX: CSS scroll anchoring (the browser's own compensation for
+  // off-screen layout shifts) turned out NOT reliable enough on a real
+  // slow connection — on a fast link, one section settles almost
+  // immediately after mount and anchoring tracks the single small
+  // adjustment fine; on a genuinely slow one (confirmed against a
+  // throttled-network repro), several sections above the user's current
+  // position can each settle minutes apart, at different times, and the
+  // browser doesn't reliably keep re-anchoring across that whole span —
+  // which is exactly "my scroll position changes on its own, I end up
+  // looking at different content than I was."
+  //
+  // This replaces that implicit behavior with an explicit, guaranteed
+  // one: whenever a section that starts ABOVE the current viewport
+  // (rect.top < 0 — the user has already scrolled past where it begins)
+  // changes size, immediately scroll by the exact same delta, with no
+  // animation, in the same paint frame as the resize — so nothing the
+  // user is actually looking at moves by even a pixel. A section that's
+  // still visible or below the viewport resizes normally (with the CSS
+  // transition), since the user can see that happen and there's nothing
+  // to compensate for.
+  useLayoutEffect(() => {
+    if (settledHeight == null) return;
+    const container = containerRef.current;
+    if (!container || typeof window === 'undefined') return;
+
+    const prevHeight = lastAppliedHeightRef.current ?? settledHeight;
+    const delta = settledHeight - prevHeight;
+    lastAppliedHeightRef.current = settledHeight;
+    if (!delta) return;
+
+    const rect = container.getBoundingClientRect();
+    if (rect.top < 0) {
+      const prevTransition = container.style.transition;
+      container.style.transition = 'none';
+      container.style.minHeight = `${settledHeight}px`;
+      window.scrollBy(0, delta);
+      // Flush the above before transitions can apply to anything else —
+      // otherwise a later, genuinely-visible resize could inherit this
+      // "none" and lose its intended animation.
+      void container.offsetHeight;
+      container.style.transition = prevTransition;
+    }
+  }, [settledHeight]);
 
   return (
     // 🔧 Scroll-jump fix: this used to switch to `minHeight: 'auto'` the
