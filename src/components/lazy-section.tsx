@@ -22,7 +22,17 @@ export function LazySection({
   rootMargin = '600px',
 }: LazySectionProps) {
   const [isIntersected, setIsIntersected] = useState(false);
+  // 🔴 FIX: minHeight is a per-section GUESS, and some sections' real
+  // height is genuinely variable (e.g. DemoSection renders 1-3 audio demo
+  // cards depending on how many an admin has configured in RTDB) — a
+  // guess sized for the tallest case leaves a large dead gap under
+  // shorter real content, which read as "data is coming in pieces" every
+  // bit as much as the original too-small guess did. Once real content is
+  // in AND has stopped changing size (settledHeight, below), the box
+  // adopts that actual height instead of staying pinned to the guess.
+  const [settledHeight, setSettledHeight] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -49,6 +59,44 @@ export function LazySection({
     };
   }, [threshold, rootMargin]);
 
+  // Tracks the CONTENT's own natural height (contentRef has no min-height
+  // of its own, so it reports the real size regardless of what the outer
+  // box is currently pinned to). Only acts once that height has stopped
+  // changing for a beat — reacting to every intermediate frame while data
+  // is still arriving would just recreate the same "box keeps resizing"
+  // jank this file already fixed once, in the opposite direction.
+  useEffect(() => {
+    if (!isIntersected || typeof ResizeObserver === 'undefined') return;
+    const el = contentRef.current;
+    if (!el) return;
+
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastHeight = -1;
+
+    const observer = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height;
+      if (!h || Math.abs(h - lastHeight) < 1) return;
+      lastHeight = h;
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => setSettledHeight(h), 400);
+    });
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+      if (settleTimer) clearTimeout(settleTimer);
+    };
+  }, [isIntersected]);
+
+  // Before intersecting, or before real content has settled: the original
+  // guess (prevents the collapse-then-snap-back this file was first fixed
+  // for). After settling: the real measured height — smaller OR larger
+  // than the guess, whichever content actually needs. Growth past the
+  // guess already worked for free via plain CSS min-height; this only
+  // changes what happens when content turns out to be SHORTER than
+  // guessed, which used to just leave empty space below it.
+  const effectiveMinHeight = settledHeight != null ? `${settledHeight}px` : minHeight;
+
   return (
     // 🔧 Scroll-jump fix: this used to switch to `minHeight: 'auto'` the
     // INSTANT the section intersected — in the same render, before the
@@ -57,16 +105,18 @@ export function LazySection({
     // moment and then snapped back out once the content arrived, which is
     // exactly the kind of sudden layout shift that throws off your scroll
     // position mid-scroll (classic CLS). Keeping `minHeight` as a real
-    // CSS min-height — permanently, not just before intersecting — means
-    // the box can still grow if real content is taller, but it can never
-    // collapse smaller than the space we already reserved for it, so nothing
-    // suddenly moves while you're scrolling. Once you've scrolled past a
-    // section once, its content is already mounted, so there's nothing
-    // left to collapse — which is exactly why it felt "fine after one full
-    // scroll" before this fix.
-    <div ref={containerRef} style={{ minHeight }} className="w-full">
+    // CSS min-height means the box can still grow if real content is
+    // taller, but it can never collapse smaller than the space we've
+    // reserved for it at that moment — settledHeight (above) is what lets
+    // that reserved amount itself shrink, smoothly (transition below),
+    // once real content says it's safe to.
+    <div
+      ref={containerRef}
+      style={{ minHeight: effectiveMinHeight, transition: 'min-height 300ms ease' }}
+      className="w-full"
+    >
       {isIntersected ? (
-        children
+        <div ref={contentRef}>{children}</div>
       ) : (
         fallback || (
           // 🔴 A screen recording showed this: on a fast scroll, sections
