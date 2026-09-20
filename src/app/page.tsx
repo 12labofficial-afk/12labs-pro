@@ -85,32 +85,46 @@ export default function LandingPage() {
                         Looking for 11 labs or eleven labs in India? 12Labs is the professional choice for Indian creators 
                         providing high quality AI voiceovers, voice cloning, and script studio. A powerful elevenlabs alternative.
                     </div>
+                    {/* 🔴 FIX: these minHeight values were rough guesses, and
+                        measuring each section's REAL rendered height (mobile
+                        viewport) showed every single one was drastically
+                        under-reserved — Demo alone grew from a 500px
+                        placeholder to ~1650px of real content. LazySection's
+                        box can only ever grow past minHeight, never shrink
+                        below it, so an undersized guess means the box visibly
+                        balloons the moment the section's data/chunk finishes
+                        loading, shoving everything below it down mid-scroll —
+                        that's the "space badal jaata hai, scroll kharab ho
+                        jaata hai" jhatka. Values below are each section's
+                        measured height plus a buffer for auth-state/data
+                        variance, so the reserved space already matches reality
+                        and nothing has to grow later. */}
                     <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>
                         <div className="flex flex-col gap-0">
-                            <LazySection minHeight="500px">
+                            <LazySection minHeight="700px">
                                 <FeaturesSection />
                             </LazySection>
-                            <LazySection minHeight="500px">
+                            <LazySection minHeight="1700px">
                                 <DemoSection />
                             </LazySection>
-                            <LazySection minHeight="400px">
+                            <LazySection minHeight="1250px">
                                 <PricingSection />
                             </LazySection>
-                            <LazySection minHeight="250px">
+                            <LazySection minHeight="550px">
                                 <CommunityCtaSection />
                             </LazySection>
-                            <LazySection minHeight="400px">
+                            <LazySection minHeight="1200px">
                                 <WhyChooseUsSection />
                             </LazySection>
                             {(user?.isSeller || user?.role === 'admin') && (
-                                <LazySection minHeight="400px">
+                                <LazySection minHeight="650px">
                                     <SellerCtaSection />
                                 </LazySection>
                             )}
-                            <LazySection minHeight="300px">
+                            <LazySection minHeight="650px">
                                 <FinalCtaSection user={user} />
                             </LazySection>
-                            <LazySection minHeight="400px">
+                            <LazySection minHeight="1100px">
                                 <FaqSection />
                             </LazySection>
                         </div>
