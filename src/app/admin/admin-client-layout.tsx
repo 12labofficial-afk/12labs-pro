@@ -5,70 +5,58 @@ import React, { useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { useAuth } from "@/context/auth-provider";
 import { useRouter, usePathname } from "next/navigation";
-import { 
-  BarChart3, 
-  Users, 
+import {
+  BarChart3,
+  Users,
   FolderSearch,
   ListTodo,
   IndianRupee,
   Loader2,
-  Tag, 
-  Package, 
-  Landmark, 
+  Tag,
+  Package,
+  Landmark,
   Store,
   ShoppingBag,
   MicVocal,
   Terminal,
   Activity,
-  Sparkles,
-  ArrowLeftRight
+  Sparkles
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
-/**
- * Two separate admin "hubs" — each its own self-contained nav, not one
- * long flat list. Visiting a route from OPERATIONS_NAV shows only the
- * Operations bar; a CONTENT_NAV route shows only the Content bar. The
- * hero's two admin shortcuts land on each hub's first item, and a
- * "Switch Panel" link (see below) lets you jump to the other hub without
- * leaving the admin section entirely.
- */
-const OPERATIONS_NAV = [
+// Back to one flat nav for the whole admin panel — the earlier two-hub
+// split (separate Operations/Content bars with a "Switch Panel" link)
+// was undone at the user's request; "Content" is just one more item
+// here now, same as every other section.
+const adminNavItems = [
   { href: '/admin', label: 'Overview', icon: <BarChart3 className="h-4 w-4" /> },
+  { href: '/admin/content', label: 'Content', icon: <Sparkles className="h-4 w-4" /> },
   { href: '/admin/users', label: 'Users', icon: <Users className="h-4 w-4" /> },
+  // Live Chat moved off the admin panel — replaced by the floating reply
+  // dock in the site hero (src/components/admin/admin-chat-dock.tsx), so
+  // there's no admin-panel round trip just to answer a pending message.
+  // The /admin/chat page itself is left in place (full history, bulk
+  // delete, image replies) for anyone who navigates to it directly.
   { href: '/admin/payments', label: 'Payments', icon: <IndianRupee className="h-4 w-4" /> },
   { href: '/admin/pending', label: 'Processing', icon: <ListTodo className="h-4 w-4" /> },
   { href: '/admin/clone-studio', label: 'Clone Hub', icon: <MicVocal className="h-4 w-4" /> },
   { href: '/admin/projects', label: 'Moderator', icon: <Package className="h-4 w-4" /> },
-  { href: '/admin/project-lookup', label: 'AI Lookup', icon: <FolderSearch className="h-4 w-4" /> },
-  { href: '/developer', label: 'API Console', icon: <Terminal className="h-4 w-4" /> },
-  { href: '/admin/api-logs', label: 'API Logs', icon: <Activity className="h-4 w-4" /> },
-];
-
-const CONTENT_NAV = [
-  { href: '/admin/content', label: 'Content', icon: <Sparkles className="h-4 w-4" /> },
   { href: '/admin/sold-products', label: 'Sold Items', icon: <ShoppingBag className="h-4 w-4" /> },
+  { href: '/admin/project-lookup', label: 'AI Lookup', icon: <FolderSearch className="h-4 w-4" /> },
   { href: '/admin/sales', label: 'Sellers', icon: <Store className="h-4 w-4" /> },
   { href: '/admin/payouts', label: 'Affiliates', icon: <Landmark className="h-4 w-4" /> },
   { href: '/admin/promo-codes', label: 'Promos', icon: <Tag className="h-4 w-4" /> },
+  { href: '/developer', label: 'API Console', icon: <Terminal className="h-4 w-4" /> },
+  { href: '/admin/api-logs', label: 'API Logs', icon: <Activity className="h-4 w-4" /> },
 ];
-
-// Live Chat moved off the admin panel entirely — replaced by the floating
-// reply dock in the site hero (src/components/admin/admin-chat-dock.tsx),
-// so there's no admin-panel round trip just to answer a pending message.
-// The /admin/chat page itself is left in place (full history, bulk
-// delete, image replies) for anyone who navigates to it directly; it just
-// isn't in either hub's nav.
 
 function isPathActive(pathname: string, href: string) {
   return pathname === href || (href !== '/admin' && pathname.startsWith(href));
 }
 
-type NavItem = { href: string; label: string; icon: React.ReactNode };
-
-function MobileAdminBottomNav({ navItems, otherHub }: { navItems: NavItem[]; otherHub: { href: string; label: string } }) {
+function MobileAdminBottomNav() {
     const pathname = usePathname();
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -76,15 +64,15 @@ function MobileAdminBottomNav({ navItems, otherHub }: { navItems: NavItem[]; oth
         if (containerRef.current) {
             const container = containerRef.current;
             const activeItem = container.querySelector<HTMLElement>('[data-active="true"]');
-            
+
             if (activeItem) {
                 // Calculate center scroll position
                 const containerWidth = container.offsetWidth;
                 const itemLeft = activeItem.offsetLeft;
                 const itemWidth = activeItem.offsetWidth;
-                
+
                 const scrollLeft = itemLeft - (containerWidth / 2) + (itemWidth / 2);
-                
+
                 container.scrollTo({
                     left: scrollLeft,
                     behavior: 'smooth'
@@ -92,18 +80,18 @@ function MobileAdminBottomNav({ navItems, otherHub }: { navItems: NavItem[]; oth
             }
         }
     }, [pathname]);
-    
+
     return (
         <div className="md:hidden fixed bottom-0 left-0 z-[100] w-full h-16 bg-background/80 backdrop-blur-xl border-t border-muted/50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
             {/* Left and right fade gradients to indicate swipeability */}
             <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background via-background/60 to-transparent pointer-events-none z-10" />
             <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background via-background/60 to-transparent pointer-events-none z-10" />
-            
-            <div 
+
+            <div
                 ref={containerRef}
                 className="flex items-center gap-1.5 h-full overflow-x-auto scrollbar-none px-6 scroll-smooth snap-x"
             >
-                {navItems.map((item) => {
+                {adminNavItems.map((item) => {
                     const isActive = isPathActive(pathname, item.href);
                     return (
                         <Link
@@ -123,20 +111,20 @@ function MobileAdminBottomNav({ navItems, otherHub }: { navItems: NavItem[]; oth
                                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                                 />
                             )}
-                            
+
                             <span className={cn(
                                 "flex items-center justify-center transition-transform duration-300",
                                 isActive ? "-translate-y-0.5" : ""
                             )}>
-                                {React.isValidElement(item.icon) ? React.cloneElement(item.icon as React.ReactElement<any>, { 
-                                    className: cn("w-5 h-5 mb-0.5", isActive ? "stroke-[2.5px]" : "stroke-[2px]") 
+                                {React.isValidElement(item.icon) ? React.cloneElement(item.icon as React.ReactElement<any>, {
+                                    className: cn("w-5 h-5 mb-0.5", isActive ? "stroke-[2.5px]" : "stroke-[2px]")
                                 } as any) : item.icon}
                             </span>
                             <span className="text-[9px] font-bold uppercase tracking-tight whitespace-nowrap">{item.label}</span>
-                            
+
                             {/* Smooth sliding dot indicator */}
                             {isActive && (
-                                <motion.span 
+                                <motion.span
                                     layoutId="activeDot"
                                     className="absolute bottom-1 w-1 h-1 rounded-full bg-primary"
                                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
@@ -145,13 +133,6 @@ function MobileAdminBottomNav({ navItems, otherHub }: { navItems: NavItem[]; oth
                         </Link>
                     );
                 })}
-                <Link
-                    href={otherHub.href}
-                    className="relative flex-shrink-0 inline-flex flex-col items-center justify-center text-center px-4 h-12 rounded-xl min-w-[76px] select-none text-primary/70"
-                >
-                    <ArrowLeftRight className="w-5 h-5 mb-0.5 stroke-[2px]" />
-                    <span className="text-[9px] font-bold uppercase tracking-tight whitespace-nowrap">{otherHub.label}</span>
-                </Link>
             </div>
         </div>
     );
@@ -166,15 +147,9 @@ export default function AdminClientLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  const isOnContentHub = CONTENT_NAV.some((item) => isPathActive(pathname, item.href));
-  const activeNav = isOnContentHub ? CONTENT_NAV : OPERATIONS_NAV;
-  const otherHub = isOnContentHub
-    ? { href: '/admin', label: 'Operations' }
-    : { href: '/admin/content', label: 'Content & Growth' };
-
   useEffect(() => {
     if (!authLoading && !isImpersonating && (!user || user.role !== 'admin')) {
-      router.push('/studio'); 
+      router.push('/studio');
     }
   }, [user, authLoading, router, isImpersonating]);
 
@@ -197,13 +172,11 @@ export default function AdminClientLayout({
             renders it for every page. Rendering it again gave the admin
             panel two stacked headers. */}
 
-        {/* Horizontal Scroll Navigation Bar — only this hub's own items,
-            plus one distinct "Switch Panel" link to jump to the other
-            hub without going back to the homepage. */}
+        {/* Horizontal Scroll Navigation Bar */}
         <div className="sticky top-16 z-40 bg-background/95 backdrop-blur-md border-b">
             <ScrollArea className="w-full">
                 <div className="flex items-center gap-3 p-3 px-4">
-                    {activeNav.map((item) => {
+                    {adminNavItems.map((item) => {
                         const isActive = isPathActive(pathname, item.href);
                         return (
                             <Link
@@ -221,14 +194,6 @@ export default function AdminClientLayout({
                             </Link>
                         );
                     })}
-                    <div className="w-px h-6 bg-border shrink-0 mx-1" />
-                    <Link
-                        href={otherHub.href}
-                        className="px-4 h-9 flex items-center gap-2 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap border border-dashed border-primary/30 text-primary/70 hover:bg-primary/5 hover:text-primary transition-all duration-300 shrink-0"
-                    >
-                        <ArrowLeftRight className="h-3.5 w-3.5" />
-                        <span>{otherHub.label}</span>
-                    </Link>
                 </div>
                 <ScrollBar orientation="horizontal" className="invisible" />
             </ScrollArea>
@@ -240,7 +205,7 @@ export default function AdminClientLayout({
             </div>
         </main>
 
-        <MobileAdminBottomNav navItems={activeNav} otherHub={otherHub} />
+        <MobileAdminBottomNav />
     </div>
   );
 }

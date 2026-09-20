@@ -53,45 +53,55 @@ export function AdminChatDock() {
     return () => unsubscribe();
   }, [isAdmin, database]);
 
-  if (!isAdmin || sessions.length === 0) return null;
+  if (!isAdmin) return null;
 
   const visible = sessions.slice(0, 5);
   const overflowCount = sessions.length - visible.length;
 
   return (
     <>
-      <div className="absolute top-16 right-4 sm:top-20 sm:right-6 z-20 flex flex-col items-center gap-2">
-        {visible.map((session) => {
-          const avatarColor = generateAvatarColor(session.userEmail);
-          return (
-            <button
-              key={session.id}
-              type="button"
-              onClick={() => setOpenSession(session)}
-              title={`Reply to ${session.userName}`}
-              className="relative h-10 w-10 sm:h-11 sm:w-11 rounded-full border-2 border-background shadow-lg anim-surface-press transition-transform hover:scale-105"
+      {/* Opening a chat marks it read, which drops it out of this
+          `sessions` list on the next snapshot — that used to also unmount
+          the dialog below (both were behind the same early-return), which
+          is why tapping a chat looked like it just vanished instead of
+          opening a reply box. The icon cluster and the dialog are now
+          independent: the cluster hides when there's nothing unread, but
+          the dialog stays open under `openSession`'s own state regardless
+          of what happens to the list that spawned it. */}
+      {sessions.length > 0 && (
+        <div className="absolute top-16 right-4 sm:top-20 sm:right-6 z-20 flex flex-col items-center gap-2">
+          {visible.map((session) => {
+            const avatarColor = generateAvatarColor(session.userEmail);
+            return (
+              <button
+                key={session.id}
+                type="button"
+                onClick={() => setOpenSession(session)}
+                title={`Reply to ${session.userName}`}
+                className="relative h-10 w-10 sm:h-11 sm:w-11 rounded-full border-2 border-background shadow-lg anim-surface-press transition-transform hover:scale-105"
+              >
+                <Avatar className="h-full w-full">
+                  <AvatarFallback className={cn('font-black text-xs', avatarColor.bg, avatarColor.text)}>
+                    {session.userName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-primary border border-background" />
+                </span>
+              </button>
+            );
+          })}
+          {overflowCount > 0 && (
+            <div
+              title={`${overflowCount} more pending chat${overflowCount > 1 ? 's' : ''}`}
+              className="h-8 w-8 rounded-full bg-muted border border-border flex items-center justify-center text-[10px] font-black text-muted-foreground shadow-sm"
             >
-              <Avatar className="h-full w-full">
-                <AvatarFallback className={cn('font-black text-xs', avatarColor.bg, avatarColor.text)}>
-                  {session.userName.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-primary border border-background" />
-              </span>
-            </button>
-          );
-        })}
-        {overflowCount > 0 && (
-          <div
-            title={`${overflowCount} more pending chat${overflowCount > 1 ? 's' : ''}`}
-            className="h-8 w-8 rounded-full bg-muted border border-border flex items-center justify-center text-[10px] font-black text-muted-foreground shadow-sm"
-          >
-            +{overflowCount}
-          </div>
-        )}
-      </div>
+              +{overflowCount}
+            </div>
+          )}
+        </div>
+      )}
 
       <AdminChatReplyDialog session={openSession} onClose={() => setOpenSession(null)} />
     </>
