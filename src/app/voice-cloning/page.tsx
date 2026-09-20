@@ -373,11 +373,11 @@ export default function VoiceCloningPage() {
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || !user) return;
 
         setIsLoading(true);
         const arrayBuffer = await file.arrayBuffer();
-        
+
         try {
             const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
             const buffer = await ctx.decodeAudioData(arrayBuffer);
@@ -396,8 +396,33 @@ export default function VoiceCloningPage() {
             setIsLoading(false);
 
         } catch (err: any) {
-            reportClientError('src/app/voice-cloning/page.tsx:255', err);
-            toast({ variant: 'destructive', title: 'Scanner Error', description: 'Could not analyze audio file.' });
+            // 🔴 FIX: Web Audio's decodeAudioData is far pickier than the
+            // HF worker's own decoder — some mobile-recorded containers
+            // (m4a/aac/opus variants) fail here but decode fine server-side.
+            // Instead of blocking the user, skip client-side trimming
+            // entirely and upload the raw file straight through (same
+            // uploadFileDirectly call handleGeneration itself makes) — no
+            // client-side decoding, no base64 dance. handleGeneration below
+            // recognizes this pointer and reuses it as-is instead of
+            // re-uploading the same bytes again.
+            reportClientError('src/app/voice-cloning/page.tsx:399', err);
+            try {
+                const uploadedPointer = await uploadFileDirectly({
+                    file,
+                    fileName: `ref_${Date.now()}_${file.name}`,
+                    bucketType: 'public',
+                    folder: 'temp/voice_clone_ref',
+                    userId: user.uid,
+                    userEmail: user.email || 'N/A',
+                });
+                setReferenceAudio(uploadedPointer);
+                setReferenceAudioName(file.name);
+                setDetectedDuration(null);
+                toast({ title: 'Reference Uploaded', description: "Couldn't preview this format locally, so it was uploaded as-is — the cloning node will process it directly." });
+            } catch (uploadErr: any) {
+                reportClientError('src/app/voice-cloning/page.tsx:399b', uploadErr);
+                toast({ variant: 'destructive', title: 'Scanner Error', description: 'Could not analyze audio file.' });
+            }
             setIsLoading(false);
         }
     };
@@ -521,17 +546,27 @@ export default function VoiceCloningPage() {
             // worker (server-files/voice_cloning.py) fetches the URL with
             // plain Python `requests.get()`, which has no idea what "gcs://"
             // is ("No connection adapters were found for 'gcs://...'").
-            toast({ title: 'Uploading Reference Clip...', description: 'Preparing your sample for the cloning node.' });
-            const refResponse = await fetch(referenceAudio);
-            const refBlob = await refResponse.blob();
-            const uploadedPointer = await uploadFileDirectly({
-                file: refBlob,
-                fileName: `ref_${Date.now()}.wav`,
-                bucketType: 'public',
-                folder: 'temp/voice_clone_ref',
-                userId: user.uid,
-                userEmail: user.email || 'N/A',
-            });
+            // 🔴 FIX: when decodeAudioData couldn't parse the file (see
+            // handleFileChange), referenceAudio already holds the storage
+            // pointer from that direct upload (not a data: URI) — reuse it
+            // as-is instead of fetching it back down just to re-upload the
+            // exact same bytes a second time.
+            let uploadedPointer: string;
+            if (!referenceAudio.startsWith('data:')) {
+                uploadedPointer = referenceAudio;
+            } else {
+                toast({ title: 'Uploading Reference Clip...', description: 'Preparing your sample for the cloning node.' });
+                const refResponse = await fetch(referenceAudio);
+                const refBlob = await refResponse.blob();
+                uploadedPointer = await uploadFileDirectly({
+                    file: refBlob,
+                    fileName: `ref_${Date.now()}.wav`,
+                    bucketType: 'public',
+                    folder: 'temp/voice_clone_ref',
+                    userId: user.uid,
+                    userEmail: user.email || 'N/A',
+                });
+            }
             // 🔴 FIX: this used to resolve straight to the direct
             // storage.12labs.in CDN URL (resolvePublicAudioUrl) and hand
             // THAT to the Python worker — which then got a 403 Forbidden
@@ -717,7 +752,7 @@ export default function VoiceCloningPage() {
                                 <input id="audio-upload" type="file" className="hidden" onChange={handleFileChange} accept="audio/*" disabled={isLoading}/>
                                 {referenceAudio ? (
                                     <div className="p-5 rounded-2xl border-2 border-primary/20 bg-primary/5 flex items-center justify-between group animate-in zoom-in-95 shadow-inner">
-                                        <div className="flex items-center gap-4 min-w-0"><div className="p-3 bg-primary text-white rounded-xl shadow-lg"><Music className="h-5 w-5" /></div><div className="min-w-0"><p className="text-xs font-black truncate uppercase tracking-tight">{referenceAudioName}</p><div className="flex items-center gap-2 mt-1"><Badge variant="outline" className="h-6 px-3 text-[9px] font-black uppercase border-primary/30 text-primary">{detectedDuration?.toFixed(1)}S CALIBRATED</Badge></div></div></div>
+                                        <div className="flex items-center gap-4 min-w-0"><div className="p-3 bg-primary text-white rounded-xl shadow-lg"><Music className="h-5 w-5" /></div><div className="min-w-0"><p className="text-xs font-black truncate uppercase tracking-tight">{referenceAudioName}</p><div className="flex items-center gap-2 mt-1"><Badge variant="outline" className="h-6 px-3 text-[9px] font-black uppercase border-primary/30 text-primary">{detectedDuration != null ? `${detectedDuration.toFixed(1)}S CALIBRATED` : 'UPLOADED'}</Badge></div></div></div>
                                         <button className="text-destructive/40 hover:text-destructive transition-colors p-2" onClick={() => { setReferenceAudio(null); setReferenceAudioName(null); setDetectedDuration(null); }} disabled={isLoading}><Trash2 className="h-5 w-5" /></button>
                                     </div>
                                 ) : (
