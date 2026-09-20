@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, FileText, CreditCard, Ban, Gavel, ShieldOff, ServerCrash, RefreshCw, Mail, Store, Clock, RotateCcw } from 'lucide-react';
+import { ArrowLeft, User, FileText, CreditCard, Ban, Gavel, ShieldOff, ServerCrash, RefreshCw, Mail, Store, Clock, RotateCcw, UserCheck } from 'lucide-react';
 
 export default function TermsPage() {
   return (
@@ -126,7 +126,21 @@ export default function TermsPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Mail className="h-5 w-5 text-primary" />10. Contact Us</h2>
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><UserCheck className="h-5 w-5 text-primary" />10. Grievance Officer</h2>
+                    <p>
+                        In accordance with the Information Technology Act, 2000 and the rules made thereunder, including the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021, the details of the Grievance Officer are provided below. If you have any complaints or grievances regarding the Service, please reach out:
+                    </p>
+                    <ul className="list-disc pl-5 space-y-1">
+                        <li><strong>Grievance Officers:</strong> Yash Sharma &amp; Yash Rathod</li>
+                        <li><strong>Email:</strong> 12labofficial@gmail.com</li>
+                    </ul>
+                    <p>
+                        We will acknowledge your complaint within 24 hours and aim to resolve it within 15 days of receipt.
+                    </p>
+                </div>
+
+                <div className="space-y-2">
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Mail className="h-5 w-5 text-primary" />11. Contact Us</h2>
                     <p>
                         If you have any questions about these Terms, please contact us via our <Link href="/contact" className="text-primary underline" prefetch={false}>Contact Page</Link> or email us at <strong>12labofficial@gmail.com</strong>.
                     </p>

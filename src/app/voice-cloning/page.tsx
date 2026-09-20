@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { 
     Loader2, 
@@ -168,6 +169,7 @@ export default function VoiceCloningPage() {
     const [language, setLanguage] = useState('Auto');
     const [referenceAudio, setReferenceAudio] = useState<string | null>(null);
     const [referenceAudioName, setReferenceAudioName] = useState<string | null>(null);
+    const [hasCloningConsent, setHasCloningConsent] = useState(false);
     const [detectedDuration, setDetectedDuration] = useState<number | null>(null);
     const [speed, setSpeed] = useState(1.0);
     const [numStep, setNumStep] = useState(32);
@@ -496,6 +498,10 @@ export default function VoiceCloningPage() {
     
     const handleGeneration = async () => {
         if (!user || !user.email || !referenceAudio || !database) return;
+        if (!hasCloningConsent) {
+            toast({ variant: 'destructive', title: 'Consent Required', description: 'Please confirm you own or have permission to clone this voice before continuing.' });
+            return;
+        }
         setIsLoading(true);
         try {
             const creditResult = await checkAndDeductCloningCredits({ userId: user.uid, cost });
@@ -719,6 +725,19 @@ export default function VoiceCloningPage() {
                                         <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">MAP REFERENCE VOICE</p>
                                     </Label>
                                 )}
+                                <label htmlFor="cloning-consent-chk" className="flex items-start gap-3 bg-muted/10 border border-primary/5 rounded-2xl p-4 cursor-pointer select-none">
+                                    <Checkbox
+                                        id="cloning-consent-chk"
+                                        checked={hasCloningConsent}
+                                        onCheckedChange={(val) => setHasCloningConsent(val as boolean)}
+                                        disabled={isLoading}
+                                        className="mt-0.5 shrink-0"
+                                    />
+                                    <span className="text-[11px] font-semibold text-muted-foreground leading-snug flex items-start gap-1.5">
+                                        <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                                        I confirm this is my own voice, or I have the explicit permission of the rights holder to clone it. I will not use this to impersonate anyone without consent.
+                                    </span>
+                                </label>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Linguistic Target</Label><Select value={language} onValueChange={setLanguage} disabled={isLoading}><SelectTrigger className="h-11 rounded-xl bg-muted/20 font-bold border-primary/5 shadow-inner"><SelectValue /></SelectTrigger><SelectContent className="rounded-xl font-bold">{languages.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}</SelectContent></Select></div>
@@ -732,7 +751,7 @@ export default function VoiceCloningPage() {
                                     <div className="space-y-1"><p className="text-[10px] font-black uppercase text-destructive tracking-widest">Insufficient Energy</p><Button variant="link" className="p-0 h-auto text-[10px] font-black text-primary uppercase underline" onClick={() => router.push('/buy-credits')}>Refill balance</Button></div>
                                 </div>
                             )}
-                            <Button onClick={handleGeneration} disabled={isLoading || !text.trim() || !referenceAudio || isOverLimit || insufficientCredits} className="w-full h-16 text-lg font-black rounded-2xl shadow-xl shadow-primary/30 btn-shine uppercase transition-all active:scale-95 flex flex-col gap-0.5 leading-tight">
+                            <Button onClick={handleGeneration} disabled={isLoading || !text.trim() || !referenceAudio || isOverLimit || insufficientCredits || !hasCloningConsent} className="w-full h-16 text-lg font-black rounded-2xl shadow-xl shadow-primary/30 btn-shine uppercase transition-all active:scale-95 flex flex-col gap-0.5 leading-tight">
                                 {isLoading ? <span className="flex items-center gap-2"><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCHRONIZING...</span> : (<><span className="flex items-center gap-2"><Wand2 className="h-6 w-6 fill-current" /> COMMENCE CLONING</span><span className="text-[10px] opacity-60 font-black tracking-widest flex items-center gap-1 uppercase"><Coins className="h-3 w-3" /> {cost.toLocaleString()} CREDITS</span></>)}
                             </Button>
                             {showResetButton && isLoading && (
