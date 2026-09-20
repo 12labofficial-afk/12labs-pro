@@ -7,6 +7,7 @@ import { useAuth } from '@/context/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { reportClientError } from '@/lib/report-client-error';
 
 type ApiLog = {
   requestId?: string;
@@ -41,6 +42,7 @@ export default function AdminApiLogsPage() {
         setSummary({ requests: Number(data.totalRequests || 0), credits: Number(data.totalCredits || 0) });
       }
     } catch (err) {
+        reportClientError('src/app/admin/api-logs/page.tsx:43', err);
       console.error("[AdminApiLogs] Failed to load logs:", err);
     } finally {
       setLoading(false);

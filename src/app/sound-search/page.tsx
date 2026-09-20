@@ -11,6 +11,7 @@ import { Loader2, Search, Music, Play, Pause, Download, Wand2 } from 'lucide-rea
 import { Badge } from '@/components/ui/badge';
 import { searchSoundEffects, type SearchSoundEffectsOutput } from '@/ai/flows/search-sound-effects';
 import { cn } from '@/lib/utils';
+import { reportClientError } from '@/lib/report-client-error';
 
 const suggestions = ["wind", "walk", "rain", "explosion", "magic", "door creak"];
 
@@ -98,6 +99,7 @@ function SoundSearchContent() {
             setLastQuery(searchQuery);
 
         } catch (error: any) {
+        reportClientError('src/app/sound-search/page.tsx:100', error);
             console.error("Sound search failed:", error);
             toast({ variant: 'destructive', title: 'Search Failed', description: error.message || 'Could not fetch sounds.' });
         } finally {
@@ -135,6 +137,7 @@ function SoundSearchContent() {
             // sounds). That's expected here, not an error — catch it so it
             // doesn't surface as an unhandled promise rejection.
             audio.play().catch((err) => {
+        reportClientError('src/app/sound-search/page.tsx:139', err);
                 if (err?.name !== 'AbortError') {
                     console.error('Sound preview playback failed:', err);
                 }
@@ -168,6 +171,7 @@ function SoundSearchContent() {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
         } catch (error: any) {
+        reportClientError('src/app/sound-search/page.tsx:170', error);
             console.error('Download failed:', error);
             toast({
                 variant: 'destructive',

@@ -6,6 +6,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml, safeJsonStringify } from '@/lib/utils';
 import { getCurrentUserEmail } from '@/lib/current-user-email';
+import { reportClientError } from '@/lib/report-client-error';
 
 // Cooldown so a repeatedly-firing listener doesn't spam the bot.
 const COOLDOWN_MS = 10 * 60 * 1000;
@@ -54,7 +55,8 @@ export function FirebaseErrorListener() {
                 `<b>Code:</b> ${escapeHtml(code)}\n` +
                 `<b>Original error:</b> ${escapeHtml(error.originalError?.message || 'n/a')}\n` +
                 `<b>Details:</b>\n<pre>${escapeHtml(safeJsonStringify(error.request, 2).slice(0, 3000))}</pre>`
-            ).catch(() => {
+            ).catch((dispatchErr) => {
+                reportClientError('src/components/FirebaseErrorListener.tsx:57', dispatchErr);
                 // Never let logging failure break the app.
             });
         };

@@ -270,8 +270,8 @@ export async function finalizeScriptSelectionAction(input: {
             status: 'completed',
             updatedAt: new Date().toISOString()
         };
-        await firestore.collection('script_projects').doc(userId).collection('userProjects').doc(projectId).set(updatedPayload, { merge: true }).catch(() => null);
-        await firestore.collection('script_projects').doc(projectId).set(updatedPayload, { merge: true }).catch(() => null);
+        await firestore.collection('script_projects').doc(userId).collection('userProjects').doc(projectId).set(updatedPayload, { merge: true }).catch((e: any) => { reportServerError('src/app/script-generator/actions.ts:273', e); return null; });
+        await firestore.collection('script_projects').doc(projectId).set(updatedPayload, { merge: true }).catch((e: any) => { reportServerError('src/app/script-generator/actions.ts:274', e); return null; });
 
         // Cleanup RTDB Node
         await database.ref(`tempScriptGenerations/${userId}/${mappingId}`).remove();

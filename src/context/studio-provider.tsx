@@ -407,7 +407,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   };
 
   const releaseWakeLock = () => {
-    if (wakeLockRef.current) { wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => { wakeLockRef.current = null; }); }
+    if (wakeLockRef.current) { wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch((e: any) => {
+        reportClientError('src/context/studio-provider.tsx:410', e); wakeLockRef.current = null; }); }
   };
 
   useEffect(() => {
@@ -1062,6 +1063,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             }, SERVER_ANALYSIS_TIMEOUT_MS);
 
         } catch (e: any) {
+        reportClientError('src/context/studio-provider.tsx:1064', e);
             console.error("[StudioProvider] Queue Write Error:", e);
             setIsAnalyzing(false);
             toast({ variant: 'destructive', title: 'Queue Failure', description: e.message });
@@ -1167,7 +1169,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         });
         setScriptState('valid'); setIsPaid(false); setCurrentFastGenProjectId(`FG_${generateShortId()}`);
         setHqSubmissionId(`HQ_${generateShortId()}_${timestamp}`); 
-        logSummaryEvent('normalScriptAnalysis').catch(() => null); 
+        logSummaryEvent('normalScriptAnalysis').catch((e: any) => { reportClientError('src/context/studio-provider.tsx:1172', e); return null; }); 
         
         if (!projectName.trim()) setProjectName(`Studio-${new Date().toLocaleDateString()}`);
     } catch (e: any) {
@@ -1401,7 +1403,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setIsPaid(false);
       setCurrentFastGenProjectId(`FG_${generateShortId()}`);
       setHqSubmissionId(`HQ_${generateShortId()}_${timestamp}`);
-      logSummaryEvent('normalScriptAnalysis').catch(() => null);
+      logSummaryEvent('normalScriptAnalysis').catch((e: any) => { reportClientError('src/context/studio-provider.tsx:1406', e); return null; });
 
       if (!projectName.trim()) setProjectName(`Studio-${new Date().toLocaleDateString()}`);
 
@@ -1447,7 +1449,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           status: 'error',
           error: 'Abandoned by client: exceeded resumable job age.'
         });
-      } catch (e) { /* best-effort only */ }
+      } catch (e) {
+        reportClientError('src/context/studio-provider.tsx:1450', e); /* best-effort only */ }
       toast({
         variant: 'destructive',
         title: 'Previous Analysis Timed Out',

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getActiveVapidPublicKey } from '@/app/admin/push-actions';
+import { reportClientError } from '@/lib/report-client-error';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -57,7 +58,7 @@ async function registerSubscription(vapidPublicKey: string): Promise<PushSubscri
         current.every((value, index) => value === expectedKey[index]);
       if (sameKey) return existing;
     }
-    await existing.unsubscribe().catch(() => undefined);
+    await existing.unsubscribe().catch((e: any) => { reportClientError('src/components/push-subscription-handler.tsx:61', e); return undefined; });
   }
 
   return registration.pushManager.subscribe({
@@ -81,6 +82,7 @@ export async function subscribeToPushNotifications(user: any, database: any, toa
       vapidPublicKey = serverKey;
     }
   } catch (e) {
+        reportClientError('src/components/push-subscription-handler.tsx:83', e);
     console.warn('[Push] Could not fetch active VAPID key from server, using fallback:', e);
   }
 
@@ -140,6 +142,7 @@ export async function subscribeToPushNotifications(user: any, database: any, toa
       }
       return true;
     } catch (swErr) {
+        reportClientError('src/components/push-subscription-handler.tsx:142', swErr);
       console.warn('[Push] Service worker registration or subscription failed (likely sw.js is missing):', swErr);
       if (toast) {
         toast({
@@ -151,6 +154,7 @@ export async function subscribeToPushNotifications(user: any, database: any, toa
       return false;
     }
   } catch (err: any) {
+        reportClientError('src/components/push-subscription-handler.tsx:153', err);
     console.error('[Push] Manual subscription error:', err);
     if (toast) {
       toast({
@@ -212,6 +216,7 @@ export function PushSubscriptionHandler() {
     if (typeof window === 'undefined') return;
     if (!('serviceWorker' in navigator)) return;
     navigator.serviceWorker.register('/sw.js').catch((err) => {
+        reportClientError('src/components/push-subscription-handler.tsx:218', err);
       console.warn('[SW] Registration failed:', err);
     });
   }, []);
@@ -226,7 +231,8 @@ export function PushSubscriptionHandler() {
         try {
           const serverKey = await getActiveVapidPublicKey();
           if (serverKey) vapidPublicKey = serverKey;
-        } catch (e) {}
+        } catch (e) {
+        reportClientError('src/components/push-subscription-handler.tsx:229', e);}
 
         try {
           if (Notification.permission !== 'granted') return;
@@ -247,9 +253,11 @@ export function PushSubscriptionHandler() {
             subscribedRef.current = true;
           }
         } catch (swErr) {
+        reportClientError('src/components/push-subscription-handler.tsx:249', swErr);
           console.warn('[Push] Background registration failed (sw.js might be missing):', swErr);
         }
       } catch (err) {
+        reportClientError('src/components/push-subscription-handler.tsx:252', err);
         console.error('[Push] Registration/Subscription error:', err);
       }
     };

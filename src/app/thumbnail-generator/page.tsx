@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { reportClientError } from '@/lib/report-client-error';
 
 // Helper to extract YouTube Video ID
 const extractYouTubeVideoId = (url: string): string | null => {
@@ -196,6 +197,7 @@ export default function ThumbnailGeneratorPage() {
         description: 'High-res frame extracted. Now type your OWN thumbnail title below — leave it empty for a text-free thumbnail.',
       });
     } catch (err: any) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:198', err);
       toast({
         variant: 'destructive',
         title: 'Extraction Error',
@@ -227,6 +229,7 @@ export default function ThumbnailGeneratorPage() {
           setDownloaderVideoTitle(data.title);
         }
       } catch (e) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:229', e);
         console.warn("Could not fetch video title.");
       }
 
@@ -248,6 +251,7 @@ export default function ThumbnailGeneratorPage() {
             validThumbnails.push(thumb);
           }
         } catch (e) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:250', e);
           console.warn(`CORS verification note for: ${thumb.quality}`);
         }
       }
@@ -263,6 +267,7 @@ export default function ThumbnailGeneratorPage() {
         description: 'Retrieved available resolutions from YouTube server.',
       });
     } catch (error: any) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:265', error);
       toast({ variant: 'destructive', title: 'Extraction Error', description: error.message });
     } finally {
       setIsFetchingDownloader(false);
@@ -285,6 +290,7 @@ export default function ThumbnailGeneratorPage() {
       window.URL.revokeObjectURL(downloadUrl);
       toast({ title: 'Download Successful!' });
     } catch (error) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:287', error);
       toast({ variant: 'destructive', title: 'Download Failed', description: 'Could not execute direct download. Right click on image and select save image as.' });
     }
   };
@@ -377,25 +383,29 @@ export default function ThumbnailGeneratorPage() {
     try {
       const q1 = query(collection(firestore, 'thumbnail_projects', activeUid, 'userProjects'), limit(30));
       unsubFs1 = onSnapshot(q1, handleSnapshot, (e) => console.warn('FS1 err', e));
-    } catch (e) {}
+    } catch (e) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:380', e);}
 
     // 2. thumbnailProjects/{activeUid}/userProjects (Camel case)
     try {
       const q2 = query(collection(firestore, 'thumbnailProjects', activeUid, 'userProjects'), limit(30));
       unsubFs2 = onSnapshot(q2, handleSnapshot, (e) => console.warn('FS2 err', e));
-    } catch (e) {}
+    } catch (e) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:386', e);}
 
     // 3. users/{activeUid}/thumbnails
     try {
       const q3 = query(collection(firestore, 'users', activeUid, 'thumbnails'), limit(30));
       unsubFs3 = onSnapshot(q3, handleSnapshot, (e) => console.warn('FS3 err', e));
-    } catch (e) {}
+    } catch (e) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:392', e);}
 
     // 4. Root thumbnailProjects
     try {
       const q4 = query(collection(firestore, 'thumbnailProjects'), where('userId', '==', activeUid), limit(30));
       unsubFs4 = onSnapshot(q4, handleSnapshot, (e) => console.warn('FS4 err', e));
-    } catch (e) {}
+    } catch (e) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:398', e);}
 
     // 5. RTDB tempThumbnailGenerations/{activeUid}
     let unsubRtdb = () => {};
@@ -468,7 +478,8 @@ export default function ThumbnailGeneratorPage() {
             });
           }
         });
-      } catch (e) {}
+      } catch (e) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:471', e);}
     }
 
     return () => {
@@ -589,6 +600,7 @@ export default function ThumbnailGeneratorPage() {
         });
       }
     } catch (error: any) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:591', error);
       setIsSubmitting(false);
       toast({
         variant: 'destructive',
@@ -614,6 +626,7 @@ export default function ThumbnailGeneratorPage() {
       
       toast({ title: '📥 Download Started', description: 'Saving image directly to your device.' });
     } catch (e: any) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:616', e);
       toast({
         variant: 'destructive',
         title: 'Download Failed',
@@ -636,6 +649,7 @@ export default function ThumbnailGeneratorPage() {
       if (activeJobId === jobId) setActiveJobId(null);
       toast({ title: 'Job Removed' });
     } catch (e) {
+        reportClientError('src/app/thumbnail-generator/page.tsx:638', e);
       toast({ variant: 'destructive', title: 'Delete Failed' });
     }
   };

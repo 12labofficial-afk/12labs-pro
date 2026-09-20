@@ -24,6 +24,7 @@ import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
 import { Separator } from '../ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { reportClientError } from '@/lib/report-client-error';
 
 
 function VoicePicker({ 
@@ -226,7 +227,8 @@ export function CharacterAssignments() {
     elevenAudioRef.current?.pause();
     const audio = new Audio(url);
     elevenAudioRef.current = audio;
-    audio.play().catch(() => {});
+    audio.play().catch((e: any) => {
+        reportClientError('src/components/studio/character-assignments.tsx:230', e);});
     audio.onended = () => setPlayingElevenId(null);
     setPlayingElevenId(voiceId);
   };
@@ -258,6 +260,7 @@ export function CharacterAssignments() {
             await audio.play();
             setPlayingVoiceId(voice.id);
         } catch (error) {
+        reportClientError('src/components/studio/character-assignments.tsx:260', error);
             if (error instanceof Error && error.name !== 'AbortError') {
                 console.error("Audio preview failed:", error);
             }

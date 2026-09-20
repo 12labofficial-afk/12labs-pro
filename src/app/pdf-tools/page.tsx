@@ -217,6 +217,7 @@ export default function PdfOcrPage() {
             saveAs(blob, `12labs_script_${Date.now()}.docx`);
             toast({ title: 'Downloading DOCX...' });
         } catch (error) {
+        reportClientError('src/app/pdf-tools/page.tsx:219', error);
             console.error("Docx generation failed:", error);
             toast({ variant: 'destructive', title: 'DOCX generation failed' });
         } finally {

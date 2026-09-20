@@ -5,6 +5,7 @@ import { AlertTriangle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { sendToTelegram } from '@/lib/telegram-logger'
 import { escapeHtml } from '@/lib/utils'
+import { reportClientError } from '@/lib/report-client-error'
 
 // 🔴 FIX: "Loading chunk N failed" (ChunkLoadError) isn't a real code bug —
 // it happens whenever a browser tab that's been open since BEFORE a new
@@ -56,7 +57,8 @@ export default function GlobalError({
           `<b>Page:</b> ${escapeHtml(typeof window !== 'undefined' ? window.location.pathname : 'unknown')}\n` +
           `<b>Chunk:</b> ${escapeHtml(error.message || '')}\n` +
           `A browser tab open since before the last deploy hit a stale chunk — reloading automatically.`
-        ).catch(() => {});
+        ).catch((e: any) => {
+        reportClientError('src/app/global-error.tsx:59', e);});
         window.location.reload();
         return;
       }
@@ -71,7 +73,8 @@ export default function GlobalError({
       `<b>Page:</b> ${escapeHtml(typeof window !== 'undefined' ? window.location.pathname : 'unknown')}\n` +
       `<b>Message:</b> ${escapeHtml(safeMessage)}\n` +
       (typeof error?.stack === 'string' ? `<pre>${escapeHtml(error.stack.slice(0, 1500))}</pre>` : '')
-    ).catch(() => {})
+    ).catch((e: any) => {
+        reportClientError('src/app/global-error.tsx:74', e);})
   }, [error])
 
   if (isReloadingForChunkError) {

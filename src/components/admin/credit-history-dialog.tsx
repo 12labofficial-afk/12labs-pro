@@ -205,6 +205,7 @@ export function CreditHistoryDialog({ user, open, onOpenChange, showBuyButton = 
       setHistory(prev => isInitial ? combinedEntries : [...prev, ...combinedEntries]);
 
     } catch (error) {
+        reportClientError('src/components/admin/credit-history-dialog.tsx:207', error);
         console.error("Legacy history fetch failed:", error);
     } finally {
         setIsLoading(false);

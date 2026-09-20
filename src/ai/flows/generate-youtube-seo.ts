@@ -85,7 +85,7 @@ export async function generateYouTubeSEO(input: GenerateYouTubeSEOInput): Promis
                          `<b>Topic:</b> ${input.topic}\n` +
                          `<b>Error:</b> <pre>${mainErrorMessage}</pre>`;
     
-    await sendToTelegram(errorMessage).catch(() => null);
+    await sendToTelegram(errorMessage).catch((e: any) => { reportServerError('src/ai/flows/generate-youtube-seo.ts:88', e); return null; });
     throw new Error(`SEO Kit failed: ${mainErrorMessage}`);
   }
 }

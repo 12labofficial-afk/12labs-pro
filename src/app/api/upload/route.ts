@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2Client, R2_BUCKET } from '@/lib/r2';
 import crypto from 'crypto';
+import { reportServerError } from '@/lib/report-error';
 
 export const maxDuration = 120; // 120 seconds timeout for large audio files
 export const dynamic = 'force-dynamic';
@@ -69,6 +70,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
+        reportServerError('src/app/api/upload/route.ts:71', error);
     console.error("[API Upload Server Error]:", error);
     return NextResponse.json({ 
       success: false, 

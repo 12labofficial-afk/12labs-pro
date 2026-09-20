@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { reportServerError } from '@/lib/report-error';
 
 /**
  * Secure Cloud Storage Proxy
@@ -56,6 +57,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
+        reportServerError('src/app/api/cdn/[fileId]/route.ts:58', error);
     console.error(`[CDN Proxy] Retrieval error:`, error.message);
     return new NextResponse('Internal node error.', { status: 500 });
   }

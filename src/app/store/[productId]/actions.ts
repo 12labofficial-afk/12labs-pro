@@ -96,7 +96,7 @@ export async function getProductDetails(productId: string, userId?: string): Pro
         } else {
             // If storeSnap existed but had no title, it's a corrupted ghost node -> remove it!
             if (storeSnap.exists() && !storeSnap.val()?.title) {
-                await database.ref(`storeProducts/${productId}`).remove().catch(() => null);
+                await database.ref(`storeProducts/${productId}`).remove().catch((e: any) => { reportServerError('src/app/store/[productId]/actions.ts:99', e); return null; });
             }
 
             // 2. Try Firestore Backup (For Sold/Private Items or Missing RTDB)
@@ -245,14 +245,14 @@ export async function toggleLikeProduct(productId: string, userId: string): Prom
                 const transactionResult = await storeProductLikesRef.transaction((c: any) => Math.max(0, (c || 1) - 1));
                 newLikeCount = transactionResult.snapshot.val() || 0;
             }
-            await firestoreProductRef.update({ likes: FieldValue.increment(-1) }).catch(() => null);
+            await firestoreProductRef.update({ likes: FieldValue.increment(-1) }).catch((e: any) => { reportServerError('src/app/store/[productId]/actions.ts:248', e); return null; });
         } else {
             await likeRef.set(true);
             if (productExistsInStore) {
                 const transactionResult = await storeProductLikesRef.transaction((c: any) => (c || 0) + 1);
                 newLikeCount = transactionResult.snapshot.val() || 0;
             }
-            await firestoreProductRef.update({ likes: FieldValue.increment(1) }).catch(() => null);
+            await firestoreProductRef.update({ likes: FieldValue.increment(1) }).catch((e: any) => { reportServerError('src/app/store/[productId]/actions.ts:255', e); return null; });
         }
         
         revalidatePath(`/store/${productId}`);

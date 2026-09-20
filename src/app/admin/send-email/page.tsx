@@ -18,6 +18,7 @@ import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { reportClientError } from '@/lib/report-client-error';
 
 const LOCAL_STORAGE_KEY = 'email_campaign_v2';
 const BATCH_SIZE = 50;
@@ -97,6 +98,7 @@ export default function SendEmailPage() {
         setState(JSON.parse(savedState));
       }
     } catch (e) {
+        reportClientError('src/app/admin/send-email/page.tsx:99', e);
       console.error("Failed to load state from local storage", e);
     }
   }, []);
@@ -107,6 +109,7 @@ export default function SendEmailPage() {
         try {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedState));
         } catch (e) {
+        reportClientError('src/app/admin/send-email/page.tsx:109', e);
             console.error("Failed to save state to local storage", e);
         }
         return updatedState;
@@ -183,6 +186,7 @@ export default function SendEmailPage() {
             toast({ variant: 'destructive', title: 'Error', description: result.message });
         }
     } catch (error: any) {
+        reportClientError('src/app/admin/send-email/page.tsx:185', error);
         console.error("sendEmailAction threw an unhandled error:", error);
         toast({ variant: 'destructive', title: 'An unexpected error occurred.', description: error.message || 'The server did not respond. This could be a network issue or a server timeout. Please try a smaller batch.' });
     } finally {

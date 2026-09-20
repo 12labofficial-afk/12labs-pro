@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { format, isValid } from "date-fns"
 import { reportServerError } from '@/lib/report-error';
+import { reportClientError } from '@/lib/report-client-error';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -117,7 +118,8 @@ export function safeJsonStringify(obj: any, space?: number): string {
   if (typeof obj !== 'object' && typeof obj !== 'function') {
     try {
       return JSON.stringify(obj);
-    } catch {
+    } catch (e) {
+        reportClientError('src/lib/utils.ts:120', e);
       return "{}";
     }
   }
@@ -182,7 +184,8 @@ export function safeJsonStringify(obj: any, space?: number): string {
         ) {
           return true;
         }
-      } catch (e) {}
+      } catch (e) {
+        reportClientError('src/lib/utils.ts:185', e);}
     }
 
     const cName = val.constructor?.name;
@@ -226,6 +229,7 @@ export function safeJsonStringify(obj: any, space?: number): string {
       space
     ) ?? "{}";
   } catch (e) {
+        reportClientError('src/lib/utils.ts:228', e);
     return "{}";
   }
 }
@@ -237,6 +241,7 @@ export function safeClone<T>(obj: T): T {
     const jsonStr = safeJsonStringify(obj);
     return JSON.parse(jsonStr);
   } catch (e) {
+        reportClientError('src/lib/utils.ts:239', e);
     return obj;
   }
 }
@@ -386,6 +391,7 @@ export async function localSaveFile(url: string, fileName: string) {
             return;
         }
     } catch (error) {
+        reportClientError('src/lib/utils.ts:388', error);
         console.warn("[LocalSave] Direct download API fetch failed:", error);
     }
 

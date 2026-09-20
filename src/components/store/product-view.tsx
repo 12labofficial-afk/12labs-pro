@@ -116,6 +116,7 @@ function AdminEditDialog({ product, open, onOpenChange, onUpdate }: { product: S
                         });
                     }
                 } catch (err) {
+        reportClientError('src/components/store/product-view.tsx:118', err);
                     console.error("[ProductView AdminEditDialog] Failed to load full product data:", err);
                 } finally { setIsFetchingFullData(false); }
             }
@@ -410,7 +411,8 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
     useEffect(() => {
         if (product.id && !viewIncremented.current) {
             viewIncremented.current = true;
-            incrementProductView(product.id).catch(() => {
+            incrementProductView(product.id).catch((e: any) => {
+        reportClientError('src/components/store/product-view.tsx:414', e);
                 // Non-critical: view count tracking failure should never surface to the user.
             });
         }
@@ -430,6 +432,7 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
                         }
                     }
                 } catch (e) {
+        reportClientError('src/components/store/product-view.tsx:432', e);
                     console.error("GCS preview unreachable.");
                 } finally {
                     setIsFetchingPreview(false);
@@ -477,9 +480,11 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
         if (accessState !== 'granted' && accessState !== 'restricted') return;
         if (user) {
             setIsLikeLoading(true);
-            checkIfUserLiked(product.id, user.uid).then(val => { setIsLiked(val); setIsLikeLoading(false); }).catch((err) => { console.error("[ProductView] checkIfUserLiked failed:", err); setIsLikeLoading(false); });
+            checkIfUserLiked(product.id, user.uid).then(val => { setIsLiked(val); setIsLikeLoading(false); }).catch((err) => {
+        reportClientError('src/components/store/product-view.tsx:482', err); console.error("[ProductView] checkIfUserLiked failed:", err); setIsLikeLoading(false); });
             setIsLoadingFollow(true);
-            checkFollowStatus(product.sellerId, user.uid).then(val => { setIsFollowing(val); setIsLoadingFollow(false); }).catch((err) => { console.error("[ProductView] checkFollowStatus failed:", err); setIsLoadingFollow(false); });
+            checkFollowStatus(product.sellerId, user.uid).then(val => { setIsFollowing(val); setIsLoadingFollow(false); }).catch((err) => {
+        reportClientError('src/components/store/product-view.tsx:484', err); console.error("[ProductView] checkFollowStatus failed:", err); setIsLoadingFollow(false); });
         } else { setIsLikeLoading(false); setIsLoadingFollow(false); }
     }, [product.id, user, accessState, product.sellerId]);
 

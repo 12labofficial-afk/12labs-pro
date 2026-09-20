@@ -307,7 +307,8 @@ function HqBackendSettings() {
             } else {
                 toast({ variant: 'destructive', title: 'Update Failed', description: res.error });
             }
-        } catch (error: any) { 
+        } catch (error: any) {
+        reportClientError('src/app/admin/page.tsx:310', error); 
             toast({ variant: 'destructive', title: 'Update Failed', description: error.message }); 
         } finally { setIsSaving(false); }
     };
@@ -370,7 +371,8 @@ function EditingHfBackendSettings() {
             } else {
                 toast({ variant: 'destructive', title: 'Update Failed', description: res.error });
             }
-        } catch (error: any) { 
+        } catch (error: any) {
+        reportClientError('src/app/admin/page.tsx:373', error); 
             toast({ variant: 'destructive', title: 'Update Failed', description: error.message }); 
         } finally { setIsSaving(false); }
     };
@@ -455,6 +457,7 @@ function AnalysisExecutionModeSettings() {
                 toast({ variant: 'destructive', title: 'Update Failed', description: res.error });
             }
         } catch (error: any) {
+        reportClientError('src/app/admin/page.tsx:457', error);
             toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
         } finally {
             setIsUpdating(false);
@@ -528,14 +531,17 @@ export default function AdminPage() {
             uCount = statsRes.totalUsers;
             pCount = statsRes.totalProjects;
           }
-        } catch {}
+        } catch (e) {
+        reportClientError('src/app/admin/page.tsx:531', e);}
         try {
           const todayStr = getISTDateString();
           const dailySummarySnap = await get(ref(db, `dailySummaries/${todayStr}/newUserJoined`));
           todayJoined = dailySummarySnap.exists() ? Number(dailySummarySnap.val()) || 0 : 0;
-        } catch {}
+        } catch (e) {
+        reportClientError('src/app/admin/page.tsx:536', e);}
         setStats({ totalUsers: uCount, totalProjects: pCount, newUsersToday: todayJoined });
-      } catch (e) { 
+      } catch (e) {
+        reportClientError('src/app/admin/page.tsx:538', e); 
         console.error(e); 
       } finally { 
         setStatsLoading(false); 
@@ -567,7 +573,8 @@ export default function AdminPage() {
       } else {
         toast({ variant: 'destructive', title: 'Update Failed', description: res.error });
       }
-    } catch (e: any) { 
+    } catch (e: any) {
+        reportClientError('src/app/admin/page.tsx:570', e); 
       toast({ variant: 'destructive', title: 'Update Failed', description: e.message }); 
     }
   };
@@ -580,7 +587,8 @@ export default function AdminPage() {
       } else {
         toast({ variant: 'destructive', title: 'Update Failed', description: res.error });
       }
-    } catch (e: any) { 
+    } catch (e: any) {
+        reportClientError('src/app/admin/page.tsx:583', e); 
       toast({ variant: 'destructive', title: 'Update Failed', description: e.message }); 
     }
   };

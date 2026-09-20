@@ -71,7 +71,8 @@ export class FirestoreCrashGuard extends React.Component<{ children: React.React
           await disableNetwork(firestore);
           await enableNetwork(firestore);
         }
-      } catch {
+      } catch (e) {
+        reportClientError('src/components/firestore-crash-guard.tsx:74', e);
         // Best-effort — even if this fails, remounting children below will
         // trigger listeners to resubscribe on their own.
       } finally {

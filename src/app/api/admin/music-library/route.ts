@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
                                  `<b>Vault:</b> ${privateUrl ? 'Clean Copy Secured 🔒' : 'Public Only'}\n` +
                                  `<b>Admin:</b> ${adminEmail || 'Admin'}`);
         } catch (tgErr) {
+        reportServerError('src/app/api/admin/music-library/route.ts:56', tgErr);
             console.warn("[Telegram Notify Warning]:", tgErr);
         }
 
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, id: musicId, data: newItem });
     } catch (e: any) {
+        reportServerError('src/app/api/admin/music-library/route.ts:64', e);
         console.error("[API Music Add Error]:", e);
         return NextResponse.json({ success: false, error: e.message || 'Internal Server Error' }, { status: 500 });
     }
@@ -96,13 +98,13 @@ export async function DELETE(request: NextRequest) {
         await database.ref(`musicMasters/${id}`).remove();
 
         if (url) {
-            await deleteR2Object(url).catch(() => null);
+            await deleteR2Object(url).catch((e: any) => { reportServerError('src/app/api/admin/music-library/route.ts:101', e); return null; });
         }
         if (resolvedPrivateUrl) {
-            await deleteR2Object(resolvedPrivateUrl).catch(() => null);
+            await deleteR2Object(resolvedPrivateUrl).catch((e: any) => { reportServerError('src/app/api/admin/music-library/route.ts:104', e); return null; });
         }
         if (imageUrl) {
-            await deleteR2Object(imageUrl).catch(() => null);
+            await deleteR2Object(imageUrl).catch((e: any) => { reportServerError('src/app/api/admin/music-library/route.ts:107', e); return null; });
         }
 
         try {

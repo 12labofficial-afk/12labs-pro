@@ -288,6 +288,7 @@ function DownloadOptions() {
             saveAs(content, `12labs_trimmed_${(projectName || 'project').replace(/\s+/g, '_')}_${Date.now()}.zip`);
             toast({ title: 'ZIP Bundle Downloaded', description: 'Includes trimmed dialogue audio and replacement JSON.' });
         }).catch((err) => {
+        reportClientError('src/components/studio/generated-lines.tsx:290', err);
             console.error("[GeneratedLines] ZIP generation failed:", err);
             toast({ variant: 'destructive', title: 'ZIP Failed', description: 'Could not build the bundle.' });
         });
@@ -393,7 +394,8 @@ export function GeneratedLines() {
                 setPlayingVoiceId(voice.id);
                 audio.onended = () => setPlayingVoiceId(null);
             }
-        } catch (err) { console.warn("Preview blocked", err); }
+        } catch (err) {
+        reportClientError('src/components/studio/generated-lines.tsx:396', err); console.warn("Preview blocked", err); }
     };
 
     const handleDownload = (url: string | undefined, line: GeneratedLineType) => {

@@ -232,10 +232,11 @@ export async function mergeWavBlobs(blobs: Blob[], silenceDurationMs: number): P
         return audioBufferToWav(renderedBuffer);
 
     } catch (error: any) {
+        reportServerError('src/lib/audio-utils.ts:234', error);
         console.error("[Neural Merger] Mastering Error:", error);
         throw new Error("Mastering Engine Failure.");
     } finally {
-        await tempCtx.close().catch(() => null);
+        await tempCtx.close().catch((e: any) => { reportServerError('src/lib/audio-utils.ts:239', e); return null; });
     }
 }
 
@@ -274,7 +275,7 @@ export async function trimAudioBlob(blob: Blob, silenceThreshold = 0.01): Promis
         source.start(0, startSample / sampleRate, trimmedLength / sampleRate);
 
         const renderedBuffer = await offlineCtx.startRendering();
-        await ctx.close().catch(() => null);
+        await ctx.close().catch((e: any) => { reportServerError('src/lib/audio-utils.ts:278', e); return null; });
 
         const trimmedBlob = audioBufferToWav(renderedBuffer);
         return { blob: trimmedBlob, duration: renderedBuffer.duration };
@@ -340,6 +341,7 @@ export async function applyWatermarkToBlob(audioBlob: File | Blob, watermarkUrl:
         // MP3 keeps the preview close to its original size.
         return await audioBufferToMp3(renderedBuffer, 128);
     } catch (error) {
+        reportServerError('src/lib/audio-utils.ts:342', error);
         console.error("[Watermark Engine] Mixing failure:", error);
         // 🔴 FIX: this used to `return audioBlob` here — silently handing
         // back the ORIGINAL, unwatermarked audio as if watermarking had
@@ -354,6 +356,6 @@ export async function applyWatermarkToBlob(audioBlob: File | Blob, watermarkUrl:
         // actually fire.
         throw error instanceof Error ? error : new Error(String(error));
     } finally {
-        await ctx.close().catch(() => null);
+        await ctx.close().catch((e: any) => { reportServerError('src/lib/audio-utils.ts:359', e); return null; });
     }
 }

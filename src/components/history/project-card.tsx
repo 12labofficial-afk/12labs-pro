@@ -79,6 +79,7 @@ function VoiceEditDialog({ project, onUpdate }: { project: Project, onUpdate: ()
                 setPlayingVoiceId(voiceId);
                 audio.onended = () => setPlayingVoiceId(null);
             } catch (error) {
+        reportClientError('src/components/history/project-card.tsx:81', error);
                 if (error instanceof Error && error.name !== 'AbortError') {
                     console.error("Voice preview failed:", error);
                 }
@@ -205,7 +206,8 @@ export function ProjectCard({
         
         await localSaveFile(audioUrl, finalFileName);
         toast({ title: 'Download Successful' });
-    } catch (error: any) { 
+    } catch (error: any) {
+        reportClientError('src/components/history/project-card.tsx:208', error); 
         console.error("[Download Failed]:", error?.message);
         toast({ variant: 'destructive', title: 'Download Failed', description: 'Could not fetch file from cloud.' }); 
     }
@@ -260,7 +262,8 @@ export function ProjectCard({
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         saveAs(zipBlob, `12labs_bundle_${(project?.projectName || 'audio').replace(/\s+/g, '_')}.zip`);
         toast({ title: 'ZIP Bundle Ready' });
-    } catch (e: any) { 
+    } catch (e: any) {
+        reportClientError('src/components/history/project-card.tsx:263', e); 
         console.error("[ZIP Failed]:", e?.message);
         toast({ variant: 'destructive', title: 'ZIP Failed' }); 
     }

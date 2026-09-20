@@ -380,6 +380,7 @@ function HistoryPageContent() {
                 }
             }
         } catch (e) {
+        reportClientError('src/app/history/page.tsx:382', e);
             console.error("GCS Sync Failure:", e);
         } finally {
             setIsFetchingFull(false);

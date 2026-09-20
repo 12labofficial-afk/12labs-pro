@@ -18,6 +18,7 @@ export function initializeFirebase() {
           databaseURL: "https://twelvelabs-copy-88796906-8d524-default-rtdb.asia-southeast1.firebasedatabase.app",
         });
       } catch (parseError: any) {
+        reportServerError('src/firebase/server.ts:20', parseError);
         console.error('CRITICAL: Malformed FIREBASE_SERVICE_ACCOUNT_KEY.', parseError.message);
       }
     }
@@ -29,6 +30,7 @@ export function initializeFirebase() {
           projectId: "twelvelabs-copy-88796906-8d524",
         });
       } catch (e: any) {
+        reportServerError('src/firebase/server.ts:31', e);
         console.warn('WARNING: Default Firebase Admin initialization failed:', e.message);
       }
     }

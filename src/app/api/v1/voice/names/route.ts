@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { callHfApi, isValidDeveloperKey, resolveDeveloperKey, logDeveloperApiUsage, maskKeySuffix } from '@/lib/hf-proxy';
 import { withCors, corsPreflight } from '@/lib/cors';
 
+import { reportServerError } from '@/lib/report-error';
 /**
  * 🌐 PUBLIC API — GET /api/v1/voice/names
  * Returns every valid voice name, so callers can validate client-side
@@ -44,7 +45,7 @@ async function handleGET(request: NextRequest) {
     timestamp: new Date().toISOString(),
     link: null,
     error: result.ok ? undefined : result.error,
-  }).catch(() => null);
+  }).catch((e: any) => { reportServerError('src/app/api/v1/voice/names/route.ts:47', e); return null; });
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });

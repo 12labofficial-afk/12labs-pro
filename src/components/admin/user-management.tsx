@@ -345,6 +345,7 @@ function UserUnifiedViewDialog({
                 const legacySnap = await getDocs(legacyQuery);
                 legacyProjs = legacySnap.docs.map(d => ({ ...d.data(), id: d.id, ref: d.ref, studioType: 'voice' }));
             } catch (err) {
+        reportClientError('src/components/admin/user-management.tsx:347', err);
                 console.error("Error fetching legacy projects:", err);
             }
             
@@ -357,6 +358,7 @@ function UserUnifiedViewDialog({
                 const partitionedSnap = await getDocs(partitionedQuery);
                 partitionedProjs = partitionedSnap.docs.map(d => ({ ...d.data(), id: d.id, ref: d.ref, studioType: 'voice' }));
             } catch (err) {
+        reportClientError('src/components/admin/user-management.tsx:359', err);
                 console.error("Error fetching partitioned projects:", err);
             }
 
@@ -369,6 +371,7 @@ function UserUnifiedViewDialog({
                 const proPartitionedSnap = await getDocs(proPartitionedQuery);
                 proPartitionedProjs = proPartitionedSnap.docs.map(d => ({ ...d.data(), id: d.id, ref: d.ref, studioType: 'pro' }));
             } catch (err) {
+        reportClientError('src/components/admin/user-management.tsx:371', err);
                 console.error("Error fetching pro_projects partitioned:", err);
             }
 
@@ -382,6 +385,7 @@ function UserUnifiedViewDialog({
                 const proRootSnap = await getDocs(proRootQuery);
                 proRootProjs = proRootSnap.docs.map(d => ({ ...d.data(), id: d.id, ref: d.ref, studioType: 'pro' }));
             } catch (err) {
+        reportClientError('src/components/admin/user-management.tsx:384', err);
                 console.error("Error fetching pro_projects root:", err);
             }
 
@@ -394,6 +398,7 @@ function UserUnifiedViewDialog({
                 const musicPartitionedSnap = await getDocs(musicPartitionedQuery);
                 musicPartitionedProjs = musicPartitionedSnap.docs.map(d => ({ ...d.data(), id: d.id, ref: d.ref, studioType: 'music' }));
             } catch (err) {
+        reportClientError('src/components/admin/user-management.tsx:396', err);
                 console.error("Error fetching music_project partitioned:", err);
             }
 
@@ -406,6 +411,7 @@ function UserUnifiedViewDialog({
                 const thumbnailsSnap = await getDocs(thumbnailsQuery);
                 thumbnailsData = thumbnailsSnap.docs.map(d => ({ ...d.data(), id: d.id, ref: d.ref, itemType: 'thumbnail', studioType: 'thumbnail' }));
             } catch (err) {
+        reportClientError('src/components/admin/user-management.tsx:408', err);
                 console.error("Error fetching thumbnails:", err);
             }
 
@@ -428,6 +434,7 @@ function UserUnifiedViewDialog({
                     projectType: (d.data() as any)?.projectType || 'script',
                 }));
             } catch (err) {
+        reportClientError('src/components/admin/user-management.tsx:430', err);
                 console.error("Error fetching script_projects partitioned:", err);
             }
 
@@ -450,6 +457,7 @@ function UserUnifiedViewDialog({
             setHasMoreProjects(finalSorted.length > projectsLimit);
             setLoadedTabs(prev => ({ ...prev, projects: true }));
         } catch (e: any) {
+        reportClientError('src/components/admin/user-management.tsx:452', e);
             console.error("Error fetching projects tab:", e);
         } finally {
             setIsLoadingData(false);
@@ -469,6 +477,7 @@ function UserUnifiedViewDialog({
                     combinedCredits.push(...(creditsSnap.data()?.entries || []));
                 }
             } catch (err) {
+        reportClientError('src/components/admin/user-management.tsx:471', err);
                 console.error("Error fetching history_log:", err);
             }
 
@@ -486,6 +495,7 @@ function UserUnifiedViewDialog({
                         }
                     });
                 } catch (err) {
+        reportClientError('src/components/admin/user-management.tsx:488', err);
                     console.error("Error fetching individual credit history documents:", err);
                 }
             }
@@ -501,6 +511,7 @@ function UserUnifiedViewDialog({
             }));
             setLoadedTabs(prev => ({ ...prev, credits: true }));
         } catch (e: any) {
+        reportClientError('src/components/admin/user-management.tsx:503', e);
             console.error("Error fetching credits:", e);
         } finally {
             setIsLoadingData(false);
@@ -516,6 +527,7 @@ function UserUnifiedViewDialog({
             setNotifications(notifs.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
             setLoadedTabs(prev => ({ ...prev, notifications: true }));
         } catch (e: any) {
+        reportClientError('src/components/admin/user-management.tsx:518', e);
             console.error("Error fetching logs tab:", e);
         } finally {
             setIsLoadingData(false);
@@ -543,14 +555,14 @@ function UserUnifiedViewDialog({
                 thumbnailCount,
                 scriptPartCount
             ] = await Promise.all([
-                getCountFromServer(collection(firestore, 'projects', user.uid, 'userProjects')).then(s => s.data().count).catch(() => 0),
-                getCountFromServer(query(collection(firestore, 'projects'), where('userId', '==', user.uid))).then(s => s.data().count).catch(() => 0),
-                getCountFromServer(collection(firestore, 'pro_projects', user.uid, 'userProjects')).then(s => s.data().count).catch(() => 0),
-                getCountFromServer(query(collection(firestore, 'pro_projects'), where('userId', '==', user.uid))).then(s => s.data().count).catch(() => 0),
-                getCountFromServer(collection(firestore, 'music_project', user.uid, 'userProjects')).then(s => s.data().count).catch(() => 0),
-                getCountFromServer(collection(firestore, 'users', user.uid, 'thumbnails')).then(s => s.data().count).catch(() => 0),
+                getCountFromServer(collection(firestore, 'projects', user.uid, 'userProjects')).then(s => s.data().count).catch((e: any) => { reportClientError('src/components/admin/user-management.tsx:558', e); return 0; }),
+                getCountFromServer(query(collection(firestore, 'projects'), where('userId', '==', user.uid))).then(s => s.data().count).catch((e: any) => { reportClientError('src/components/admin/user-management.tsx:559', e); return 0; }),
+                getCountFromServer(collection(firestore, 'pro_projects', user.uid, 'userProjects')).then(s => s.data().count).catch((e: any) => { reportClientError('src/components/admin/user-management.tsx:560', e); return 0; }),
+                getCountFromServer(query(collection(firestore, 'pro_projects'), where('userId', '==', user.uid))).then(s => s.data().count).catch((e: any) => { reportClientError('src/components/admin/user-management.tsx:561', e); return 0; }),
+                getCountFromServer(collection(firestore, 'music_project', user.uid, 'userProjects')).then(s => s.data().count).catch((e: any) => { reportClientError('src/components/admin/user-management.tsx:562', e); return 0; }),
+                getCountFromServer(collection(firestore, 'users', user.uid, 'thumbnails')).then(s => s.data().count).catch((e: any) => { reportClientError('src/components/admin/user-management.tsx:563', e); return 0; }),
                 // 🐛 FIX: was hardcoded to 0 — script_projects count was never queried.
-                getCountFromServer(collection(firestore, 'script_projects', user.uid, 'userProjects')).then(s => s.data().count).catch(() => 0),
+                getCountFromServer(collection(firestore, 'script_projects', user.uid, 'userProjects')).then(s => s.data().count).catch((e: any) => { reportClientError('src/components/admin/user-management.tsx:565', e); return 0; }),
             ]);
 
             setStudioCounts({
@@ -562,6 +574,7 @@ function UserUnifiedViewDialog({
             });
             setLoadedTabs(prev => ({ ...prev, overview: true }));
         } catch (e: any) {
+        reportClientError('src/components/admin/user-management.tsx:564', e);
             console.error("Error calculating overview count aggregations:", e);
         } finally {
             setIsLoadingOverview(false);
@@ -726,6 +739,7 @@ function UserUnifiedViewDialog({
                     if (text && text.trim().length > 0) return text;
                 }
             } catch (e) {
+        reportClientError('src/components/admin/user-management.tsx:728', e);
                 console.error("Fetch full script failed:", e);
             }
         }
@@ -1711,6 +1725,7 @@ const LastSeenCell = ({ uid }: { uid: string }) => {
                 </div>
             );
         } catch (e) {
+        reportClientError('src/components/admin/user-management.tsx:1713', e);
             return <span className="text-[10px] text-muted-foreground opacity-30">Recently</span>;
         }
     }
@@ -1769,6 +1784,7 @@ export function UserManagement() {
               toast({ variant: 'destructive', title: 'Filter Failed', description: res.error });
           }
       } catch (e: any) {
+        reportClientError('src/components/admin/user-management.tsx:1771', e);
           toast({ variant: 'destructive', title: 'Error', description: e.message });
       } finally {
           setIsFilteringConsistency(false);
@@ -1803,7 +1819,8 @@ export function UserManagement() {
             setFirestoreProfiles(prev => ({ ...prev, [selectedProfile.uid]: updated }));
             setShowCreditDialog(false);
         } else throw new Error(result.error);
-    } catch (e: any) { toast({ variant: 'destructive', title: 'Update Failed', description: e.message }); }
+    } catch (e: any) {
+        reportClientError('src/components/admin/user-management.tsx:1806', e); toast({ variant: 'destructive', title: 'Update Failed', description: e.message }); }
     finally { setIsActionLoading(false); }
   };
 

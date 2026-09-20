@@ -54,7 +54,8 @@ async function handlePOST(request: NextRequest) {
   let body: any;
   try {
     body = await request.json();
-  } catch {
+  } catch (e) {
+        reportServerError('src/app/api/v1/script/route.ts:57', e);
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
@@ -116,7 +117,7 @@ async function handlePOST(request: NextRequest) {
     timestamp: new Date().toISOString(),
     link: mappingId ? `script:${mappingId}` : null,
     error: errorMessage,
-  }).catch(() => null);
+  }).catch((e: any) => { reportServerError('src/app/api/v1/script/route.ts:120', e); return null; });
 
   if (errorMessage || !mappingId) {
     return NextResponse.json({ error: errorMessage || 'Script generation failed.' }, { status: 502 });

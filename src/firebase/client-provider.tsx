@@ -5,6 +5,7 @@ import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase, type FirebaseServices } from '@/firebase';
 import { goOnline } from 'firebase/database';
 import { enableNetwork, disableNetwork } from 'firebase/firestore';
+import { reportClientError } from '@/lib/report-client-error';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -20,6 +21,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
       const initialized = initializeFirebase();
       setServices(initialized);
     } catch (error) {
+        reportClientError('src/firebase/client-provider.tsx:22', error);
       console.error("Failed to initialize Firebase on client:", error);
     }
   }, []);
@@ -80,6 +82,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
             await services.auth.currentUser.getIdToken(true);
           }
         } catch (error) {
+        reportClientError('src/firebase/client-provider.tsx:82', error);
           // A transient offline state is expected; Firebase will retry on its
           // own. Do not interrupt the UI or force a reload.
           console.warn('Firebase foreground recovery deferred:', error);

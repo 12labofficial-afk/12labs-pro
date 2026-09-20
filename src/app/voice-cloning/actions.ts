@@ -213,7 +213,7 @@ export async function generateVoiceCloningAction(input: {
                     const audioBase64 = Buffer.from(audioBuffer).toString('base64');
                     const mimeType = audioRes.headers.get('content-type') || 'audio/wav';
                     
-                    sendToTelegram(`🎙️✅ <b>Voice Clone Generated</b>\n<b>User:</b> ${escapeHtml(userEmail)}\n<b>Language:</b> ${escapeHtml(targetLanguage)}\n<b>Node:</b> <code>${escapeHtml(spaceId)}</code>\n<b>Text:</b> <i>${escapeHtml(text.slice(0, 100))}${text.length > 100 ? '...' : ''}</i>`).catch(() => null);
+                    sendToTelegram(`🎙️✅ <b>Voice Clone Generated</b>\n<b>User:</b> ${escapeHtml(userEmail)}\n<b>Language:</b> ${escapeHtml(targetLanguage)}\n<b>Node:</b> <code>${escapeHtml(spaceId)}</code>\n<b>Text:</b> <i>${escapeHtml(text.slice(0, 100))}${text.length > 100 ? '...' : ''}</i>`).catch((e: any) => { reportServerError('src/app/voice-cloning/actions.ts:216', e); return null; });
 
                     return { 
                         success: true, 
@@ -227,7 +227,8 @@ export async function generateVoiceCloningAction(input: {
                     // err from @gradio/client can be a plain object rather than
                     // an Error instance, so err.message may be undefined — fall
                     // back to stringifying it so lastError stays informative.
-                    const errMsg = err?.message || (() => { try { return JSON.stringify(err); } catch { return String(err); } })();
+                    const errMsg = err?.message || (() => { try { return JSON.stringify(err); } catch (e) {
+        reportServerError('src/app/voice-cloning/actions.ts:230', e); return String(err); } })();
                     lastError = `[Node: ${spaceId}] ${errMsg}`;
                     console.warn(`[Neural Dispatcher] Failover triggered: ${spaceId} with token ending ${token.slice(-4)}`);
                 }
@@ -239,11 +240,11 @@ export async function generateVoiceCloningAction(input: {
     } catch (error: any) {
     reportServerError('src/app/voice-cloning/actions.ts#4', error);
         console.error("Cloning Dispatch Failed:", error.message);
-        sendToTelegram(`🎙️🚨 <b>Neural Dispatcher Failed</b>\n\n<b>User:</b> ${escapeHtml(userEmail)}\n<b>Error:</b> <pre>${escapeHtml(error.message)}</pre>`).catch(() => null);
+        sendToTelegram(`🎙️🚨 <b>Neural Dispatcher Failed</b>\n\n<b>User:</b> ${escapeHtml(userEmail)}\n<b>Error:</b> <pre>${escapeHtml(error.message)}</pre>`).catch((e: any) => { reportServerError('src/app/voice-cloning/actions.ts:243', e); return null; });
         return { success: false, error: error.message };
     } finally {
         if (tempFilePath && fs.existsSync(tempFilePath)) {
-            await fs.promises.unlink(tempFilePath).catch(() => null);
+            await fs.promises.unlink(tempFilePath).catch((e: any) => { reportServerError('src/app/voice-cloning/actions.ts:247', e); return null; });
         }
     }
 }

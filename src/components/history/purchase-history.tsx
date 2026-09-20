@@ -90,6 +90,7 @@ function PurchaseCard({ order }: { order: Order }) {
                     }
                 }
             } catch (e) {
+        reportClientError('src/components/history/purchase-history.tsx:92', e);
                 console.error("Purchase detail fetch failed:", e);
             } finally {
                 setIsLoadingProduct(false);
@@ -133,6 +134,7 @@ function PurchaseCard({ order }: { order: Order }) {
             }
             return null;
         } catch (e) {
+        reportClientError('src/components/history/purchase-history.tsx:135', e);
             console.error("Failed to fetch script content:", e);
             return null;
         } finally {
@@ -226,6 +228,7 @@ function PurchaseCard({ order }: { order: Order }) {
             dismiss();
             toast({ title: 'PDF Downloaded' });
         } catch (error) {
+        reportClientError('src/components/history/purchase-history.tsx:228', error);
             dismiss();
             console.error("PDF generation failed:", error);
             toast({ variant: 'destructive', title: 'PDF generation failed' });

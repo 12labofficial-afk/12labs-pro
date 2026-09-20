@@ -17,6 +17,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 
 import { GetNotifiedButton } from '@/components/push-subscription-handler';
+import { reportClientError } from '@/lib/report-client-error';
 
 function NotificationIcon({ type, message }: { type: Notification['type']; message: string }) {
     const lowerCaseMessage = message.toLowerCase();
@@ -76,6 +77,7 @@ export function NotificationPopover({ user }: { user: User }) {
             try {
                 await updateDoc(notificationsDocRef, { entries: updatedEntries });
             } catch (error) {
+        reportClientError('src/components/notification-popover.tsx:78', error);
                 console.error("[NotificationSync] Failed to mark as read:", error);
             }
         };

@@ -196,7 +196,8 @@ export async function sendPushToUserByEmail(
             try {
                 const subscriptionKey = getSubscriptionVapidKey(sub);
                 if (subscriptionKey && subscriptionKey !== vapid.publicKey) {
-                    await removeSubscription(database, userId, sub).catch(() => {});
+                    await removeSubscription(database, userId, sub).catch((e: any) => {
+        reportServerError('src/app/admin/push-actions.ts:199', e);});
                     return {
                         success: false,
                         error: 'STALE_SUBSCRIPTION: This device was registered with an older VAPID key. Ask the user to enable notifications again.',
@@ -209,7 +210,8 @@ export async function sendPushToUserByEmail(
                 const rawError = err.body || err.message || `HTTP ${err.statusCode}`;
                 // 404, 410, 401, 400 or VAPID mismatch means subscription token is expired or created with an old key
                 if (err.statusCode === 404 || err.statusCode === 410 || err.statusCode === 401 || err.statusCode === 400 || rawError.toLowerCase().includes('vapid')) {
-                     await removeSubscription(database, userId, sub).catch(() => {});
+                     await removeSubscription(database, userId, sub).catch((e: any) => {
+        reportServerError('src/app/admin/push-actions.ts:212', e);});
                 }
                 return { 
                     success: false, 
@@ -285,7 +287,8 @@ export async function sendPushToUserById(
             try {
                 const subscriptionKey = getSubscriptionVapidKey(sub);
                 if (subscriptionKey && subscriptionKey !== vapid.publicKey) {
-                    await removeSubscription(database, userId, sub).catch(() => {});
+                    await removeSubscription(database, userId, sub).catch((e: any) => {
+        reportServerError('src/app/admin/push-actions.ts:288', e);});
                     return {
                         success: false,
                         error: 'STALE_SUBSCRIPTION: This device was registered with an older VAPID key. Ask the user to enable notifications again.',
@@ -297,7 +300,8 @@ export async function sendPushToUserById(
     reportServerError('src/app/admin/push-actions.ts#5', err);
                 const rawError = err.body || err.message || `HTTP ${err.statusCode}`;
                 if (err.statusCode === 404 || err.statusCode === 410 || err.statusCode === 401 || err.statusCode === 400 || rawError.toLowerCase().includes('vapid')) {
-                     await removeSubscription(database, userId, sub).catch(() => {});
+                     await removeSubscription(database, userId, sub).catch((e: any) => {
+        reportServerError('src/app/admin/push-actions.ts:300', e);});
                 }
                 return { 
                     success: false, 
@@ -369,7 +373,8 @@ export async function sendBroadcastPush(
                     (async () => {
                         const subscriptionKey = getSubscriptionVapidKey(sub);
                         if (subscriptionKey && subscriptionKey !== vapid.publicKey) {
-                            await removeSubscription(database, userId, sub).catch(() => {});
+                            await removeSubscription(database, userId, sub).catch((e: any) => {
+        reportServerError('src/app/admin/push-actions.ts:372', e);});
                             throw new Error('STALE_SUBSCRIPTION: device was registered with an older VAPID key');
                         }
                         return webpush.sendNotification(sub, notificationPayload);
@@ -378,7 +383,8 @@ export async function sendBroadcastPush(
                         .catch(async (err) => {
                             lastError = err.body || err.message || `HTTP ${err.statusCode}`;
                             if (err.statusCode === 404 || err.statusCode === 410 || err.statusCode === 401 || err.statusCode === 400 || lastError.toLowerCase().includes('vapid')) {
-                                 await removeSubscription(database, userId, sub).catch(() => {});
+                                 await removeSubscription(database, userId, sub).catch((e: any) => {
+        reportServerError('src/app/admin/push-actions.ts:381', e);});
                             }
                         })
                 );

@@ -9,6 +9,7 @@ import { cn, getDisplayUrl } from '@/lib/utils';
 import { initializeFirebase } from '@/firebase';
 import { ref, onValue } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
+import { reportClientError } from '@/lib/report-client-error';
 
 interface StudioDemoCardProps {
   title?: string;
@@ -126,7 +127,8 @@ export function StudioDemoCard({
 
     newAudio.play().then(() => {
       setActivePlayingId(demo.id);
-    }).catch(() => {
+    }).catch((e: any) => {
+        reportClientError('src/components/studio/studio-demo-card.tsx:129', e);
       setActivePlayingId(null);
     });
   };

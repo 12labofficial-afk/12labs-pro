@@ -79,6 +79,7 @@ function VoiceEditDialog({ project, onUpdate }: { project: Project, onUpdate: ()
                 setPlayingVoiceId(voiceId);
                 audio.onended = () => setPlayingVoiceId(null);
             } catch (error) {
+        reportClientError('src/app/history/project-card.tsx:81', error);
                 if (error instanceof Error && error.name !== 'AbortError') {
                     console.error("Voice preview failed:", error);
                 }
@@ -202,7 +203,8 @@ export function ProjectCard({
         const finalFileName = `12labs_${trackType}_${safeName}.${format}`;
         await localSaveFile(rawTarget, finalFileName);
         toast({ title: 'Download Successful' });
-    } catch (error: any) { 
+    } catch (error: any) {
+        reportClientError('src/app/history/project-card.tsx:205', error); 
         console.error("[Download Failed]:", error.message);
         toast({ variant: 'destructive', title: 'Download Failed', description: 'Could not fetch file from cloud.' }); 
     }
@@ -253,7 +255,8 @@ export function ProjectCard({
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         saveAs(zipBlob, `12labs_bundle_${project.projectName.replace(/\s+/g, '_')}.zip`);
         toast({ title: 'ZIP Bundle Ready' });
-    } catch (e: any) { 
+    } catch (e: any) {
+        reportClientError('src/app/history/project-card.tsx:256', e); 
         console.error("[ZIP Failed]:", e.message);
         toast({ variant: 'destructive', title: 'ZIP Failed' }); 
     }
@@ -272,6 +275,7 @@ export function ProjectCard({
                 }
             }
         } catch (e) {
+        reportClientError('src/app/history/project-card.tsx:274', e);
             console.error("Fetch full script failed:", e);
         }
     }
@@ -317,6 +321,7 @@ export function ProjectCard({
         await downloadScriptAsPdf(project.projectName || 'Script', text);
         toast({ title: 'Downloaded .PDF' });
     } catch (err) {
+        reportClientError('src/app/history/project-card.tsx:319', err);
         console.error("PDF Export Error:", err);
         toast({ variant: 'destructive', title: 'PDF generation failed' });
     }

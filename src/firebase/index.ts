@@ -67,6 +67,7 @@ export function initializeFirebase(): FirebaseServices {
       database: cachedDatabase,
     };
   } catch (error) {
+        reportClientError('src/firebase/index.ts:69', error);
     console.error("Firebase live initialization failed:", error);
     return { firebaseApp: null, auth: null, firestore: null, database: null };
   }

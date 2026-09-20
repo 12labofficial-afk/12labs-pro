@@ -2,6 +2,7 @@
 
 import { initializeFirebase } from '@/firebase/server';
 import { getISTDateString } from './utils';
+import { reportServerError } from '@/lib/report-error';
 
 export type SummaryEvent =
   | 'scriptsGenerated'
@@ -31,6 +32,7 @@ export async function logSummaryEvent(event: SummaryEvent, value: number = 1) {
     });
 
   } catch (error) {
+        reportServerError('src/lib/summary-logger.ts:33', error);
     // Don't throw errors for logging failures, just log them on the server.
     console.error(`[SummaryLogger] Failed to log event '${event}':`, error);
   }
@@ -56,6 +58,7 @@ export async function logDailyActiveUser(uid: string) {
     const today = getISTDateString();
     await database.ref(`dailySummaries/${today}/onlineUsers/${uid}`).set(true);
   } catch (error) {
+        reportServerError('src/lib/summary-logger.ts:58', error);
     console.error(`[SummaryLogger] Failed to log daily active user:`, error);
   }
 }

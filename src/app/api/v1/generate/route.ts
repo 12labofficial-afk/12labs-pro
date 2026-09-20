@@ -72,7 +72,8 @@ async function autoAssignElevenLabsVoice(gender: string): Promise<string | null>
     const voiceId = data?.voices?.[0]?.voice_id || null;
     elevenLabsDefaultCache.set(key, voiceId);
     return voiceId;
-  } catch {
+  } catch (e) {
+        reportServerError('src/app/api/v1/generate/route.ts:75', e);
     elevenLabsDefaultCache.set(key, null);
     return null;
   }
@@ -105,7 +106,8 @@ async function handlePOST(request: NextRequest) {
   let body: any;
   try {
     body = await request.json();
-  } catch {
+  } catch (e) {
+        reportServerError('src/app/api/v1/generate/route.ts:108', e);
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
@@ -214,7 +216,7 @@ async function handlePOST(request: NextRequest) {
     timestamp: new Date().toISOString(),
     link: projectId ? `project:${projectId}` : null,
     error: errorMessage,
-  }).catch(() => null);
+  }).catch((e: any) => { reportServerError('src/app/api/v1/generate/route.ts:219', e); return null; });
 
   if (errorMessage || !projectId) {
     return NextResponse.json({ error: errorMessage || 'Generation failed.' }, { status: 502 });

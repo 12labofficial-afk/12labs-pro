@@ -5,6 +5,12 @@ import { escapeHtml } from '@/lib/utils';
 /**
  * Sends a message or photo to one or more Telegram chat IDs.
  * Strictly uses the main TELEGRAM_BOT_TOKEN for logging and notifications.
+ *
+ * Deliberately never calls reportServerError/reportClientError on failure
+ * here: both of those report functions call THIS function to actually
+ * dispatch the report, so doing that here would recurse indefinitely on
+ * any persistent failure (bad token, Telegram down) instead of just
+ * failing once and logging to console.
  */
 export async function sendToTelegram(
   message: string, 

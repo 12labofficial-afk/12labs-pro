@@ -304,7 +304,8 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                 title: 'Copied to Clipboard!',
                 description: `${label} link has been copied successfully.`,
             });
-        }).catch(() => {
+        }).catch((e: any) => {
+        reportClientError('src/components/history/voice-editor-dialog.tsx:307', e);
             toast({
                 variant: 'destructive',
                 title: 'Copy Failed',
@@ -458,6 +459,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                 return await proxyResponse.arrayBuffer();
             }
         } catch (proxyErr) {
+        reportClientError('src/components/history/voice-editor-dialog.tsx:460', proxyErr);
             console.warn("Audio proxy fetch failed, trying direct URL fallback...", proxyErr);
         }
 
@@ -742,6 +744,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                         updatedAt: new Date().toISOString()
                     });
                 } catch (rtdbErr) {
+        reportClientError('src/components/history/voice-editor-dialog.tsx:744', rtdbErr);
                     console.warn("RTDB sync skipped/failed:", rtdbErr);
                 }
             }
@@ -757,6 +760,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
             try {
                 await persistSyncDataToFirestore(syncData);
             } catch (fsErr) {
+        reportClientError('src/components/history/voice-editor-dialog.tsx:759', fsErr);
                 console.warn("Firestore syncData save failed:", fsErr);
                 throw fsErr; // this one DOES matter — surface it below
             }
@@ -822,6 +826,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
             try {
                 await persistSyncDataToFirestore(syncData);
             } catch (persistErr) {
+        reportClientError('src/components/history/voice-editor-dialog.tsx:824', persistErr);
                 console.warn("Pre-swap syncData persist failed — swap will use last-saved text:", persistErr);
             }
             const replacementRef = ref(database, replacementRtdbNode + '/' + project.id + '_' + Date.now());
@@ -892,6 +897,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
             try {
                 await persistSyncDataToFirestore(syncData);
             } catch (persistErr) {
+        reportClientError('src/components/history/voice-editor-dialog.tsx:894', persistErr);
                 console.warn("Pre-swap syncData persist failed — swap will use last-saved text:", persistErr);
             }
             const replacementRef = ref(database, replacementRtdbNode + '/' + project.id + '_' + Date.now());
@@ -953,7 +959,8 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                 a.pause(); a.src = getDisplayUrl(voice.demoUrl || voice.link); await a.play();
                 setPlayingVoiceId(voice.id);
                 a.onended = () => setPlayingVoiceId(null);
-            } catch (err) { console.warn("Preview blocked", err); }
+            } catch (err) {
+        reportClientError('src/components/history/voice-editor-dialog.tsx:956', err); console.warn("Preview blocked", err); }
         }
     };
 
@@ -1060,6 +1067,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
             saveAs(wavBlob, `12labs_master_${safeName}.wav`);
             toast({ title: 'Download Successful', description: 'Master track downloaded as high-quality WAV.' });
         } catch (e) {
+        reportClientError('src/components/history/voice-editor-dialog.tsx:1062', e);
             console.error(e);
             toast({ variant: 'destructive', title: 'Download Failed', description: 'Could not render master WAV.' });
         }
@@ -1115,6 +1123,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
             saveAs(content, `12labs_nodes_${safeName}.zip`);
             toast({ title: 'ZIP Saved', description: 'All individual nodes downloaded as a ZIP archive.' });
         } catch (e) {
+        reportClientError('src/components/history/voice-editor-dialog.tsx:1117', e);
             console.error(e);
             toast({ variant: 'destructive', title: 'ZIP Failed', description: 'Could not compile nodes ZIP.' });
         } finally {

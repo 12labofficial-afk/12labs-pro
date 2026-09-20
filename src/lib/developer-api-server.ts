@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { initializeFirebase } from '@/firebase/server';
+import { reportServerError } from '@/lib/report-error';
 
 export class DeveloperApiAuthError extends Error {
   constructor(
@@ -33,7 +34,8 @@ export async function requireDeveloperIdentity(request: NextRequest): Promise<De
   let token: DecodedIdToken;
   try {
     token = await auth.verifyIdToken(authorization.slice('Bearer '.length));
-  } catch {
+  } catch (e) {
+        reportServerError('src/lib/developer-api-server.ts:36', e);
     throw new DeveloperApiAuthError('Your session has expired. Please sign in again.');
   }
 
@@ -45,6 +47,7 @@ export async function requireDeveloperIdentity(request: NextRequest): Promise<De
       profile = (snapshot.data() || {}) as Record<string, any>;
     }
   } catch (error) {
+        reportServerError('src/lib/developer-api-server.ts:47', error);
     console.error('[Developer API] profile lookup failed:', error);
   }
 

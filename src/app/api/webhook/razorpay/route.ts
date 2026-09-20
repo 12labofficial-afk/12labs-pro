@@ -8,6 +8,7 @@ import { logSummaryEvent } from '@/lib/summary-logger';
 import type * as admin from 'firebase-admin';
 import { escapeHtml, getISTDateString } from '@/lib/utils';
 import { plans } from '@/lib/plans';
+import { reportServerError } from '@/lib/report-error';
 
 /**
  * 🎵🔒 MUSIC TRACK PURCHASE — WEBHOOK HANDLER
@@ -56,6 +57,7 @@ async function handleMusicTrackPurchase(
             processedAt: new Date().toISOString(),
         });
     } catch (e: any) {
+        reportServerError('src/app/api/webhook/razorpay/route.ts:58', e);
         // ALREADY_EXISTS (Firestore error code 6) — the other event for
         // this same payment got here first. Nothing left to do.
         if (e?.code === 6 || /already exists/i.test(e?.message || '')) return;
@@ -121,6 +123,7 @@ async function handleAffiliateCommission(
         await sendToTelegram(`💸 <b>Affiliate Commission Logged</b>\n<b>Creator:</b> ${data.code}\n<b>Buyer:</b> ${buyerEmail}\n<b>Earned:</b> ₹${commission}`);
 
     } catch (e: any) {
+        reportServerError('src/app/api/webhook/razorpay/route.ts:123', e);
         console.error("Affiliate sync failed:", e.message);
     }
 }
@@ -243,13 +246,13 @@ async function handleProductPurchase(
         const itemDetails = items.map((item: any) => `📦 <b>${escapeHtml(item.title)}</b>`).join('\n');
 
         for (const item of items) {
-            const productSnap = await database.ref(`storeProducts/${item.productId}`).get().catch(() => null);
+            const productSnap = await database.ref(`storeProducts/${item.productId}`).get().catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:249', e); return null; });
             if (productSnap && productSnap.exists() && productSnap.val()?.title) {
-                await database.ref(`storeProducts/${item.productId}`).update({ status: 'sold', isSold: true, buyerUid: userId }).catch(() => null);
+                await database.ref(`storeProducts/${item.productId}`).update({ status: 'sold', isSold: true, buyerUid: userId }).catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:251', e); return null; });
             }
         }
 
-        await database.ref(`carts/${userId}`).remove().catch(() => null);
+        await database.ref(`carts/${userId}`).remove().catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:255', e); return null; });
         const todayStr = getISTDateString();
         const revenueRef = database.ref(`dailySummaries/${todayStr}/revenue`);
         let previousRevenue = 0;
@@ -265,6 +268,7 @@ async function handleProductPurchase(
         await sendToTelegram(`🛍️ <b>STORE ASSET PURCHASED</b>\n\n<b>User:</b> ${paymentEmail}\n<b>Amount:</b> ₹${amountInInr}\n<b>Total Investment:</b> ${storeTotalInvestFormatted}\n\n${itemDetails}\n\n<b>Status:</b> UNLOCKED\n\n${todayEarningsText}`);
 
     } catch (e: any) {
+        reportServerError('src/app/api/webhook/razorpay/route.ts:267', e);
         console.error("Store purchase sync failed:", e.message);
         await sendToTelegram(`🚨 <b>STORE SYNC FAILED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Error:</b> ${e.message}`);
     }
@@ -499,6 +503,7 @@ async function handleCreditPurchase(
          : '';
      await sendToTelegram(`<b>💎 CREDIT PURCHASE SUCCESSFUL</b>\n\n<b>User:</b> ${tr.userEmail}\n<b>Amount:</b> ${currencySymbol}${amountInOriginalCurrency}\n<b>Credit Grant:</b> +${tr.creditsToAdd.toLocaleString()}${recurringGrantText}\n<b>Total Investment:</b> ${creditTotalInvestFormatted}\n\n${todayEarningsText}`);
   } catch (e: any) {
+        reportServerError('src/app/api/webhook/razorpay/route.ts:501', e);
       await sendToTelegram(`🚨 <b>PAYMENT SYNC FAILED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Error:</b> ${e.message}`);
   }
 }
@@ -553,7 +558,8 @@ export async function POST(req: NextRequest) {
          }
     }
     return NextResponse.json({ status: 'processed' });
-  } catch (e: any) { 
+  } catch (e: any) {
+        reportServerError('src/app/api/webhook/razorpay/route.ts:556', e); 
     console.error('[Razorpay Webhook Exception]:', e);
     return NextResponse.json({ status: 'error', message: e.message }, { status: 500 }); 
   }

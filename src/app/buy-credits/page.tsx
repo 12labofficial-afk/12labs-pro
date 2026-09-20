@@ -145,6 +145,7 @@ export default function BuyCreditsPage() {
                         toast({ variant: 'destructive', title: 'Promo Code Error', description: result.message });
                     }
                 } catch (e) {
+        reportClientError('src/app/buy-credits/page.tsx:147', e);
                     console.error("Auto promo application failed:", e);
                 } finally {
                     setIsApplyingCode(false);

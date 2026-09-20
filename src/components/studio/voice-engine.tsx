@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { reportClientError } from '@/lib/report-client-error';
 
 export interface LibraryVoice {
   voice_id: string;
@@ -140,6 +141,7 @@ export function ElevenLabsVoiceSource({
           setError(null);
         }
       } catch (e: any) {
+        reportClientError('src/components/studio/voice-engine.tsx:142', e);
         if (!cancelled) {
           setError('Could not load voices.');
           setVoices([]);
@@ -168,7 +170,8 @@ export function ElevenLabsVoiceSource({
     audioRef.current?.pause();
     const audio = new Audio(v.preview_url);
     audioRef.current = audio;
-    audio.play().catch(() => {});
+    audio.play().catch((e: any) => {
+        reportClientError('src/components/studio/voice-engine.tsx:173', e);});
     audio.onended = () => setPlayingId(null);
     setPlayingId(v.voice_id);
   };
@@ -186,7 +189,8 @@ export function ElevenLabsVoiceSource({
     navigator.clipboard?.writeText(id).then(() => {
       setCopiedId(id);
       setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
-    }).catch(() => {});
+    }).catch((e: any) => {
+        reportClientError('src/components/studio/voice-engine.tsx:191', e);});
   };
 
   const trimmed = query.trim();

@@ -27,6 +27,7 @@ import { VerifiedBadge } from '@/components/verified-badge';
 import ProductView from '@/components/store/product-view';
 import { AdminEditProductDialog } from '@/components/store/admin-edit-product-dialog';
 import { PurchaseHistory } from '@/components/history/purchase-history';
+import { reportClientError } from '@/lib/report-client-error';
 
 /**
  * Optimized Product Overlay Component for Zero-Lag Interaction
@@ -260,11 +261,13 @@ function ProductCard({
                 title: product.title,
                 text: product.description,
                 url: shareUrl,
-            }).catch(() => {});
+            }).catch((e: any) => {
+        reportClientError('src/app/store/page.tsx:264', e);});
         } else {
             navigator.clipboard.writeText(shareUrl).then(() => {
                 toast({ title: 'Link Copied', description: 'Product link copied to clipboard!' });
             }).catch((err) => {
+        reportClientError('src/app/store/page.tsx:268', err);
                 console.error('[Store] Clipboard write failed:', err);
                 toast({ variant: 'destructive', title: 'Could not copy link', description: 'Please copy the URL manually.' });
             });
@@ -507,6 +510,7 @@ export default function StoreHomePage() {
 
       return () => unsubscribe();
     } catch (e) {
+        reportClientError('src/app/store/page.tsx:509', e);
       console.error("Failed to query user store history:", e);
     }
   }, [user?.uid, firestore]);
@@ -541,9 +545,10 @@ export default function StoreHomePage() {
 
             // Auto-clean corrupted ghost nodes in the background if found
             if (hasCorrupted) {
-                adminCleanCorruptedProducts().catch(() => null);
+                adminCleanCorruptedProducts().catch((e: any) => { reportClientError('src/app/store/page.tsx:548', e); return null; });
             }
         } catch (err) {
+        reportClientError('src/app/store/page.tsx:546', err);
             console.error("[Store] Failed to load products:", err);
         } finally { 
             setIsLoading(false); 
@@ -560,6 +565,7 @@ export default function StoreHomePage() {
         setActiveProduct(product);
         setActiveSeller(seller);
     } catch (e) {
+        reportClientError('src/app/store/page.tsx:562', e);
         console.error("Failed to load product overlay:", e);
     } finally {
         setIsOverlayLoading(false);

@@ -151,7 +151,7 @@ export async function submitThumbnailRequestAction(
           timestamp: createdAtIso,
           projectId: mappingId,
           type: 'deduction'
-        }).catch(() => null);
+        }).catch((e: any) => { reportServerError('src/app/thumbnail-generator/actions.ts:154', e); return null; });
       }
     }
 
@@ -215,7 +215,7 @@ export async function submitThumbnailRequestAction(
 
     // Summary logger & cashback
     if (cost > 0) {
-      await logSummaryEvent('creditsSpent', cost).catch(() => null);
+      await logSummaryEvent('creditsSpent', cost).catch((e: any) => { reportServerError('src/app/thumbnail-generator/actions.ts:218', e); return null; });
     }
 
     // Telegram Notification
@@ -227,7 +227,7 @@ export async function submitThumbnailRequestAction(
 ${referenceImageUrl ? `<b>Extracted YT / Reference Image:</b> ${referenceImageUrl}` : ''}
 <b>Cost:</b> <code>-${cost} Credits</code>`;
 
-    await sendToTelegram(tgMsg, referenceImageUrl || undefined).catch(() => null);
+    await sendToTelegram(tgMsg, referenceImageUrl || undefined).catch((e: any) => { reportServerError('src/app/thumbnail-generator/actions.ts:230', e); return null; });
 
     return {
       success: true,
@@ -311,7 +311,7 @@ export async function saveCompletedThumbnailAction(input: {
       });
     }
 
-    await logSummaryEvent('thumbnailsGenerated').catch(() => null);
+    await logSummaryEvent('thumbnailsGenerated').catch((e: any) => { reportServerError('src/app/thumbnail-generator/actions.ts:314', e); return null; });
 
     return { success: true };
   } catch (error: any) {

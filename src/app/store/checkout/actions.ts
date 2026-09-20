@@ -173,7 +173,7 @@ export async function processFreeOrder(
             if (doc.exists) {
                 const productData = doc.data() as Product;
                 if (productData.isOneTimePurchase) {
-                    const snap = await database.ref(`storeProducts/${doc.id}`).get().catch(() => null);
+                    const snap = await database.ref(`storeProducts/${doc.id}`).get().catch((e: any) => { reportServerError('src/app/store/checkout/actions.ts:176', e); return null; });
                     if (snap && snap.exists() && snap.val()?.title) {
                         await database.ref(`storeProducts/${doc.id}`).update({ status: 'sold', isSold: true, buyerUid: user.uid });
                     }
@@ -285,7 +285,7 @@ export async function processCreditOrder(
         // Update RTDB for one-time purchases
         for (const item of cartItems) {
             if (item.isOneTimePurchase) {
-                const snap = await database.ref(`storeProducts/${item.id}`).get().catch(() => null);
+                const snap = await database.ref(`storeProducts/${item.id}`).get().catch((e: any) => { reportServerError('src/app/store/checkout/actions.ts:288', e); return null; });
                 if (snap && snap.exists() && snap.val()?.title) {
                     await database.ref(`storeProducts/${item.id}`).update({ status: 'sold', isSold: true, buyerUid: user.uid });
                 }

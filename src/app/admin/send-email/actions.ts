@@ -57,7 +57,7 @@ export async function sendEmailAction(
         await sleep(550);
     }
     
-    sendToTelegram(`📧 <b>Bulk Email Batch Processed</b>\n<b>Subject:</b> ${escapeHtml(subject)}\n<b>Attempted:</b> ${toArray.length}\n<b>Successful:</b> ${successfulSends}`).catch(() => null);
+    sendToTelegram(`📧 <b>Bulk Email Batch Processed</b>\n<b>Subject:</b> ${escapeHtml(subject)}\n<b>Attempted:</b> ${toArray.length}\n<b>Successful:</b> ${successfulSends}`).catch((e: any) => { reportServerError('src/app/admin/send-email/actions.ts:60', e); return null; });
 
     if (successfulSends === toArray.length) {
       return { success: true, message: `All ${successfulSends} emails were sent successfully.` };

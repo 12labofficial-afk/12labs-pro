@@ -85,7 +85,8 @@ async function compressImageToWebP(file: File | Blob, fileName: string): Promise
 
         const webpName = fileName.replace(/\.[a-zA-Z0-9]+$/, '') + '.webp';
         return { blob, fileName: webpName, contentType: 'image/webp' };
-    } catch {
+    } catch (e) {
+        reportServerError('src/lib/gcs-client.ts:88', e);
         return null;
     }
 }
@@ -199,10 +200,11 @@ export async function uploadFileDirectly(options: UploadOptions): Promise<string
                 // unchanged (still the pointer, since callers/Firestore
                 // expect that canonical form) — only the log line differs.
                 publicUrl: urlForUploadLog(resultPath, bucketType),
-            }).catch(() => null);
+            }).catch((e: any) => { reportServerError('src/lib/gcs-client.ts:203', e); return null; });
             return resultPath;
         }
     } catch (presignedErr: any) {
+        reportServerError('src/lib/gcs-client.ts:205', presignedErr);
         console.warn("[Primary Direct R2 Upload failed, attempting /api/upload Fallback]:", presignedErr.message);
     }
 
@@ -225,12 +227,13 @@ export async function uploadFileDirectly(options: UploadOptions): Promise<string
                 userEmail,
                 fileName: actualFileName,
                 publicUrl: urlForUploadLog(serverActionRes.url, bucketType),
-            }).catch(() => null);
+            }).catch((e: any) => { reportServerError('src/lib/gcs-client.ts:230', e); return null; });
             return serverActionRes.url;
         } else if (serverActionRes.error) {
             lastError = serverActionRes.error;
         }
     } catch (serverActionErr: any) {
+        reportServerError('src/lib/gcs-client.ts:233', serverActionErr);
         console.warn("[Server Action Fallback failed, attempting /api/upload]:", serverActionErr.message);
         lastError = serverActionErr.message;
     }
@@ -295,7 +298,7 @@ export async function uploadFileDirectly(options: UploadOptions): Promise<string
             userEmail,
             fileName: actualFileName,
             publicUrl: urlForUploadLog(resultUrl, bucketType),
-        }).catch(() => null);
+        }).catch((e: any) => { reportServerError('src/lib/gcs-client.ts:301', e); return null; });
         return resultUrl;
     } catch (apiErr: any) {
             reportServerError('src/lib/gcs-client.ts:184', apiErr);

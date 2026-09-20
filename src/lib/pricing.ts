@@ -1,4 +1,5 @@
 import { initializeFirebase } from '@/firebase/server';
+import { reportServerError } from '@/lib/report-error';
 
 /**
  * 💳 PER-CHARACTER ENGINE RATE — single source of truth
@@ -22,7 +23,8 @@ export async function getEngineRate(
     const key = engine === 'elevenlabs' ? 'elevenLabsNormal' : 'studioNormal';
     const rate = Number(v[key]);
     return Number.isFinite(rate) && rate > 0 ? rate : FALLBACK[engine];
-  } catch {
+  } catch (e) {
+        reportServerError('src/lib/pricing.ts:25', e);
     // Never block a paid action on a settings read; fall back to the
     // documented default rather than charging 0.
     return FALLBACK[engine];

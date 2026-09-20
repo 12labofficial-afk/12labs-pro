@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { reportClientError } from '@/lib/report-client-error';
 
 
 export function ScriptEditor() {
@@ -137,6 +138,7 @@ export function ScriptEditor() {
           setScript(result.value);
           toast({ title: 'DOCX file loaded successfully.' });
         } catch (error) {
+        reportClientError('src/components/studio/script-editor.tsx:139', error);
           console.error('Error parsing .docx file:', error);
           toast({ variant: 'destructive', title: 'Error reading .docx file.' });
         }

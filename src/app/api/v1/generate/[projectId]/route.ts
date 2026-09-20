@@ -3,6 +3,7 @@ import { isValidDeveloperKey, resolveDeveloperKey } from '@/lib/hf-proxy';
 import { initializeFirebase } from '@/firebase/server';
 import { getDisplayUrl } from '@/lib/utils';
 import { withCors, corsPreflight } from '@/lib/cors';
+import { reportServerError } from '@/lib/report-error';
 
 /**
  * 🌐 PUBLIC API — GET /api/v1/generate/{projectId}
@@ -65,6 +66,7 @@ async function handleGET(
       error: status === 'error' ? (data.error || 'Generation failed.') : null,
     });
   } catch (e: any) {
+        reportServerError('src/app/api/v1/generate/[projectId]/route.ts:67', e);
     return NextResponse.json({ error: e?.message || 'Could not fetch project status.' }, { status: 502 });
   }
 }

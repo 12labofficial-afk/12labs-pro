@@ -52,6 +52,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { reportClientError } from '@/lib/report-client-error';
 
 function PendingSellerCard({ profile, onApprove, onReject }: { profile: SellerProfile; onApprove: (id: string) => Promise<void>; onReject: (id: string, reason: string) => Promise<void>; }) {
     const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
@@ -484,7 +485,8 @@ export default function AdminPendingPage() {
             await remove(ref(database, `${rtdbPath}/${project.id}`));
             
             toast({ title: isHardPurge ? 'Project Purged' : 'Refunded Successfully' });
-        } catch (e: any) { 
+        } catch (e: any) {
+        reportClientError('src/app/admin/pending/page.tsx:487', e); 
             console.error("Refund failed:", e.message);
             toast({ variant: 'destructive', title: 'Action Failed', description: e.message }); 
         }

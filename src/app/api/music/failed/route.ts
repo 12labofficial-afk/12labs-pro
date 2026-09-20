@@ -4,6 +4,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
 import { FieldValue } from 'firebase-admin/firestore';
+import { reportServerError } from '@/lib/report-error';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: "Unauthorized endpoint access." }, { status: 401 });
         }
 
-        const body = await request.json().catch(() => null);
+        const body = await request.json().catch((e: any) => { reportServerError('src/app/api/music/failed/route.ts:31', e); return null; });
         if (!body) {
             return NextResponse.json({ success: false, error: "Empty payload node." }, { status: 400 });
         }
@@ -118,11 +119,11 @@ export async function POST(request: NextRequest) {
             timestamp: new Date().toISOString(),
             id: projectId,
             type: 'refund'
-        }).catch(() => null);
+        }).catch((e: any) => { reportServerError('src/app/api/music/failed/route.ts:122', e); return null; });
 
         // Remove from pending_projects or clean up status in RTDB
-        await database.ref(`tempMusicGenerations/${userId}/${projectId}`).remove().catch(() => null);
-        await database.ref(`pending_projects/${projectId}`).remove().catch(() => null);
+        await database.ref(`tempMusicGenerations/${userId}/${projectId}`).remove().catch((e: any) => { reportServerError('src/app/api/music/failed/route.ts:125', e); return null; });
+        await database.ref(`pending_projects/${projectId}`).remove().catch((e: any) => { reportServerError('src/app/api/music/failed/route.ts:126', e); return null; });
 
         // 6. Send Telegram alert notifying success
         const cleanError = typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : String(errorMsg || 'Unknown Error');
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
             `🆔 <b>Node:</b> <code>${projectId}</code>\n` +
             `💎 <b>Credits Restored:</b> +${cost.toLocaleString()} Credits\n` +
             `❌ <b>Error:</b> <pre>${escapeHtml(cleanError.slice(0, 400))}${cleanError.length > 400 ? '...' : ''}</pre>`
-        ).catch(() => null);
+        ).catch((e: any) => { reportServerError('src/app/api/music/failed/route.ts:136', e); return null; });
 
         revalidatePath('/history');
         revalidatePath('/music-studio');
@@ -146,6 +147,7 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
+        reportServerError('src/app/api/music/failed/route.ts:148', error);
         console.error("[Music Refund] Handshake Exception:", error.message);
         return NextResponse.json({ success: false, error: error.message || "Failed to process failure handshake." }, { status: 500 });
     }

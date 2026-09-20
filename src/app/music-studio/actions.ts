@@ -134,9 +134,9 @@ export async function submitMusicProjectRequestAction(input: {
             timestamp: createdAtIso,
             id: projectId,
             type: 'deduction'
-        }).catch(() => null);
+        }).catch((e: any) => { reportServerError('src/app/music-studio/actions.ts:137', e); return null; });
 
-        logSummaryEvent('creditsSpent', cost).catch(() => null);
+        logSummaryEvent('creditsSpent', cost).catch((e: any) => { reportServerError('src/app/music-studio/actions.ts:139', e); return null; });
 
         // 5. Send Telegram log notification
         await sendToTelegram(
@@ -145,7 +145,7 @@ export async function submitMusicProjectRequestAction(input: {
             `<b>Project ID:</b> <code>${projectId}</code>\n` +
             `<b>Mode:</b> ${productionMode.toUpperCase()} | <b>Lang:</b> ${selectedLanguage}\n` +
             `<b>Prompt:</b> <pre>${escapeHtml(enhancedPrompt)}</pre>`
-        ).catch(() => null);
+        ).catch((e: any) => { reportServerError('src/app/music-studio/actions.ts:148', e); return null; });
 
         revalidatePath('/history');
         revalidatePath('/music-studio');
@@ -182,10 +182,11 @@ export async function submitMusicProjectRequestAction(input: {
                     generationParams
                 }
             }).catch(err => {
+        reportServerError('src/app/music-studio/actions.ts:184', err);
                 console.error("[Music Dispatch Background Error]:", err.message);
                 // Update Firestore status to error if dispatch fails immediately
-                firestore.collection('music_project').doc(projectId).update({ status: 'error', error: err.message }).catch(() => null);
-                firestore.collection('music_project').doc(userId).collection('userProjects').doc(projectId).update({ status: 'error', error: err.message }).catch(() => null);
+                firestore.collection('music_project').doc(projectId).update({ status: 'error', error: err.message }).catch((e: any) => { reportServerError('src/app/music-studio/actions.ts:188', e); return null; });
+                firestore.collection('music_project').doc(userId).collection('userProjects').doc(projectId).update({ status: 'error', error: err.message }).catch((e: any) => { reportServerError('src/app/music-studio/actions.ts:189', e); return null; });
             });
 
         } catch (dispatchErr: any) {
@@ -227,13 +228,13 @@ export async function deleteMusicProjectRequestAction(projectId: string, userId:
             .collection('userProjects')
             .doc(projectId)
             .delete()
-            .catch(() => null);
+            .catch((e: any) => { reportServerError('src/app/music-studio/actions.ts:231', e); return null; });
 
         await firestore
             .collection('music_project')
             .doc(projectId)
             .delete()
-            .catch(() => null);
+            .catch((e: any) => { reportServerError('src/app/music-studio/actions.ts:237', e); return null; });
 
         revalidatePath('/history');
         revalidatePath('/music-studio');

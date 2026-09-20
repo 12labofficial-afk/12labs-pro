@@ -61,7 +61,8 @@ export function onRtdbValue(
         `<b>Path:</b> ${escapeHtml(path)}\n` +
         `<b>Code:</b> ${escapeHtml(error.code || 'unknown')}\n` +
         `<b>Message:</b> ${escapeHtml(error.message)}`
-      ).catch(() => {
+      ).catch((e: any) => {
+        reportClientError('src/lib/rtdb-listener.ts:64', e);
         // If Telegram itself is down, fail silently — never break the app over a log call.
       });
     }

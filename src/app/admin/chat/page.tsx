@@ -37,6 +37,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { reportClientError } from '@/lib/report-client-error';
 
 // Helper function to escape HTML characters for safe inclusion in Telegram messages
 function escapeHtml(text: string) {
@@ -227,6 +228,7 @@ function ChatView({ session, onBack, onSessionDeleted }: { session: LiveChatSess
             reader.readAsDataURL(compressed);
             toast({ title: 'Image Optimized' });
           } catch (err) {
+        reportClientError('src/app/admin/chat/page.tsx:229', err);
             console.error("Compression failed:", err);
             toast({ variant: 'destructive', title: 'Processing Failed', description: 'Could not prepare image for upload.' });
           } finally {
@@ -284,6 +286,7 @@ function ChatView({ session, onBack, onSessionDeleted }: { session: LiveChatSess
             }
 
         } catch (error: any) {
+        reportClientError('src/app/admin/chat/page.tsx:286', error);
             console.error("Failed to send message", error);
             setNewMessage(adminReplyText); 
             toast({
@@ -306,6 +309,7 @@ function ChatView({ session, onBack, onSessionDeleted }: { session: LiveChatSess
             await update(messageRef, { text: editingMessage.text, isEdited: true });
             setEditingMessage(null);
         } catch (error) {
+        reportClientError('src/app/admin/chat/page.tsx:308', error);
             console.error("Failed to edit message:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not save message changes.' });
         } finally {
@@ -320,6 +324,7 @@ function ChatView({ session, onBack, onSessionDeleted }: { session: LiveChatSess
             await remove(messageRef);
             toast({ title: 'Message Deleted' });
         } catch (error) {
+        reportClientError('src/app/admin/chat/page.tsx:322', error);
             console.error("Failed to delete message:", error);
             const result = await deleteSingleChatMessage(session.userId, messageId);
             if (result.success) {

@@ -14,6 +14,7 @@ import { ImpersonationBar } from '@/components/impersonation-bar';
 import { MainBottomNav } from '@/components/main-bottom-nav';
 import { initializeFirebase } from '@/firebase/server';
 import { Header } from '@/components/header';
+import { reportServerError } from '@/lib/report-error';
 
 const fontSans = Inter({
   subsets: ['latin'],
@@ -77,6 +78,7 @@ export async function generateMetadata(): Promise<Metadata> {
       console.warn("[MetadataNode] Firebase Database not initialized.");
     }
   } catch (e) {
+        reportServerError('src/app/layout.tsx:79', e);
     console.warn("[MetadataNode] Using fallback logo due to sync timeout or network boundary.");
   }
 

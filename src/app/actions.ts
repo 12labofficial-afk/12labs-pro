@@ -164,13 +164,13 @@ export async function createNewUserProfileOnServer(
           await matchedDeviceDocRef.update({
             associatedUids: FieldValue.arrayUnion(user.uid),
             lastSeenAt: now.toISOString(),
-          }).catch(() => null);
+          }).catch((e: any) => { reportServerError('src/app/actions.ts:167', e); return null; });
 
           await sendToTelegram(`🚫 <b>ALT ACCOUNT BLOCKED ON DEVICE</b>\n<b>Alt User:</b> ${user.email}\n<b>Device ID:</b> ${cleanDeviceId}\n<b>Granted Credits:</b> 0 Credits`);
         } else {
           await matchedDeviceDocRef.update({
             lastSeenAt: now.toISOString(),
-          }).catch(() => null);
+          }).catch((e: any) => { reportServerError('src/app/actions.ts:173', e); return null; });
         }
       }
     }

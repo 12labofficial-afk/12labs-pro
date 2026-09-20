@@ -45,7 +45,7 @@ export async function callDeepSeek(model: string, request: any): Promise<DeepSee
             cache: 'no-store'
         });
 
-        const data = await res.json().catch(() => ({}));
+        const data = await res.json().catch((e: any) => { reportServerError('src/ai/engines/deepseek.ts:48', e); return ({}); });
         if (!res.ok) throw new Error(data.error?.message || "Node Rejection");
 
         return {

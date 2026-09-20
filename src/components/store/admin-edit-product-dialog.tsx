@@ -115,6 +115,7 @@ export function AdminEditProductDialog({ product, open, onOpenChange, onUpdate }
                         });
                     }
                 } catch (err) {
+        reportClientError('src/components/store/admin-edit-product-dialog.tsx:117', err);
                     console.error("[AdminEditProduct] Failed to load full product data:", err);
                 } finally { 
                     setIsFetchingFullData(false); 
@@ -221,6 +222,7 @@ export function AdminEditProductDialog({ product, open, onOpenChange, onUpdate }
             setMainUploadProgress(100);
             toast({ title: 'Thumbnail Uploaded Successfully!', description: 'Link updated & image saved.' });
         } catch (err: any) {
+        reportClientError('src/components/store/admin-edit-product-dialog.tsx:223', err);
             console.error('Thumbnail upload error:', err);
             toast({ variant: 'destructive', title: 'Upload Failed', description: err.message || 'Could not upload thumbnail image.' });
         } finally {

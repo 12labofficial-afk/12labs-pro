@@ -254,7 +254,8 @@ export default function MusicLibraryPage() {
             if (isPlaying) {
                 audio.pause();
             } else {
-                audio.play().catch(() => {
+                audio.play().catch((e: any) => {
+        reportClientError('src/app/music-library/page.tsx:257', e);
                     toast({ variant: 'destructive', title: 'Playback Blocked by Browser' });
                 });
             }
@@ -268,7 +269,8 @@ export default function MusicLibraryPage() {
             const streamUrl = getDisplayUrl(track.url, false);
             audio.src = streamUrl;
             audio.load();
-            audio.play().catch((e) => {
+            audio.play().catch((e: any) => {
+        reportClientError('src/app/music-library/page.tsx:271', e);
                 console.error("Audio play error:", e);
                 setIsBuffering(false);
                 toast({ variant: 'destructive', title: 'Unable to stream track' });
@@ -543,6 +545,7 @@ export default function MusicLibraryPage() {
                         userEmail: effectiveEmail,
                     });
                 } catch (imgErr) {
+        reportClientError('src/app/music-library/page.tsx:545', imgErr);
                     console.warn('[Cover Art Upload Skipped]:', imgErr);
                 }
             }
@@ -568,6 +571,7 @@ export default function MusicLibraryPage() {
                 });
                 res = await apiFetch.json();
             } catch (apiErr) {
+        reportClientError('src/app/music-library/page.tsx:570', apiErr);
                 console.warn("[API Dispatch failed, fallback to Server Action]:", apiErr);
                 res = await addMusicToLibraryAction({
                     prompt: newTrack.prompt.trim(),
@@ -590,6 +594,7 @@ export default function MusicLibraryPage() {
                 setCoverImageFile(null);
             } else throw new Error(res.error || 'Database registry failed.');
         } catch (e: any) {
+        reportClientError('src/app/music-library/page.tsx:592', e);
             console.error("[Music Upload Failed]:", e);
             toast({ variant: 'destructive', title: 'Dispatch Failed', description: e.message || 'Error uploading music file.' });
         } finally {

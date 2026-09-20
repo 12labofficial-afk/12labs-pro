@@ -10,6 +10,7 @@ import {
 } from '@/lib/developer-api-server';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
+import { reportServerError } from '@/lib/report-error';
 
 function authErrorResponse(error: unknown) {
   if (error instanceof DeveloperApiAuthError) {
@@ -108,6 +109,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, keys: [...result.values()] });
   } catch (error) {
+        reportServerError('src/app/api/keys/route.ts:110', error);
     return authErrorResponse(error);
   }
 }
@@ -146,7 +148,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const body = await request.json().catch(() => ({}));
+    const body = await request.json().catch((e: any) => { reportServerError('src/app/api/keys/route.ts:151', e); return ({}); });
     const name = String(body.name || body.note || 'Developer key').trim().slice(0, 80) || 'Developer key';
     const apiKey = crypto.randomBytes(24).toString('base64url');
     const data = {
@@ -176,10 +178,11 @@ export async function POST(request: NextRequest) {
       `🆔 UID: <code>${escapeHtml(identity.uid)}</code>\n` +
       `🏷 Name: <code>${escapeHtml(name)}</code>\n` +
       `🔒 Key: <code>${escapeHtml(maskApiKey(apiKey))}</code>`
-    ).catch(() => null);
+    ).catch((e: any) => { reportServerError('src/app/api/keys/route.ts:181', e); return null; });
 
     return NextResponse.json({ success: true, apiKey, key: formatKey(apiKey, data) });
   } catch (error) {
+        reportServerError('src/app/api/keys/route.ts:182', error);
     return authErrorResponse(error);
   }
 }
@@ -193,7 +196,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const identity = await requireDeveloperIdentity(request);
-    const body = await request.json().catch(() => ({}));
+    const body = await request.json().catch((e: any) => { reportServerError('src/app/api/keys/route.ts:199', e); return ({}); });
     const keyId = String(body.keyId || '').trim();
     const disabled = body.disabled === true;
 
@@ -236,10 +239,11 @@ export async function PATCH(request: NextRequest) {
       `${disabled ? '⛔' : '✅'} <b>API Key ${disabled ? 'Disabled' : 'Enabled'}</b>\n` +
       `👤 User: <code>${escapeHtml(identity.email || identity.uid)}</code>\n` +
       `🔒 Key: <code>${escapeHtml(maskApiKey(keyId))}</code>`
-    ).catch(() => null);
+    ).catch((e: any) => { reportServerError('src/app/api/keys/route.ts:242', e); return null; });
 
     return NextResponse.json({ success: true, disabled });
   } catch (error) {
+        reportServerError('src/app/api/keys/route.ts:242', error);
     return authErrorResponse(error);
   }
 }
@@ -267,10 +271,11 @@ export async function DELETE(request: NextRequest) {
       `🗑 <b>API Key Deleted</b>\n` +
       `👤 User: <code>${escapeHtml(identity.email || identity.uid)}</code>\n` +
       `🔒 Key: <code>${escapeHtml(maskApiKey(keyId))}</code>`
-    ).catch(() => null);
+    ).catch((e: any) => { reportServerError('src/app/api/keys/route.ts:274', e); return null; });
 
     return NextResponse.json({ success: true, deleted: true });
   } catch (error) {
+        reportServerError('src/app/api/keys/route.ts:273', error);
     return authErrorResponse(error);
   }
 }

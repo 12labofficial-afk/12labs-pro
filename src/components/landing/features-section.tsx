@@ -19,6 +19,7 @@ import { useAuth } from '@/context/auth-provider';
 import { Skeleton } from '../ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
+import { reportClientError } from '@/lib/report-client-error';
 
 export type ToolCategory = 'all' | 'voice' | 'content' | 'visual' | 'store';
 
@@ -321,6 +322,7 @@ export function FeaturesSection() {
         unsubscribePricing();
       };
     } catch (e) {
+        reportClientError('src/components/landing/features-section.tsx:323', e);
       console.warn('Firebase init warning:', e);
     }
   }, []);

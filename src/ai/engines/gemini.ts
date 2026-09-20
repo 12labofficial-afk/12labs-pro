@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/report-error';
 /**
  * ♊ GEMINI NEURAL NODE - STANDARD EDITION
  * ----------------------------------------
@@ -49,7 +50,7 @@ async function executeGeminiFetch(model: string, request: any, apiKey: string): 
         cache: 'no-store'
     });
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json().catch((e: any) => { reportServerError('src/ai/engines/gemini.ts:53', e); return ({}); });
     if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
 
     const parts = data?.candidates?.[0]?.content?.parts || [];
@@ -87,6 +88,7 @@ export async function callGemini(model: string, request: any): Promise<GeminiRes
             try {
                 return await executeGeminiFetch(activeModel, request, key);
             } catch (e: any) {
+        reportServerError('src/ai/engines/gemini.ts:89', e);
                 console.warn(`[Gemini Free Node - ${activeModel}] Failed: ${e.message}`);
                 lastError = e.message;
             }
@@ -97,6 +99,7 @@ export async function callGemini(model: string, request: any): Promise<GeminiRes
             try {
                 return await executeGeminiFetch(activeModel, request, paidKey);
             } catch (e: any) {
+        reportServerError('src/ai/engines/gemini.ts:99', e);
                 console.warn(`[Gemini Paid Node - ${activeModel}] Failed: ${e.message}`);
                 lastError = `[Paid Node Failure] ${e.message}`;
             }

@@ -29,7 +29,8 @@ function tryParseJsonCandidates(text: string): any {
     // 1. Strip markdown code fences
     str = str.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
 
-    try { return JSON.parse(str); } catch {}
+    try { return JSON.parse(str); } catch (e) {
+        reportServerError('src/ai/genkit.ts:32', e);}
 
     // Find opening brace or bracket
     const firstBrace = str.indexOf('{');
@@ -45,14 +46,16 @@ function tryParseJsonCandidates(text: string): any {
 
     if (startIdx !== -1) {
         let candidate = str.substring(startIdx);
-        try { return JSON.parse(candidate); } catch {}
+        try { return JSON.parse(candidate); } catch (e) {
+        reportServerError('src/ai/genkit.ts:48', e);}
 
         const lastBrace = candidate.lastIndexOf('}');
         const lastBracket = candidate.lastIndexOf(']');
         const lastEnd = Math.max(lastBrace, lastBracket);
         if (lastEnd > 0) {
             const trimmed = candidate.substring(0, lastEnd + 1);
-            try { return JSON.parse(trimmed); } catch {}
+            try { return JSON.parse(trimmed); } catch (e) {
+        reportServerError('src/ai/genkit.ts:55', e);}
         }
 
         // Repair unclosed strings and stack balance
@@ -82,7 +85,8 @@ function tryParseJsonCandidates(text: string): any {
             else if (top === '[') repaired += ']';
         }
 
-        try { return JSON.parse(repaired); } catch {}
+        try { return JSON.parse(repaired); } catch (e) {
+        reportServerError('src/ai/genkit.ts:85', e);}
 
         // Fallback: trim to last comma and rebuild balance
         const lastComma = repaired.lastIndexOf(',');
@@ -107,7 +111,8 @@ function tryParseJsonCandidates(text: string): any {
                 if (top === '{') truncated += '}';
                 else if (top === '[') truncated += ']';
             }
-            try { return JSON.parse(truncated); } catch {}
+            try { return JSON.parse(truncated); } catch (e) {
+        reportServerError('src/ai/genkit.ts:110', e);}
         }
     }
     return null;
@@ -124,18 +129,21 @@ export function repairAndParseJson(text: string): any {
 export function extractJson(text: string) {
     if (!text) return null;
     const cleanText = text.trim();
-    try { return JSON.parse(cleanText); } catch {}
+    try { return JSON.parse(cleanText); } catch (e) {
+        reportServerError('src/ai/genkit.ts:127', e);}
     try {
         const cleaned = cleanText.replace(/```json|```/g, "").trim();
         if (cleaned !== cleanText) return JSON.parse(cleaned);
-    } catch {}
+    } catch (e) {
+        reportServerError('src/ai/genkit.ts:131', e);}
     try {
         const firstBrace = cleanText.indexOf('{');
         const lastBrace = cleanText.lastIndexOf('}');
         if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
             return JSON.parse(cleanText.substring(firstBrace, lastBrace + 1));
         }
-    } catch {}
+    } catch (e) {
+        reportServerError('src/ai/genkit.ts:138', e);}
     // Final fallback: only this path reports a real error, and only if it too fails.
     const result = tryParseJsonCandidates(text);
     if (result === null) {
@@ -264,6 +272,7 @@ async function generateWithRotation<OutputSchema extends ZodTypeAny, CustomOptio
           }
           console.warn("[Analysis Hub]: DeepSeek node error or empty output:", deepseekRes?.message || "Unknown DeepSeek Error");
       } catch (dsErr: any) {
+        reportServerError('src/ai/genkit.ts:266', dsErr);
           console.warn("[Analysis Hub]: DeepSeek exception:", dsErr.message);
       }
 
@@ -276,6 +285,7 @@ async function generateWithRotation<OutputSchema extends ZodTypeAny, CustomOptio
           }
           console.warn("[Analysis Hub]: OpenRouter node error:", openRouterRes?.message);
       } catch (orErr: any) {
+        reportServerError('src/ai/genkit.ts:278', orErr);
           console.warn("[Analysis Hub]: OpenRouter exception:", orErr.message);
       }
 

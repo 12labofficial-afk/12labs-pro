@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { reportServerError } from '@/lib/report-error';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error: any) {
+        reportServerError('src/app/api/download-image/route.ts:34', error);
     console.error('Proxy image download error:', error);
     return NextResponse.json({ error: error.message || 'Download failed' }, { status: 500 });
   }

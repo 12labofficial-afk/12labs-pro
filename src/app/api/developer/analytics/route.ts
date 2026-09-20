@@ -5,6 +5,7 @@ import {
   requireDeveloperIdentity,
   toIsoDate,
 } from '@/lib/developer-api-server';
+import { reportServerError } from '@/lib/report-error';
 
 function getDayKey(value: string) {
   const date = new Date(value);
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
       totalCredits: recent.reduce((sum, row) => sum + Number(row.cost ?? row.credits ?? 0), 0),
     });
   } catch (error) {
+        reportServerError('src/app/api/developer/analytics/route.ts:75', error);
     if (error instanceof DeveloperApiAuthError) {
       return NextResponse.json({ success: false, error: error.message }, { status: error.status });
     }

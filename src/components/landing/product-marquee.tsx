@@ -15,6 +15,7 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
+import { reportClientError } from '@/lib/report-client-error';
 
 const shuffleArray = <T,>(array: T[]): T[] => {
   const newArray = [...array];
@@ -75,6 +76,7 @@ export function ProductMarquee() {
           setProducts(shuffled.slice(0, 15));
         }
       } catch (error) {
+        reportClientError('src/components/landing/product-marquee.tsx:77', error);
         console.error("Failed to fetch products for marquee:", error);
       } finally {
         setIsLoading(false);

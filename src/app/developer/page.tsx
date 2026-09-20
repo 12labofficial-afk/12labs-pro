@@ -205,6 +205,7 @@ export default function DeveloperDashboardPage() {
         setKeys(data.keys);
       }
     } catch (err: any) {
+        reportClientError('src/app/developer/page.tsx:207', err);
       console.error('Error fetching API keys:', err);
     } finally {
       setLoadingKeys(false);

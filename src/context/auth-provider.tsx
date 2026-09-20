@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: user.email || '',
             status: status,
             lastSeen: serverTimestamp(),
-        }).catch(() => null);
+        }).catch((e: any) => { reportClientError('src/context/auth-provider.tsx:107', e); return null; });
 
         // 📊 Daily "total users online today" figure for the ops report.
         // Deliberately throttled to ~once per user per day via localStorage
@@ -115,10 +115,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const dedupeKey = `dailyActiveLogged_${user.uid}`;
                 const todayLocal = new Date().toDateString();
                 if (localStorage.getItem(dedupeKey) !== todayLocal) {
-                    logDailyActiveUser(user.uid).catch(() => null);
+                    logDailyActiveUser(user.uid).catch((e: any) => { reportClientError('src/context/auth-provider.tsx:118', e); return null; });
                     localStorage.setItem(dedupeKey, todayLocal);
                 }
-            } catch {
+            } catch (e) {
+        reportClientError('src/context/auth-provider.tsx:121', e);
                 // localStorage unavailable (e.g. private mode) — skip silently, not critical.
             }
         }
@@ -161,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     }
                 }
             }).catch((err) => {
+        reportClientError('src/context/auth-provider.tsx:164', err);
                 console.warn("[Auth] Subscription installment sync failed (non-fatal):", err);
             });
         }
@@ -263,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           profile = await getUserProfileFromServer(firebaseUser.uid, deviceId);
         } catch (serverErr) {
+        reportClientError('src/context/auth-provider.tsx:265', serverErr);
           console.warn("Server profile sync non-fatal error:", serverErr);
         }
         
@@ -275,6 +278,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               profile = snap.data() as UserProfile;
             }
           } catch (clientFsErr) {
+        reportClientError('src/context/auth-provider.tsx:277', clientFsErr);
             console.warn("Client firestore sync fallback:", clientFsErr);
           }
         }
@@ -298,6 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 profile = creationResult.profile;
             }
           } catch (createErr) {
+        reportClientError('src/context/auth-provider.tsx:300', createErr);
             console.warn("Profile creation non-fatal error:", createErr);
           }
         }
@@ -319,6 +324,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(firebaseUser as any);
         }
       } catch (error) {
+        reportClientError('src/context/auth-provider.tsx:321', error);
         console.warn("Auth Sync Non-Fatal Warning:", error);
         if (firebaseUser) {
           setUser(firebaseUser as any);
@@ -397,6 +403,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
     } catch (error: any) {
+        reportClientError('src/context/auth-provider.tsx:399', error);
       console.error("Google Login Error:", error);
       toast({
         variant: 'destructive',

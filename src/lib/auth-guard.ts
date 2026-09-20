@@ -1,4 +1,5 @@
 import { initializeFirebase } from '@/firebase/server';
+import { reportServerError } from '@/lib/report-error';
 
 /**
  * SECURITY: Next.js Server Actions are exposed as callable network
@@ -43,7 +44,8 @@ export async function requireUser(idToken: string | undefined | null): Promise<G
     const { auth } = initializeFirebase();
     const decoded = await auth.verifyIdToken(idToken);
     return { ok: true, uid: decoded.uid, email: decoded.email || null };
-  } catch {
+  } catch (e) {
+        reportServerError('src/lib/auth-guard.ts:46', e);
     return { ok: false, message: 'Invalid or expired session. Please sign in again.' };
   }
 }
@@ -63,7 +65,8 @@ export async function requireAdmin(idToken: string | undefined | null): Promise<
       return { ok: false, message: 'Admin access required.' };
     }
     return result;
-  } catch {
+  } catch (e) {
+        reportServerError('src/lib/auth-guard.ts:66', e);
     return { ok: false, message: 'Could not verify admin access.' };
   }
 }

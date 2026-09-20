@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase/server';
+import { reportServerError } from '@/lib/report-error';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => ({}));
+    const body = await request.json().catch((e: any) => { reportServerError('src/app/api/auth/custom-token/route.ts:7', e); return ({}); });
     const { uid, projectId, apiKey } = body;
 
     const authHeader = request.headers.get('authorization');
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
         const decodedToken = await auth.verifyIdToken(idToken);
         targetUid = decodedToken.uid;
       } catch (err: any) {
+        reportServerError('src/app/api/auth/custom-token/route.ts:29', err);
         console.warn('ID Token verification failed in custom-token route:', err.message);
       }
     } else if (xApiKey && database) {
@@ -74,6 +76,7 @@ export async function POST(request: NextRequest) {
       }
     );
   } catch (error: any) {
+        reportServerError('src/app/api/auth/custom-token/route.ts:76', error);
     console.error('Error generating custom Firebase Auth token:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to generate custom token' },

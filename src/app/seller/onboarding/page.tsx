@@ -90,6 +90,7 @@ export default function SellerOnboardingPage() {
           if (data.payoutDetails?.paymentQrUrl) setQrPreview(getDisplayUrl(data.payoutDetails.paymentQrUrl));
         }
       }).catch((err) => {
+        reportClientError('src/app/seller/onboarding/page.tsx:92', err);
         console.error("[SellerOnboarding] Failed to load existing profile:", err);
       });
     }

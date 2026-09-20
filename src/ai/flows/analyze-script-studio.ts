@@ -315,6 +315,7 @@ export async function analyzeScriptStudio(input: { script: string, userId: strin
         transaction.update(userRef, { credits: freshCredits - OVER_LIMIT_ANALYSIS_COST });
       });
     } catch (creditErr: any) {
+        reportServerError('src/ai/flows/analyze-script-studio.ts:317', creditErr);
       throw creditErr;
     }
     if (database) {
@@ -323,14 +324,14 @@ export async function analyzeScriptStudio(input: { script: string, userId: strin
         reason: 'Script Analysis (over daily free limit)',
         type: 'deduction',
         timestamp: new Date().toISOString(),
-      }).catch(() => null);
+      }).catch((e: any) => { reportServerError('src/ai/flows/analyze-script-studio.ts:327', e); return null; });
     }
     await sendToTelegram(
       `📝💳 <b>Paid Script Analysis (over daily limit)</b>\n` +
       `<b>User:</b> ${escapeHtml(userEmail)}\n` +
       `<b>Charged:</b> ${OVER_LIMIT_ANALYSIS_COST} credits\n` +
       `<b>Daily count:</b> ${currentDailyCount}/${maxDailyLimit}`
-    ).catch(() => null);
+    ).catch((e: any) => { reportServerError('src/ai/flows/analyze-script-studio.ts:334', e); return null; });
   }
 
   try {

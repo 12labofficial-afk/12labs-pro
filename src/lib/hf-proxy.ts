@@ -34,6 +34,7 @@
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { initializeFirebase } from '@/firebase/server';
+import { reportServerError } from '@/lib/report-error';
 
 export type HfProxyResult<T = any> =
   | { ok: true; status: number; data: T; isBinary?: false }
@@ -87,6 +88,7 @@ export async function resolveDeveloperKey(apiKey: string | null): Promise<Develo
       }
     }
   } catch (error) {
+        reportServerError('src/lib/hf-proxy.ts:89', error);
     console.error('[Developer API] key lookup failed:', error);
   }
   return empty;
@@ -132,7 +134,7 @@ export async function logDeveloperApiUsage(record: ApiUsageRecord): Promise<void
     linkLine +
     errorLine;
 
-  await sendToTelegram(message, undefined, { disable_web_page_preview: true }).catch(() => null);
+  await sendToTelegram(message, undefined, { disable_web_page_preview: true }).catch((e: any) => { reportServerError('src/lib/hf-proxy.ts:137', e); return null; });
 }
 
 export async function callHfApi<T = any>(
@@ -204,7 +206,8 @@ export async function callHfApi<T = any>(
 
     const text = await res.text();
     let data: any = null;
-    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    try { data = text ? JSON.parse(text) : null; } catch (e) {
+        reportServerError('src/lib/hf-proxy.ts:207', e); data = text; }
 
     if (!res.ok) {
       const message =
@@ -223,6 +226,7 @@ export async function callHfApi<T = any>(
 
     return { ok: true, status: res.status, data };
   } catch (e: any) {
+        reportServerError('src/lib/hf-proxy.ts:225', e);
     const timedOut = e?.name === 'TimeoutError' || e?.name === 'AbortError';
     return {
       ok: false,

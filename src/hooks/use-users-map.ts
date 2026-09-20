@@ -6,6 +6,7 @@ import { useAuth } from '@/context/auth-provider';
 import { initializeFirebase } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
+import { reportClientError } from '@/lib/report-client-error';
 
 interface UsersMap {
   [uid: string]: UserProfile;
@@ -42,6 +43,7 @@ export function useUsersMap(uids: (string | undefined)[] | undefined) {
             }
           }));
         } catch (error) {
+        reportClientError('src/hooks/use-users-map.ts:44', error);
           console.error(`Failed to fetch some users`, error);
         }
       }

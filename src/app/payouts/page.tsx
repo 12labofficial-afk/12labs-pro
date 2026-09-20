@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import type { AffiliateTransaction } from '@/lib/types';
+import { reportClientError } from '@/lib/report-client-error';
 
 
 function StatCard({ title, value, isLoading }: { title: string, value: string | number, isLoading: boolean }) {
@@ -60,6 +61,7 @@ export default function PayoutsPage() {
                     toast({ variant: 'destructive', title: 'Error', description: result.message });
                 }
             }).catch((err) => {
+        reportClientError('src/app/payouts/page.tsx:62', err);
                 console.error("[Payouts] Failed to load dashboard data:", err);
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not load payout data.' });
             }).finally(() => setIsLoading(false));

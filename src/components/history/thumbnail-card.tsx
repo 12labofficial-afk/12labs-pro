@@ -52,6 +52,7 @@ export function ThumbnailCard({ thumbnail }: { thumbnail: Thumbnail }) {
         
         toast({ title: '📥 Download Started', description: 'Saving image directly to your device.' });
     } catch (error: any) {
+        reportClientError('src/components/history/thumbnail-card.tsx:54', error);
         console.error('Download failed', error);
         toast({ variant: 'destructive', title: 'Download Failed', description: error?.message || 'Could not download the image.' });
     }

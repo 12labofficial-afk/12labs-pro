@@ -14,6 +14,7 @@ import { getDisplayUrl, cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { saveAs } from 'file-saver';
+import { reportClientError } from '@/lib/report-client-error';
 
 const CircularProgress = ({ progress, label = "Active" }: { progress: number; label?: string }) => {
   const size = 120;
@@ -109,6 +110,7 @@ export function GenerationProgress() {
             saveAs(generatedAudio, `12labs_master_${safeProjectName}.wav`);
             toast({ title: 'Download Successful' });
         } catch (error) {
+        reportClientError('src/components/studio/generation-progress.tsx:111', error);
             console.error("Save failed:", error);
             toast({ variant: 'destructive', title: 'Save Failed' });
         } finally {

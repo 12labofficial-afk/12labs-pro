@@ -20,6 +20,7 @@ import { doc, setDoc, arrayUnion } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-provider';
 import { sendTargetedNotificationByEmail } from '@/app/admin/send-email/actions';
+import { reportClientError } from '@/lib/report-client-error';
 
 /**
  * Reach out to ONE user from the users tab.
@@ -97,6 +98,7 @@ export function UserReachOutDialog({
         );
         results.push('notification');
       } catch (e: any) {
+        reportClientError('src/components/admin/user-reach-out-dialog.tsx:99', e);
         failures.push(`notification (${e?.message || 'failed'})`);
       }
     }
@@ -114,6 +116,7 @@ export function UserReachOutDialog({
         if (res.success) results.push('email');
         else failures.push(`email (${res.message || 'failed'})`);
       } catch (e: any) {
+        reportClientError('src/components/admin/user-reach-out-dialog.tsx:116', e);
         failures.push(`email (${e?.message || 'failed'})`);
       }
     }

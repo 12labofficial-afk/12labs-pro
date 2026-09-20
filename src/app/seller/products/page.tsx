@@ -283,6 +283,7 @@ export default function SellerProductsPage() {
                 setServerProducts(res.data);
             }
         } catch (err) {
+        reportClientError('src/app/seller/products/page.tsx:285', err);
             console.error("Server products fetch error:", err);
         } finally {
             setIsServerLoading(false);

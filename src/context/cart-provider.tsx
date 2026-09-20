@@ -7,6 +7,7 @@ import { useAuth } from './auth-provider';
 import { initializeFirebase } from '@/firebase';
 import { ref, onValue, set, remove } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
+import { reportClientError } from '@/lib/report-client-error';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -75,6 +76,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             description: `"${product.title}" has been added.`,
         });
     } catch (error) {
+        reportClientError('src/context/cart-provider.tsx:77', error);
         console.error("Failed to add item to cart:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not add item to cart.' });
     }
@@ -94,6 +96,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             });
         }
     } catch(error) {
+        reportClientError('src/context/cart-provider.tsx:96', error);
         console.error("Failed to remove item from cart:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not remove item from cart.' });
     }
@@ -105,6 +108,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const cartRef = ref(database, `carts/${user.uid}`);
         await remove(cartRef);
     } catch(error) {
+        reportClientError('src/context/cart-provider.tsx:107', error);
         console.error("Failed to clear cart:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not clear the cart.' });
     }

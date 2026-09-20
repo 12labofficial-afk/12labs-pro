@@ -110,15 +110,15 @@ export async function deleteLibraryMusicAction(id: string, url: string, privateU
         // 🚀 R2 NATIVE PURGE
         // deleteR2Object automatically handles pub:// and gcs:// protocols
         if (url) {
-            await deleteR2Object(url).catch(() => null);
+            await deleteR2Object(url).catch((e: any) => { reportServerError('src/app/admin/music-manager/actions.ts:113', e); return null; });
         }
 
         if (resolvedPrivateUrl) {
-            await deleteR2Object(resolvedPrivateUrl).catch(() => null);
+            await deleteR2Object(resolvedPrivateUrl).catch((e: any) => { reportServerError('src/app/admin/music-manager/actions.ts:117', e); return null; });
         }
 
         if (imageUrl) {
-            await deleteR2Object(imageUrl).catch(() => null);
+            await deleteR2Object(imageUrl).catch((e: any) => { reportServerError('src/app/admin/music-manager/actions.ts:121', e); return null; });
         }
 
         await sendToTelegram(`🗑️ <b>Library Asset Purged</b>\n<b>ID:</b> <code>${id}</code>\n<b>Admin:</b> ${adminEmail}`);

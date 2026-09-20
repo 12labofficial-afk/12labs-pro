@@ -72,6 +72,7 @@ export default function CheckoutPage() {
                 });
                 setAvailabilityMap(newMap);
             } catch (e) {
+        reportClientError('src/app/store/checkout/page.tsx:74', e);
                 console.error("Availability check failed:", e);
             } finally {
                 setIsCheckingAvailability(false);

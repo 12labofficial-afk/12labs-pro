@@ -29,6 +29,7 @@ import { getPublicSellerProfile } from '@/app/store/[productId]/actions';
 import { AdminEditProductDialog } from '@/components/store/admin-edit-product-dialog';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { Badge } from '@/components/ui/badge';
+import { reportClientError } from '@/lib/report-client-error';
 
 function ProductCardPlaceholder() {
     return (
@@ -72,6 +73,7 @@ function ProductCard({ product, seller, onUpdate }: { product: StoreProduct; sel
                     url: shareUrl,
                 });
             } catch (error) {
+        reportClientError('src/app/seller/[sellerId]/page.tsx:74', error);
                 console.error('Error sharing:', error);
             }
         } else {
@@ -258,6 +260,7 @@ export default function SellerPublicProfilePage() {
             setFollowerCount(data?.followerCount || 0);
             setProfileLoading(false);
         }).catch((error) => {
+        reportClientError('src/app/seller/[sellerId]/page.tsx:262', error);
             console.error("Failed to fetch seller profile:", error);
             if (!cancelled) setProfileLoading(false);
         });
@@ -317,6 +320,7 @@ export default function SellerPublicProfilePage() {
                 setIsFollowing(status);
                 setIsLoadingFollow(false);
             }).catch((err) => {
+        reportClientError('src/app/seller/[sellerId]/page.tsx:321', err);
                 console.error("[SellerProfile] Failed to check follow status:", err);
                 setIsLoadingFollow(false);
             });

@@ -218,6 +218,7 @@ const saveScriptHistoryToLocalDB = async (item: ScriptHistoryItem) => {
             tx.onerror = () => reject(tx.error);
         });
     } catch (e) {
+        reportClientError('src/app/script-generator/page.tsx:220', e);
         console.error("Local DB save failed", e);
     }
 };
@@ -250,6 +251,7 @@ const deleteScriptHistoryFromLocalDB = async (id: string) => {
             tx.onerror = () => reject(tx.error);
         });
     } catch (e) {
+        reportClientError('src/app/script-generator/page.tsx:252', e);
         console.error("Local DB delete failed", e);
     }
 };
@@ -264,6 +266,7 @@ const clearAllScriptHistoryFromLocalDB = async () => {
             tx.onerror = () => reject(tx.error);
         });
     } catch (e) {
+        reportClientError('src/app/script-generator/page.tsx:266', e);
         console.error("Local DB clear failed", e);
     }
 };
@@ -360,6 +363,7 @@ function ScriptNodeCard({
             await downloadScriptAsPdf(node.projectName || 'Script', text);
             toast({ title: 'Downloaded .PDF' });
         } catch (e) {
+        reportClientError('src/app/script-generator/page.tsx:362', e);
             console.error("PDF Export Error:", e);
             toast({ variant: 'destructive', title: 'PDF generation failed' });
         }
@@ -491,6 +495,7 @@ function HistoryScriptCard({
                         }
                     }
                 } catch (e) {
+        reportClientError('src/app/script-generator/page.tsx:493', e);
                     console.error("Background script fetch failed:", e);
                 } finally {
                     setIsFetching(false);
@@ -665,7 +670,8 @@ export default function ScriptGeneratorPage() {
     try {
         const raw = window.localStorage.getItem(ACTIVE_SCRIPT_JOB_KEY);
         return !!(raw && JSON.parse(raw)?.mappingId);
-    } catch { return false; }
+    } catch (e) {
+        reportClientError('src/app/script-generator/page.tsx:668', e); return false; }
   });
   const [generationProgress, setGenerationProgress] = useState(0);
   const [isStalled, setIsStalled] = useState(false);
@@ -675,7 +681,8 @@ export default function ScriptGeneratorPage() {
         const raw = window.localStorage.getItem(ACTIVE_SCRIPT_JOB_KEY);
         const parsed = raw ? JSON.parse(raw) : null;
         return parsed?.mappingId || null;
-    } catch { return null; }
+    } catch (e) {
+        reportClientError('src/app/script-generator/page.tsx:678', e); return null; }
   });
   const [productionNodes, setProductionNodes] = useState<ProductionNode[]>([]);
   const [scriptHistory, setScriptHistory] = useState<ScriptHistoryItem[]>([]);
@@ -803,7 +810,8 @@ export default function ScriptGeneratorPage() {
             setActiveMappingId(null);
             setIsGenerating(false);
         }
-    } catch { /* ignore malformed storage */ }
+    } catch (e) {
+        reportClientError('src/app/script-generator/page.tsx:806', e); /* ignore malformed storage */ }
   }, [activeUid]);
 
   // --- RTDB SYNC FOR LIVE GENERATIONS ---
@@ -852,6 +860,7 @@ export default function ScriptGeneratorPage() {
                             }
                         }
                     } catch (e) {
+        reportClientError('src/app/script-generator/page.tsx:854', e);
                         console.error("Error fetching script URL from RTDB:", e);
                     }
                 }
@@ -1100,6 +1109,7 @@ export default function ScriptGeneratorPage() {
                   if (content && content.trim()) return content;
               }
           } catch (e) {
+        reportClientError('src/app/script-generator/page.tsx:1102', e);
               console.warn("URL Fetch failed in getScriptContent:", e);
           }
       }

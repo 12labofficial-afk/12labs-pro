@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isValidDeveloperKey, resolveDeveloperKey } from '@/lib/hf-proxy';
 import { initializeFirebase } from '@/firebase/server';
 import { withCors, corsPreflight } from '@/lib/cors';
+import { reportServerError } from '@/lib/report-error';
 
 /**
  * 🌐 PUBLIC API — GET /api/v1/script/{mapping_id}
@@ -61,6 +62,7 @@ async function handleGET(
       error: status === 'error' ? (data.error || 'Script generation failed.') : null,
     });
   } catch (e: any) {
+        reportServerError('src/app/api/v1/script/[mappingId]/route.ts:63', e);
     return NextResponse.json({ error: e?.message || 'Could not fetch script job status.' }, { status: 502 });
   }
 }

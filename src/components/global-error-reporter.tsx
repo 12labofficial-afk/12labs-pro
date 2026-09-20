@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { getCurrentUserEmail } from '@/lib/current-user-email';
+import { reportClientError } from '@/lib/report-client-error';
 
 // Cooldown so a hot error path doesn't spam the bot (per browser tab).
 const COOLDOWN_MS = 10 * 60 * 1000;
@@ -53,6 +54,7 @@ function report(context: string, message: string, stack?: string, extra?: Record
     `<b>Message:</b> ${escapeHtml(message)}\n` +
     (stack ? `<pre>${escapeHtml(stack.slice(0, 1500))}</pre>` : '')
   ).catch((dispatchErr) => {
+        reportClientError('src/components/global-error-reporter.tsx:55', dispatchErr);
     // Don't let a logging failure break the app, but don't swallow it either.
     console.error(`[GlobalErrorReporter] Telegram dispatch failed for ${context}:`, dispatchErr);
   });

@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { initializeFirebase } from '@/firebase/server';
+import { reportServerError } from '@/lib/report-error';
 
 /**
  * @fileOverview Generates sitemap.xml for full site indexing.
@@ -70,6 +71,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return [...routes, ...productRoutes, ...sellerRoutes];
   } catch (e) {
+        reportServerError('src/app/sitemap.ts:72', e);
     console.warn('[sitemap] Falling back to static routes only:', (e as Error)?.message);
     return routes;
   }

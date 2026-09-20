@@ -72,7 +72,7 @@ export async function callOpenRouterText(model: string = "google/gemini-2.5-flas
                 cache: 'no-store'
             });
 
-            const data = await res.json().catch(() => ({}));
+            const data = await res.json().catch((e: any) => { reportServerError('src/ai/engines/openrouter.ts:75', e); return ({}); });
             if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
 
             return {
@@ -140,7 +140,7 @@ export async function callOpenRouterTTS(_unusedModel: string, request: any): Pro
         });
 
         if (!res.ok) {
-            const errorJson = await res.json().catch(() => ({}));
+            const errorJson = await res.json().catch((e: any) => { reportServerError('src/ai/engines/openrouter.ts:143', e); return ({}); });
             throw new Error(errorJson.error?.message || `Node Rejection: HTTP ${res.status}`);
         }
 

@@ -21,6 +21,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { reportClientError } from '@/lib/report-client-error';
 
 export function BroadcastNotification() {
   const { user: currentUser } = useAuth();
@@ -39,6 +40,7 @@ export function BroadcastNotification() {
         const snapshot = await getCountFromServer(usersRef);
         setUserCount(snapshot.data().count);
     } catch (error) {
+        reportClientError('src/components/admin/broadcast-notification.tsx:41', error);
         console.error("Failed to fetch user count:", error);
         setUserCount(0);
     } finally {
@@ -94,6 +96,7 @@ export function BroadcastNotification() {
         toast({ title: 'Broadcast Sent', description: `Message sent to ${users.length} users.`});
         setMessage('');
     } catch(error: any) {
+        reportClientError('src/components/admin/broadcast-notification.tsx:96', error);
         console.error("Error broadcasting notification: ", error);
         toast({ variant: 'destructive', title: 'Broadcast Failed', description: 'An unexpected error occurred. Please try again.'});
     } finally {

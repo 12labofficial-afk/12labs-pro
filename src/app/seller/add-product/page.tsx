@@ -28,6 +28,7 @@ import { onRtdbValue } from '@/lib/rtdb-listener';
 import { Badge } from '@/components/ui/badge';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { Progress } from '@/components/ui/progress';
+import { reportClientError } from '@/lib/report-client-error';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: "Title must be at least 5 characters." }),
@@ -285,7 +286,8 @@ export default function SellerAddProductPage() {
             toast({ title: "Submission Received" }); 
             router.push('/seller/products'); 
         } else throw new Error(res.message);
-    } catch (e: any) { 
+    } catch (e: any) {
+        reportClientError('src/app/seller/add-product/page.tsx:288', e); 
         console.error("[Submission Error]:", e);
         toast({ variant: 'destructive', title: "Submission Failed", description: e.message || "An unexpected error occurred during synchronization." }); 
     } finally { 

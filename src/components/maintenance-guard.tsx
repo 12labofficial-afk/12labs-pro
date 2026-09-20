@@ -8,6 +8,7 @@ import { onRtdbValue } from '@/lib/rtdb-listener';
 import { useRouter, usePathname } from 'next/navigation';
 import { getDisplayUrl } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { reportClientError } from '@/lib/report-client-error';
 
 /**
  * MaintenanceGuard - The ultimate sentry for the 12Labs node.
@@ -38,7 +39,8 @@ function readCachedMaintenance(): MaintenanceState | null {
   try {
     const raw = localStorage.getItem(MAINTENANCE_CACHE_KEY);
     return raw ? (JSON.parse(raw) as MaintenanceState) : null;
-  } catch {
+  } catch (e) {
+        reportClientError('src/components/maintenance-guard.tsx:41', e);
     return null;
   }
 }
@@ -47,7 +49,8 @@ function writeCachedMaintenance(value: MaintenanceState) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(MAINTENANCE_CACHE_KEY, JSON.stringify(value));
-  } catch {
+  } catch (e) {
+        reportClientError('src/components/maintenance-guard.tsx:50', e);
     // Storage full or unavailable (private browsing, etc) — non-fatal,
     // we just skip caching this round.
   }
@@ -57,7 +60,8 @@ function readCachedLogo(): string {
   if (typeof window === 'undefined') return DEFAULT_LOGO_URL;
   try {
     return localStorage.getItem(LOGO_CACHE_KEY) || DEFAULT_LOGO_URL;
-  } catch {
+  } catch (e) {
+        reportClientError('src/components/maintenance-guard.tsx:60', e);
     return DEFAULT_LOGO_URL;
   }
 }
@@ -103,7 +107,8 @@ export function MaintenanceGuard({ children }: { children: React.ReactNode }) {
         setLogoUrl(displayUrl);
         try {
           localStorage.setItem(LOGO_CACHE_KEY, displayUrl);
-        } catch {
+        } catch (e) {
+        reportClientError('src/components/maintenance-guard.tsx:106', e);
           // non-fatal
         }
       }

@@ -1,5 +1,7 @@
 'use server';
 
+import { reportServerError } from '@/lib/report-error';
+
 /**
  * Server action to upload files to the Telegram storage channel.
  * Strictly uses the "cloud-bot" for all storage operations.
@@ -42,6 +44,7 @@ export async function uploadToTelegramAction(formData: FormData): Promise<{ succ
         return { success: true, fileId: `tg://${fileId}` };
 
     } catch (error: any) {
+        reportServerError('src/lib/telegram-actions.ts:44', error);
         console.error('[Cloud Storage] Upload Failed:', error.message);
         return { success: false, error: error.message };
     }

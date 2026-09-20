@@ -49,7 +49,8 @@ async function handlePOST(request: NextRequest) {
   let body: any;
   try {
     body = await request.json();
-  } catch {
+  } catch (e) {
+        reportServerError('src/app/api/v1/voice/route.ts:52', e);
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
@@ -76,7 +77,7 @@ async function handlePOST(request: NextRequest) {
     timestamp: new Date().toISOString(),
     link: result.ok && !result.isBinary ? (result.data as any)?.audio_url || null : null,
     error: result.ok ? undefined : result.error,
-  }).catch(() => null);
+  }).catch((e: any) => { reportServerError('src/app/api/v1/voice/route.ts:80', e); return null; });
 
   if (!result.ok) {
     if (result.status !== 400 && result.status !== 401) {

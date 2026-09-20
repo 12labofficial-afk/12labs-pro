@@ -1,6 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { completeProjectAction } from '@/app/admin/pending/actions';
+import { reportServerError } from '@/lib/report-error';
 
 /**
  * 🔒 HQ PRODUCTION FINALIZATION WEBHOOK (v3.9 - STABLE HANDSHAKE)
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
     try {
         const userAgent = request.headers.get('user-agent') || 'Unknown';
         
-        const body = await request.json().catch(() => null);
+        const body = await request.json().catch((e: any) => { reportServerError('src/app/api/hq/finalize/route.ts:20', e); return null; });
         if (!body) {
             return NextResponse.json({ success: false, error: "Empty payload node." }, { status: 400 });
         }
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
         }
 
     } catch (error: any) {
+        reportServerError('src/app/api/hq/finalize/route.ts:54', error);
         console.error("[HQ Finalize] Critical Synchronizer Fault:", error.message);
         return NextResponse.json({ 
             success: false, 

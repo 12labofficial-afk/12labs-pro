@@ -114,7 +114,7 @@ export async function callVertexText(input: {
                 cache: 'no-store'
             });
 
-            const data = await res.json().catch(() => ({}));
+            const data = await res.json().catch((e: any) => { reportServerError('src/ai/engines/vertex.ts:117', e); return ({}); });
             if (!res.ok) throw new Error(data.error?.message || `Vertex Rejection: ${JSON.stringify(data)}`);
 
             const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
@@ -141,6 +141,7 @@ export async function callVertexText(input: {
         }
 
     } catch (e: any) {
+        reportServerError('src/ai/engines/vertex.ts:143', e);
         console.error("[Vertex Text Error]:", e.message);
         return { _error: true, message: e.message, text: null, usage: null };
     }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
 import { sendToTelegram } from '@/lib/telegram-logger'
 import { escapeHtml } from '@/lib/utils'
+import { reportClientError } from '@/lib/report-client-error'
 
 // See src/app/global-error.tsx for the full explanation — same fix here
 // for segment-level crashes, since a stale chunk can surface through
@@ -47,7 +48,8 @@ export default function Error({
           `<b>Page:</b> ${escapeHtml(typeof window !== 'undefined' ? window.location.pathname : 'unknown')}\n` +
           `<b>Chunk:</b> ${escapeHtml(error.message || '')}\n` +
           `A browser tab open since before the last deploy hit a stale chunk — reloading automatically.`
-        ).catch(() => {});
+        ).catch((e: any) => {
+        reportClientError('src/app/error.tsx:50', e);});
         window.location.reload();
         return;
       }
@@ -59,7 +61,8 @@ export default function Error({
       `<b>Page:</b> ${escapeHtml(typeof window !== 'undefined' ? window.location.pathname : 'unknown')}\n` +
       `<b>Message:</b> ${escapeHtml(safeMessage)}\n` +
       (typeof error?.stack === 'string' ? `<pre>${escapeHtml(error.stack.slice(0, 1500))}</pre>` : '')
-    ).catch(() => {})
+    ).catch((e: any) => {
+        reportClientError('src/app/error.tsx:62', e);})
   }, [error])
 
   if (isReloadingForChunkError) {

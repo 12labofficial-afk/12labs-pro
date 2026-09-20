@@ -29,6 +29,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { manuallyApprovePayment, deletePendingPayment, bulkDeletePayments } from './actions';
 import { cn } from '@/lib/utils';
+import { reportClientError } from '@/lib/report-client-error';
 
 // Unified type for display
 type UnifiedTransaction = (PendingPayment & { type: 'credits'; userEmail: string; createdAt: string; bonusCredits?: number }) | (Order & { type: 'asset' });
@@ -319,6 +320,7 @@ export default function PaymentsPage() {
             setHasMore(combined.length >= currentLimit);
 
         } catch (error) {
+        reportClientError('src/app/admin/payments/page.tsx:321', error);
             console.error("Failed to fetch transaction history:", error);
             toast({ variant: "destructive", title: "Error", description: "Could not load transaction feed." });
         } finally {

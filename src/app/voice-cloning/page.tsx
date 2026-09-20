@@ -86,6 +86,7 @@ const getBlobUrlFromBase64 = (base64Data: string): string => {
         const blob = new Blob([uInt8Array], { type: contentType });
         return URL.createObjectURL(blob);
     } catch (e) {
+        reportClientError('src/app/voice-cloning/page.tsx:88', e);
         console.error("Blob conversion failed:", e);
         return '';
     }
@@ -300,7 +301,7 @@ export default function VoiceCloningPage() {
                     eventType: 'SUCCESS',
                     actionDetails: `Generated Voice Clone (${(job.language || language).toUpperCase()}) - ${(job.text || text).slice(0, 60)}...`,
                     assetUrl: job.audioUrl,
-                }).catch(() => null);
+                }).catch((e: any) => { reportClientError('src/app/voice-cloning/page.tsx:304', e); return null; });
 
                 toast({ title: 'Synthesis Successful' });
                 setIsLoading(false);
@@ -313,7 +314,7 @@ export default function VoiceCloningPage() {
                     eventType: 'ERROR',
                     actionDetails: 'Voice clone generation failed on HF worker',
                     errorDetails: job.error || 'unknown',
-                }).catch(() => null);
+                }).catch((e: any) => { reportClientError('src/app/voice-cloning/page.tsx:317', e); return null; });
                 setIsLoading(false);
                 // Credits are refunded server-side (voice_cloning.py, same
                 // refund_credits() path voice_replacement uses) — the auth
@@ -591,7 +592,7 @@ export default function VoiceCloningPage() {
                 eventType: 'ERROR',
                 actionDetails: 'Voice clone job submission failed',
                 errorDetails: error.message
-            }).catch(() => null);
+            }).catch((e: any) => { reportClientError('src/app/voice-cloning/page.tsx:595', e); return null; });
             setIsLoading(false);
         }
     };

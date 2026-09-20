@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { reportClientError } from '@/lib/report-client-error';
 
 /**
  * Floating live-chat reply bubbles in the hero — up to 3 unread
@@ -151,7 +152,7 @@ function AdminChatReplyDialog({ session, onClose }: { session: LiveChatSession |
     // Mark read the moment the admin opens this conversation — matches
     // the existing full admin chat page's behavior.
     if (!session.isReadByAdmin) {
-      update(ref(database, `chats/${session.userId}`), { isReadByAdmin: true }).catch(() => null);
+      update(ref(database, `chats/${session.userId}`), { isReadByAdmin: true }).catch((e: any) => { reportClientError('src/components/admin/admin-chat-dock.tsx:155', e); return null; });
     }
 
     return () => unsubscribe();
@@ -176,6 +177,7 @@ function AdminChatReplyDialog({ session, onClose }: { session: LiveChatSession |
       if (!result.success) throw new Error(result.message);
       setReply('');
     } catch (err: any) {
+        reportClientError('src/components/admin/admin-chat-dock.tsx:178', err);
       toast({ variant: 'destructive', title: 'Message Not Sent', description: err.message });
     } finally {
       setIsSending(false);

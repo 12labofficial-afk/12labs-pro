@@ -12,6 +12,7 @@ import { Heart, Store } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { cn, generateAvatarColor, getDisplayUrl } from '@/lib/utils';
+import { reportClientError } from '@/lib/report-client-error';
 
 export default function FollowingPage() {
     const { activeUid } = useAuth();
@@ -43,6 +44,7 @@ export default function FollowingPage() {
                 );
                 setFollowedSellers(profiles.filter(Boolean) as SellerProfile[]);
             } catch (e) {
+        reportClientError('src/app/following/page.tsx:45', e);
                 console.error("Error fetching followed sellers:", e);
             } finally {
                 setIsLoading(false);

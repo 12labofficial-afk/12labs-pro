@@ -12,6 +12,7 @@ import { useAuth } from '@/context/auth-provider';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Bell, ShieldCheck, AlertTriangle, RefreshCw, Key } from 'lucide-react';
 import { sendBroadcastPush, getPushDiagnostics } from './push-actions';
+import { reportClientError } from '@/lib/report-client-error';
 
 export function BroadcastNotification() {
   const { user: currentUser } = useAuth();
@@ -28,6 +29,7 @@ export function BroadcastNotification() {
       const result = await getPushDiagnostics();
       setDiag(result);
     } catch (err: any) {
+        reportClientError('src/app/admin/broadcast-notification.tsx:30', err);
       console.error('[Diagnostic Error]:', err);
     } finally {
       setIsCheckingDiag(false);
@@ -96,6 +98,7 @@ export function BroadcastNotification() {
             });
         }
     } catch(error: any) {
+        reportClientError('src/app/admin/broadcast-notification.tsx:98', error);
         console.error("Error broadcasting notification: ", error);
         toast({ variant: 'destructive', title: 'Broadcast Failed', description: 'An unexpected error occurred. Please try again.'});
     } finally {

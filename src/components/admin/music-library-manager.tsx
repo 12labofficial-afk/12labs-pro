@@ -252,6 +252,7 @@ export function MusicLibraryManager() {
                         userEmail: effectiveEmail,
                     });
                 } catch (imgErr) {
+        reportClientError('src/components/admin/music-library-manager.tsx:254', imgErr);
                     console.warn('[Cover Art Upload Skipped]:', imgErr);
                 }
             }
@@ -284,6 +285,7 @@ export function MusicLibraryManager() {
                 });
                 res = await apiFetch.json();
             } catch (apiErr) {
+        reportClientError('src/components/admin/music-library-manager.tsx:286', apiErr);
                 console.warn("[API Dispatch failed, fallback to Server Action]:", apiErr);
                 res = await addMusicToLibraryAction({
                     prompt: payload.prompt,
@@ -308,6 +310,7 @@ export function MusicLibraryManager() {
                 throw new Error(res.error || 'Failed to register track in database.');
             }
         } catch (e: any) {
+        reportClientError('src/components/admin/music-library-manager.tsx:310', e);
             console.error("[Music Upload Failed]:", e);
             toast({ variant: 'destructive', title: 'Dispatch Failed', description: e.message || 'Error occurred while dispatching asset.' });
         } finally {
@@ -500,6 +503,7 @@ export function MusicLibraryManager() {
                                                                     document.body.removeChild(link);
                                                                     URL.revokeObjectURL(blobUrl);
                                                                 } catch (err) {
+        reportClientError('src/components/admin/music-library-manager.tsx:502', err);
                                                                     console.error('[Admin Music Download Failed]:', err);
                                                                 }
                                                             }}
