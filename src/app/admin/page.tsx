@@ -27,9 +27,6 @@ import {
   PlusCircle,
   Database,
   LayoutGrid,
-  Image as ImageIcon,
-  Bell,
-  DollarSign,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-provider';
 import { initializeFirebase } from '@/firebase';
@@ -46,11 +43,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { BroadcastNotification } from '@/components/admin/broadcast-notification';
-import { PushNotificationManager } from '@/components/admin/push-notification-manager';
-import { LandingAssetsManager } from '@/components/admin/landing-assets-manager';
-import { MusicLibraryManager } from '@/components/admin/music-library-manager';
-import { PricingSettingsManager } from '@/components/admin/pricing-settings-manager';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
@@ -634,10 +626,6 @@ export default function AdminPage() {
                         { value: 'overview',  label: 'Dashboard', icon: <LayoutGrid className="h-4 w-4" /> },
                         { value: 'users',     label: 'Users',     icon: <Users className="h-4 w-4" /> },
                         { value: 'neural',    label: 'Backend',   icon: <Cpu className="h-4 w-4" /> },
-                        { value: 'site',      label: 'Landing',   icon: <ImageIcon className="h-4 w-4" /> },
-                        { value: 'music',     label: 'Music',     icon: <Music className="h-4 w-4" /> },
-                        { value: 'push',      label: 'Messaging', icon: <Bell className="h-4 w-4" /> },
-                        { value: 'pricing',   label: 'Pricing',   icon: <DollarSign className="h-4 w-4" /> },
                     ].map((t) => (
                         <TabsTrigger
                             key={t.value}
@@ -695,10 +683,6 @@ export default function AdminPage() {
             </div>
         </TabsContent>
 
-        <TabsContent value="site" className="mt-4"><LandingAssetsManager /></TabsContent>
-        <TabsContent value="music" className="mt-4"><MusicLibraryManager /></TabsContent>
-        <TabsContent value="push" className="mt-4 space-y-8"><div className="grid grid-cols-1 lg:grid-cols-2 gap-8"><PushNotificationManager /><BroadcastNotification /></div></TabsContent>
-        <TabsContent value="pricing" className="mt-4"><PricingSettingsManager /></TabsContent>
       </Tabs>
     </div>
   );

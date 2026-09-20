@@ -1,7 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { initializeFirebase } from '@/firebase';
+import { ref } from 'firebase/database';
+import { onRtdbValue } from '@/lib/rtdb-listener';
 
 /**
  * A drifting field of feature capsules under the hero.
@@ -130,6 +133,23 @@ function MarqueeRow({
 }
 
 export function FeatureMarquee() {
+  // Admin-added quotes (Admin Panel → Content → Homepage Quotes), rotated
+  // in as a fifth row alongside the built-in feature capsules above. Only
+  // rendered once there's actually at least one, so an empty admin list
+  // never leaves a blank row on the page.
+  const [customQuotes, setCustomQuotes] = useState<string[]>([]);
+
+  useEffect(() => {
+    const { database } = initializeFirebase();
+    if (!database) return;
+    const quotesRef = ref(database, 'settings/landingPage/quotes');
+    const unsubscribe = onRtdbValue(quotesRef, (snapshot) => {
+      const data = snapshot.val();
+      setCustomQuotes(data ? Object.values(data).map(String) : []);
+    });
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="relative w-full py-2">
       {/* Edges fade out so capsules enter and leave rather than being
@@ -137,12 +157,16 @@ export function FeatureMarquee() {
       <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-28 z-10 bg-gradient-to-r from-background to-transparent" />
       <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-28 z-10 bg-gradient-to-l from-background to-transparent" />
 
-      {/* Four rows, four speeds, alternating directions. */}
+      {/* Four rows, four speeds, alternating directions — plus a fifth
+          for admin-added quotes when there are any. */}
       <div className="flex flex-col gap-3">
         <MarqueeRow items={ROW_1} duration={46} />
         <MarqueeRow items={ROW_2} duration={62} reverse />
         <MarqueeRow items={ROW_3} duration={54} />
         <MarqueeRow items={ROW_4} duration={70} reverse className="hidden sm:flex" />
+        {customQuotes.length > 0 && (
+          <MarqueeRow items={customQuotes} duration={58} className="hidden sm:flex" />
+        )}
       </div>
 
       {/* The visible list is decorative and aria-hidden, so the same
@@ -152,6 +176,7 @@ export function FeatureMarquee() {
         and support, 70+ languages, multi-character scripts, commercial rights included,
         credits that do not expire, script writing, thumbnail generation, a background
         music library, and full project history.
+        {customQuotes.length > 0 ? ` ${customQuotes.join('. ')}.` : ''}
       </p>
     </div>
   );
