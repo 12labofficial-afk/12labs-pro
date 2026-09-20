@@ -44,19 +44,9 @@ function ChatMessageItem({
                         <img
                             src={isSending ? localPreview : displayUrl}
                             alt="Chat asset"
-                            className={cn(
-                                "w-full h-auto object-cover max-h-60 transition-all group-hover:scale-105",
-                                isSending && "opacity-90"
-                            )}
+                            className="w-full h-auto object-cover max-h-60 transition-all group-hover:scale-105"
                         />
-                        {isSending ? (
-                            // A small corner badge instead of blurring/dimming the
-                            // whole photo and covering it with a big spinner — the
-                            // user can still see what they're sending while it syncs.
-                            <div className="absolute bottom-2 right-2 flex items-center gap-1 px-1.5 py-1 bg-black/40 backdrop-blur-md rounded-lg">
-                                <Loader2 className="h-3 w-3 animate-spin text-white" />
-                            </div>
-                        ) : (
+                        {!isSending && (
                             <div className="absolute top-2 right-2 p-1 bg-black/20 backdrop-blur-md rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Maximize2 className="h-3 w-3 text-white" />
                             </div>
@@ -66,17 +56,18 @@ function ChatMessageItem({
                 {message.text && (
                     <div className="text-sm whitespace-pre-wrap break-words font-medium">{message.text}</div>
                 )}
+                {/* No visible "sending" state — the message renders as sent
+                    the instant it's submitted (matching native chat apps),
+                    since the optimistic local echo already carries a real
+                    timestamp. The actual RTDB write/upload still happens in
+                    the background; only a genuine failure surfaces (via the
+                    toast in handleSendMessage, which also removes the
+                    message), so the fast path never shows any transient UI. */}
                 <div className={cn(
-                    "flex items-center gap-1.5 text-[10px] mt-1", 
+                    "flex items-center gap-1.5 text-[10px] mt-1",
                     isUser ? "justify-end text-primary-foreground/70" : "justify-start text-muted-foreground"
                 )}>
-                    {isSending ? (
-                        <span className={cn("flex items-center gap-1 opacity-60", isUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                            <Loader2 className="h-2.5 w-2.5 animate-spin" /> Sending
-                        </span>
-                    ) : (
-                        <span>{format(new Date(message.timestamp), 'p')}</span>
-                    )}
+                    <span>{format(new Date(message.timestamp), 'p')}</span>
                 </div>
             </div>
         </div>
