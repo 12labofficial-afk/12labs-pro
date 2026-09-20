@@ -42,7 +42,7 @@ export function PricingSection() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: '300px 0px -5% 0px' }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest"
           >
@@ -52,7 +52,7 @@ export function PricingSection() {
           <motion.h2
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: '300px 0px -5% 0px' }}
             transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.05 }}
             className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-foreground font-headline"
           >
@@ -62,7 +62,7 @@ export function PricingSection() {
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: '300px 0px -5% 0px' }}
             transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.1 }}
             className="max-w-[650px] mx-auto text-muted-foreground text-base sm:text-lg font-medium"
           >
@@ -75,7 +75,7 @@ export function PricingSection() {
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: '300px 0px -5% 0px' }}
             transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.18 }}
             className="inline-flex items-start gap-2.5 max-w-[620px] mx-auto text-left px-4 py-2.5 rounded-2xl bg-primary/5 border border-primary/15"
           >
@@ -115,7 +115,7 @@ export function PricingSection() {
                 key={plan.id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
+                viewport={{ once: true, margin: '300px 0px -5% 0px' }}
                 transition={{ type: 'spring', stiffness: 300, damping: 22, delay: index * 0.08 }}
                 whileHover={{ y: -6 }}
                 className="snap-center shrink-0 w-[85vw] sm:w-[340px] lg:w-[330px]"
@@ -260,7 +260,7 @@ export function PricingSection() {
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
+          viewport={{ once: true, margin: '300px 0px -5% 0px' }}
           className="flex items-center justify-center gap-2 mt-12 text-xs font-extrabold text-primary tracking-widest uppercase"
         >
           <Sparkles className="h-4 w-4 text-amber-500 animate-spin" style={{ animationDuration: '4s' }} />

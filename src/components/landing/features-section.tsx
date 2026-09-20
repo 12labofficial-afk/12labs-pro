@@ -365,7 +365,7 @@ export function FeaturesSection() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: '300px 0px -5% 0px' }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest mb-3 mx-auto"
           >
@@ -375,7 +375,7 @@ export function FeaturesSection() {
           <motion.h2
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: '300px 0px -5% 0px' }}
             transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.05 }}
             className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-foreground font-headline"
           >
@@ -385,7 +385,7 @@ export function FeaturesSection() {
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: '300px 0px -5% 0px' }}
             transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.1 }}
             className="text-muted-foreground text-xs sm:text-sm font-medium max-w-lg mx-auto mt-2"
           >
