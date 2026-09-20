@@ -41,17 +41,20 @@ function ChatMessageItem({
                         className="mb-2 max-w-[240px] rounded-xl overflow-hidden relative bg-black/5 cursor-zoom-in"
                         onClick={() => !isSending && onImageClick(displayUrl)}
                     >
-                        <img 
-                            src={isSending ? localPreview : displayUrl} 
-                            alt="Chat asset" 
+                        <img
+                            src={isSending ? localPreview : displayUrl}
+                            alt="Chat asset"
                             className={cn(
                                 "w-full h-auto object-cover max-h-60 transition-all group-hover:scale-105",
-                                isSending && "opacity-50 blur-sm"
+                                isSending && "opacity-90"
                             )}
                         />
                         {isSending ? (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <Loader2 className="h-6 w-6 animate-spin text-white" />
+                            // A small corner badge instead of blurring/dimming the
+                            // whole photo and covering it with a big spinner — the
+                            // user can still see what they're sending while it syncs.
+                            <div className="absolute bottom-2 right-2 flex items-center gap-1 px-1.5 py-1 bg-black/40 backdrop-blur-md rounded-lg">
+                                <Loader2 className="h-3 w-3 animate-spin text-white" />
                             </div>
                         ) : (
                             <div className="absolute top-2 right-2 p-1 bg-black/20 backdrop-blur-md rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
@@ -68,7 +71,9 @@ function ChatMessageItem({
                     isUser ? "justify-end text-primary-foreground/70" : "justify-start text-muted-foreground"
                 )}>
                     {isSending ? (
-                        <span className="flex items-center gap-1 font-black animate-pulse">SYNCING</span>
+                        <span className={cn("flex items-center gap-1 opacity-60", isUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                            <Loader2 className="h-2.5 w-2.5 animate-spin" /> Sending
+                        </span>
                     ) : (
                         <span>{format(new Date(message.timestamp), 'p')}</span>
                     )}
