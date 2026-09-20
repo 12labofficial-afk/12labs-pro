@@ -375,8 +375,17 @@ export function getDisplayUrl(url: string | null | undefined, forceProxy = false
  * 📥 UNIVERSAL LOCAL SAVE NODE (v10.0 - DIRECT SYNC)
  */
 export async function localSaveFile(url: string, fileName: string) {
-    const { saveAs } = await import('file-saver');
-    
+    // 🔴 FIX: `const { saveAs } = await import('file-saver')` was landing on
+    // `undefined` here (dynamic-import interop for this CJS package doesn't
+    // always put named exports directly on the namespace object the way a
+    // static `import { saveAs } from 'file-saver'` does — every OTHER call
+    // site in this codebase uses the static form) — so every save silently
+    // threw "n is not a function" and fell through to the native
+    // window.location.href fallback below instead of the blob-based save.
+    // Resolve it defensively instead of trusting one particular shape.
+    const fileSaverModule: any = await import('file-saver');
+    const saveAs = fileSaverModule.saveAs || fileSaverModule.default?.saveAs || fileSaverModule.default;
+
     const downloadApiUrl = `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fileName)}`;
     
     try {
