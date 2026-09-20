@@ -99,7 +99,12 @@ def _query_cost(client, where_clause, params):
     job = client.query(sql, job_config=bigquery.QueryJobConfig(query_parameters=params))
     rows = list(job.result())
     total = sum(r.net_cost for r in rows)
-    currency = rows[0].currency if rows else "USD"
+    # None (not a hardcoded "USD") when there are no rows — a day with
+    # exactly 0.00 cost gets filtered out by HAVING net_cost > 0, so this
+    # fires on the single most common case (today's cost still being
+    # zero), which used to silently overwrite the real account currency
+    # (INR) with a hardcoded "USD" every time. See get_cost_summary().
+    currency = rows[0].currency if rows else None
     return rows, total, currency
 
 
@@ -112,16 +117,22 @@ def get_cost_summary():
     today_str = now.strftime("%Y-%m-%d")
     month_str = now.strftime("%Y%m")
 
-    today_rows, today_total, currency = _query_cost(
+    today_rows, today_total, today_currency = _query_cost(
         client,
         "DATE(usage_start_time, 'Asia/Kolkata') = @today",
         [bigquery.ScalarQueryParameter("today", "DATE", today_str)],
     )
-    _, mtd_total, _ = _query_cost(
+    _, mtd_total, mtd_currency = _query_cost(
         client,
         "invoice.month = @month",
         [bigquery.ScalarQueryParameter("month", "STRING", month_str)],
     )
+    # Prefer whichever query actually had rows — MTD first since a whole
+    # month is far less likely to be empty than a single day still in
+    # progress. "INR" is the last-resort default only if BOTH are empty
+    # (i.e. genuinely nothing billed yet this month), matching this
+    # account's real billing currency instead of a foreign one.
+    currency = mtd_currency or today_currency or "INR"
     return today_rows, today_total, mtd_total, currency
 
 
@@ -214,6 +225,16 @@ def _format_deleted_dates(deleted_dates):
     return f"{deleted_dates[0]} → {deleted_dates[-1]} ({len(deleted_dates)} days)"
 
 
+_CURRENCY_SYMBOLS = {"INR": "₹", "USD": "$", "EUR": "€", "GBP": "£"}
+
+
+def _format_money(amount, currency):
+    symbol = _CURRENCY_SYMBOLS.get(currency)
+    if symbol:
+        return f"{symbol}{amount:.2f}"
+    return f"{amount:.2f} {currency}"
+
+
 def send_daily_cost_report():
     deleted_dates = _cleanup_old_daily_summaries()
     try:
@@ -226,10 +247,10 @@ def send_daily_cost_report():
         ]
         if rows:
             for r in rows[:8]:
-                lines.append(f"• {_escape_html(r.service)}: {r.net_cost:.2f} {currency}")
+                lines.append(f"• {_escape_html(r.service)}: {_format_money(r.net_cost, currency)}")
 
-        lines.append(f"\n<b>Today's GCP cost:</b> {today_total:.2f} {currency}")
-        lines.append(f"<b>Month-to-date GCP cost:</b> {mtd_total:.2f} {currency}")
+        lines.append(f"\n<b>Today's GCP cost:</b> {_format_money(today_total, currency)}")
+        lines.append(f"<b>Month-to-date GCP cost:</b> {_format_money(mtd_total, currency)}")
 
         # 🤑 Real revenue — actual INR collected today via Razorpay (tracked
         # live at dailySummaries/{date}/revenue in the payment webhook),
@@ -254,7 +275,7 @@ def send_daily_cost_report():
         lines.append("🤩🤩🤩")
 
         send_telegram_log("\n".join(lines))
-        print(f"[COST-REPORT] Sent — gcp_today={today_total:.2f} {currency}, mtd={mtd_total:.2f} {currency}, revenue={stats['revenue']}, signups={stats['new_signups']}, online={stats['online_users']}, purged={deleted_dates}", flush=True)
+        print(f"[COST-REPORT] Sent — gcp_today={_format_money(today_total, currency)}, mtd={_format_money(mtd_total, currency)}, revenue={stats['revenue']}, signups={stats['new_signups']}, online={stats['online_users']}, purged={deleted_dates}", flush=True)
     except Exception as e:
         send_telegram_log(f"⚠️ <b>Daily cost report failed</b>\n<code>{_escape_html(str(e))}</code>")
         print(f"[COST-REPORT-ERROR] {e}", flush=True)
