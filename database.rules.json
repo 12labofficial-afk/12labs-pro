@@ -2,17 +2,17 @@
   "rules": {
     "admin": {
       "config": {
-        ".read": "auth != null && (root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')",
-        ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')"
+        ".read": "auth != null && (root.child('admins').child(auth.uid).val() === true)",
+        ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true)"
       }
     },
     "admins": {
       ".read": "auth != null",
-      ".write": "auth != null && auth.token.email === '12labofficial@gmail.com'"
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
     },
     "limit": {
       ".read": true,
-      ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')"
+      ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true)"
     },
     "chats": {
       ".read": "auth != null",
@@ -30,15 +30,15 @@
       }
     },
     "dailySummaries": {
-      ".read": "auth != null && (root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')",
-      ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')"
+      ".read": "auth != null && (root.child('admins').child(auth.uid).val() === true)",
+      ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true)"
     },
     "dailyTickets": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
     "modelUsage": {
-      ".read": "auth != null && (root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')",
+      ".read": "auth != null && (root.child('admins').child(auth.uid).val() === true)",
       ".write": "auth != null"
     },
     "tempThumbnailGenerations": {
@@ -93,7 +93,7 @@
     "publicMusicLibrary": {
       ".read": true,
       "$musicId": {
-        ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true)"
       }
     },
     "musicPurchases": {
@@ -200,8 +200,8 @@
         "affiliateEmail"
       ],
       "$code": {
-        ".read": "auth != null && (data.child('ownerUid').val() === auth.uid || root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')",
-        ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')"
+        ".read": "auth != null && (data.child('ownerUid').val() === auth.uid || root.child('admins').child(auth.uid).val() === true)",
+        ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true)"
       }
     },
     "affiliateEarnings": {
@@ -398,16 +398,16 @@
     },
     "settings": {
       ".read": true,
-      ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')"
+      ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true)"
     },
     "dailyFreeScriptGenerations": {
       ".read": true,
-      ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')",
+      ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true)",
       "$date": {
         ".read": true,
         "count": {
           ".read": true,
-          ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')"
+          ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true)"
         }
       }
     },
@@ -426,7 +426,7 @@
     },
     "toolSettings": {
       ".read": true,
-      ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || auth.token.email === '12labofficial@gmail.com')"
+      ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true)"
     }
   }
 }
