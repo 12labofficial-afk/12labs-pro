@@ -27,7 +27,7 @@ import { PurchaseHistory } from '@/components/history/purchase-history';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { WithIdAndRef } from '@/firebase/firestore/use-collection';
-import { cn, getDisplayUrl, generateAvatarColor } from '@/lib/utils';
+import { cn, getDisplayUrl, generateAvatarColor, shortVoiceLabel } from '@/lib/utils';
 import { voices } from '@/lib/voices';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -551,7 +551,7 @@ function HistoryPageContent() {
                                                     <span className="text-[8px] font-bold text-muted-foreground uppercase">{char.emotion || 'Neutral'}</span>
                                                 </div>
                                             </div>
-                                            <Badge className="text-[9px] font-black uppercase tracking-widest bg-primary text-white border-none h-6 px-3 shadow-md">{voiceName}</Badge>
+                                            <Badge className="text-[9px] font-black uppercase tracking-widest bg-primary text-white border-none h-6 px-3 shadow-md shrink-0 max-w-[50%] truncate ml-2" title={voiceName}>{shortVoiceLabel(voiceName)}</Badge>
                                         </div>
                                     );
                                 })}

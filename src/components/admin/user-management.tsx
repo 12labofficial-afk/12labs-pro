@@ -58,7 +58,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { cn, generateAvatarColor, getDisplayUrl } from '@/lib/utils';
+import { cn, generateAvatarColor, getDisplayUrl, shortVoiceLabel } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -1588,10 +1588,10 @@ function UserUnifiedViewDialog({
                                                     </div>
                                                 </div>
                                                 <Badge className={cn(
-                                                    "text-[9px] font-black uppercase tracking-widest border-none h-6 px-3 shadow-md shrink-0 ml-2",
+                                                    "text-[9px] font-black uppercase tracking-widest border-none h-6 px-3 shadow-md shrink-0 max-w-[50%] truncate ml-2",
                                                     hasVoice ? "bg-primary text-white" : "bg-destructive/10 text-destructive"
-                                                )}>
-                                                    {hasVoice ? voiceName : 'Unassigned'}
+                                                )} title={hasVoice ? voiceName : undefined}>
+                                                    {hasVoice ? shortVoiceLabel(voiceName) : 'Unassigned'}
                                                 </Badge>
                                             </div>
                                         );

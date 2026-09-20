@@ -65,6 +65,22 @@ export function generateAvatarColor(email: string | null | undefined): { bg: str
   return colors[charCodeSum % colors.length];
 }
 
+/**
+ * ElevenLabs voice names are saved as a full descriptor — "Ahmed - Clear,
+ * Deep and Natural" — not just a short name the way Gemini's static voice
+ * catalog is. Shown in full inside a fixed-width Cast Persona Mapping
+ * badge, that descriptor squeezed the character's own name down to a
+ * couple of truncated letters (the badge has no natural wrap/shrink
+ * point, so the name's `truncate` side loses the space fight). Splitting
+ * on the first " - " gets back to just the name, which is the part that
+ * actually matters there — which persona a character got.
+ */
+export function shortVoiceLabel(voiceName: string | null | undefined): string {
+  if (!voiceName) return '';
+  const [first] = voiceName.split(' - ');
+  return (first || voiceName).trim();
+}
+
 export function escapeHtml(text: unknown): string {
   if (text === null || text === undefined) return '';
   const str = typeof text === 'string' ? text : String(text);
