@@ -57,6 +57,12 @@ REPORT_TIMES_IST = [(8, 0), (14, 0), (20, 0)]  # 8 AM, 2 PM, 8 PM IST
 # download of the node's history.
 DAILY_SUMMARIES_RETENTION_DAYS = 15
 
+# pending_script_analysis/{userId}/{jobId} entries whose job already
+# FINISHED (status "ok" or "error") and are older than this are purged
+# too — see _cleanup_stale_script_analysis_jobs for why this exists
+# alongside script_analysis.py's own 30-second post-completion cleanup.
+SCRIPT_ANALYSIS_RETENTION_DAYS = 2
+
 
 def _now_ist():
     if IST:
@@ -214,6 +220,65 @@ def _cleanup_old_daily_summaries(retention_days=DAILY_SUMMARIES_RETENTION_DAYS):
         return []
 
 
+def _cleanup_stale_script_analysis_jobs(retention_days=SCRIPT_ANALYSIS_RETENTION_DAYS):
+    """Deletes pending_script_analysis/{userId}/{jobId} entries that already
+    finished (status "ok" or "error") and are older than `retention_days`.
+    Still-pending/processing jobs are never touched, however old — that
+    would mean actively deleting someone's in-flight analysis.
+
+    This exists as a safety net for script_analysis.py's own cleanup
+    (_cleanup_job_later), which schedules a delete 30 SECONDS after a job
+    finishes via an in-memory background thread. If the backend restarts
+    or redeploys in that 30s window — which happens — the scheduled
+    delete is lost forever and the finished job node sits there
+    permanently, never re-checked by anything. This function is that
+    re-check, run 3x/day.
+
+    Cheap by construction, same spirit as _cleanup_old_daily_summaries:
+    job IDs are shaped "job_{createdAtMs}_{rand}" (see studio-provider.tsx),
+    so the age filter is done from the KEY ALONE via two levels of shallow
+    scans — no script text or analysis payload is ever downloaded. Only
+    for the rare candidates that are already past the age cutoff do we
+    fetch that one job's `status` field (a few bytes, not the payload) to
+    confirm it's actually finished before deleting.
+    """
+    deleted = []
+    try:
+        cutoff_ms = int(_now_ist().timestamp() * 1000) - retention_days * 24 * 60 * 60 * 1000
+        user_ids = db.reference("pending_script_analysis").get(shallow=True) or {}
+        for user_id in user_ids.keys():
+            try:
+                job_ids = db.reference(f"pending_script_analysis/{user_id}").get(shallow=True) or {}
+            except Exception:
+                continue
+            for job_id in job_ids.keys():
+                created_ms = None
+                parts = job_id.split("_")
+                if len(parts) > 1:
+                    try:
+                        created_ms = int(parts[1])
+                    except ValueError:
+                        created_ms = None
+                if created_ms is None or created_ms > cutoff_ms:
+                    continue  # too new, or an unrecognized id shape — leave it alone
+                try:
+                    status = db.reference(f"pending_script_analysis/{user_id}/{job_id}/status").get()
+                except Exception:
+                    continue
+                if status in ("ok", "error"):
+                    try:
+                        db.reference(f"pending_script_analysis/{user_id}/{job_id}").delete()
+                        deleted.append(f"{user_id}/{job_id}")
+                    except Exception as e:
+                        print(f"[COST-REPORT] Failed to delete stale script-analysis job {user_id}/{job_id}: {e}", flush=True)
+        if deleted:
+            print(f"[COST-REPORT] Cleaned up {len(deleted)} stale script-analysis job(s)", flush=True)
+        return deleted
+    except Exception as e:
+        print(f"[COST-REPORT] script-analysis cleanup failed: {e}", flush=True)
+        return []
+
+
 def _format_deleted_dates(deleted_dates):
     """Compact one-line summary of cleaned-up dates so the report doesn't
     balloon if a lot of old history gets purged at once (e.g. first run
@@ -237,6 +302,7 @@ def _format_money(amount, currency):
 
 def send_daily_cost_report():
     deleted_dates = _cleanup_old_daily_summaries()
+    deleted_script_jobs = _cleanup_stale_script_analysis_jobs()
     try:
         rows, today_total, mtd_total, currency = get_cost_summary()
         stats = _get_today_user_stats()
@@ -272,10 +338,13 @@ def send_daily_cost_report():
         if deleted_summary:
             lines.append(f"\n🧹 <b>Old history purged:</b> {_escape_html(deleted_summary)}")
 
+        if deleted_script_jobs:
+            lines.append(f"🧹 <b>Stale script analyses purged:</b> {len(deleted_script_jobs)}")
+
         lines.append("🤩🤩🤩")
 
         send_telegram_log("\n".join(lines))
-        print(f"[COST-REPORT] Sent — gcp_today={_format_money(today_total, currency)}, mtd={_format_money(mtd_total, currency)}, revenue={stats['revenue']}, signups={stats['new_signups']}, online={stats['online_users']}, purged={deleted_dates}", flush=True)
+        print(f"[COST-REPORT] Sent — gcp_today={_format_money(today_total, currency)}, mtd={_format_money(mtd_total, currency)}, revenue={stats['revenue']}, signups={stats['new_signups']}, online={stats['online_users']}, purged={deleted_dates}, script_jobs_purged={len(deleted_script_jobs)}", flush=True)
     except Exception as e:
         send_telegram_log(f"⚠️ <b>Daily cost report failed</b>\n<code>{_escape_html(str(e))}</code>")
         print(f"[COST-REPORT-ERROR] {e}", flush=True)
