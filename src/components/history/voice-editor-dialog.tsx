@@ -372,6 +372,20 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                 } else if (status === 'failed') {
                     setIsProcessingSwap(false);
                     setSwapProgress(0);
+                    // 🔴 FIX: this toast just displayed data.error — a failure
+                    // reported by the worker (or, before the fix above, the
+                    // RTDB write itself) never reached Telegram unless some
+                    // OTHER catch block happened to also fire. Reporting it
+                    // here means every failed swap surfaces regardless of
+                    // which path (client-side write vs. worker) failed it.
+                    if (!notifiedReplacementJobs.current.has(`${data.jobId}:failed`)) {
+                        notifiedReplacementJobs.current.add(`${data.jobId}:failed`);
+                        reportClientError('voice-editor-dialog.voiceReplacementJob', data.error || 'Server reported failure.', {
+                            projectId: project.id,
+                            jobId: data.jobId,
+                            engine: replacementRtdbNode,
+                        });
+                    }
                     toast({ variant: 'destructive', title: 'Voice Swap Failed', description: data.error || 'Server reported failure.' });
                 }
             } else {
@@ -814,7 +828,17 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
             await set(replacementRef, {
                 projectId: project.id,
                 userId: user.uid,
-                mappings: [{ characterName: charName, targetVoiceId, ageGroup: isElevenLabsProject ? undefined : getCharacterAge(charName) }],
+                // 🔴 FIX: Firebase's set() throws synchronously on ANY nested
+                // undefined value ("value argument contains undefined in
+                // property '...ageGroup'") — it never writes anything, so
+                // the swap request never even reached the worker for
+                // ElevenLabs projects. `ageGroup: undefined` has to be an
+                // omitted key, not a key with an undefined value.
+                mappings: [
+                    isElevenLabsProject
+                        ? { characterName: charName, targetVoiceId }
+                        : { characterName: charName, targetVoiceId, ageGroup: getCharacterAge(charName) },
+                ],
                 originalAudioUrl: getDisplayUrl(project.audioUrl),
                 status: 'pending',
                 timestamp: Math.floor(Date.now() / 1000),
@@ -874,11 +898,13 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
             await set(replacementRef, {
                 projectId: project.id,
                 userId: user.uid,
-                mappings: validReplacements.map(r => ({
-                    characterName: r.charName,
-                    targetVoiceId: r.newVoiceId,
-                    ageGroup: isElevenLabsProject ? undefined : getCharacterAge(r.charName)
-                })),
+                // Same fix as the single-character swap above: omit the key
+                // for ElevenLabs projects instead of setting it to undefined.
+                mappings: validReplacements.map(r =>
+                    isElevenLabsProject
+                        ? { characterName: r.charName, targetVoiceId: r.newVoiceId }
+                        : { characterName: r.charName, targetVoiceId: r.newVoiceId, ageGroup: getCharacterAge(r.charName) }
+                ),
                 originalAudioUrl: getDisplayUrl(project.audioUrl),
                 status: 'pending',
                 timestamp: Math.floor(Date.now() / 1000),
