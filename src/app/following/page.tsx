@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-provider';
 import { initializeFirebase } from '@/firebase';
-import { ref, get } from 'firebase/database';
 import { collection, onSnapshot } from 'firebase/firestore';
 import type { SellerProfile } from '@/lib/types';
+import { getPublicSellerProfile } from '@/app/store/[productId]/actions';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Heart, Store } from 'lucide-react';
@@ -15,12 +15,12 @@ import { cn, generateAvatarColor, getDisplayUrl } from '@/lib/utils';
 
 export default function FollowingPage() {
     const { activeUid } = useAuth();
-    const { firestore, database } = initializeFirebase();
+    const { firestore } = initializeFirebase();
     const [followedSellers, setFollowedSellers] = useState<SellerProfile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (!activeUid || !firestore || !database) {
+        if (!activeUid || !firestore) {
             setIsLoading(false);
             return;
         }
@@ -35,11 +35,11 @@ export default function FollowingPage() {
             }
 
             try {
+                // Public-safe, server-side lookup — strips payout/contact
+                // fields before they reach the browser (this used to be a
+                // raw client read of each seller's full RTDB profile).
                 const profiles = await Promise.all(
-                    sellerIds.map(async (id) => {
-                        const snap = await get(ref(database, `sellerProfiles/${id}`));
-                        return snap.exists() ? { id, ...snap.val() } : null;
-                    })
+                    sellerIds.map((id) => getPublicSellerProfile(id))
                 );
                 setFollowedSellers(profiles.filter(Boolean) as SellerProfile[]);
             } catch (e) {
@@ -50,7 +50,7 @@ export default function FollowingPage() {
         });
 
         return () => unsubscribe();
-    }, [activeUid, firestore, database]);
+    }, [activeUid, firestore]);
 
     return (
         <>

@@ -22,7 +22,7 @@ import { useCart } from '@/context/cart-provider';
 import { adminDeleteProduct, adminCleanCorruptedProducts } from './admin-actions';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { getProductDetails } from './[productId]/actions';
+import { getProductDetails, getPublicSellerProfilesMap } from './[productId]/actions';
 import { VerifiedBadge } from '@/components/verified-badge';
 import ProductView from '@/components/store/product-view';
 import { AdminEditProductDialog } from '@/components/store/admin-edit-product-dialog';
@@ -515,9 +515,12 @@ export default function StoreHomePage() {
     if (!database) return; 
     const fetchData = async () => { 
         try { 
-            const productsSnapshot = await get(ref(database, 'storeProducts')); 
-            const sellersSnapshot = await get(ref(database, 'sellerProfiles')); 
-            const data = productsSnapshot.val(); 
+            const productsSnapshot = await get(ref(database, 'storeProducts'));
+            // Public-safe, server-side lookup — strips payout/contact
+            // fields before they ever reach the browser (this used to be
+            // a raw client read of the entire sellerProfiles node).
+            const sellersMap = await getPublicSellerProfilesMap();
+            const data = productsSnapshot.val();
             
             let hasCorrupted = false;
             const validProducts: StoreProduct[] = [];
@@ -533,8 +536,8 @@ export default function StoreHomePage() {
                 }
             }
 
-            setProducts(rankProducts(validProducts)); 
-            setSellers(sellersSnapshot.val() || {}); 
+            setProducts(rankProducts(validProducts));
+            setSellers(sellersMap);
 
             // Auto-clean corrupted ghost nodes in the background if found
             if (hasCorrupted) {

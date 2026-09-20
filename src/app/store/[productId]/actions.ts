@@ -9,6 +9,27 @@ import { z } from 'zod';
 import { reportServerError } from '@/lib/report-error';
 
 /**
+ * 🔒 Strips payout/contact fields (UPI ID, bank account holder name, QR
+ * code, mobile number, secondary email) before a seller profile is sent
+ * to the browser. Every public-facing read of `sellerProfiles` must go
+ * through this — the raw record also carries `payoutDetails`, which is
+ * financial PII that has no business leaving the server.
+ */
+function toPublicSellerProfile(sellerId: string, raw: any): SellerProfile {
+    return {
+        id: sellerId,
+        storeName: raw?.storeName || '',
+        description: raw?.description || '',
+        profileImageUrl: raw?.profileImageUrl || '',
+        onboarded: raw?.onboarded ?? false,
+        createdAt: raw?.createdAt || '',
+        isVerified: raw?.isVerified ?? false,
+        followerCount: raw?.followerCount || 0,
+        status: raw?.status || 'approved',
+    };
+}
+
+/**
  * Increments the view count for a product.
  * Optimized: ONLY updates Realtime Database to save Firestore read/write costs.
  * Safety: Checks existence first to prevent creating ghost/blank entries.
@@ -90,7 +111,7 @@ export async function getProductDetails(productId: string, userId?: string): Pro
         // Get seller profile from RTDB for accurate storeName fallback
         const sellerRef = database.ref(`sellerProfiles/${rawProductData.sellerId}`);
         const sellerSnapshot = await sellerRef.get();
-        const seller = sellerSnapshot.exists() ? sellerSnapshot.val() as SellerProfile : null;
+        const seller = sellerSnapshot.exists() ? toPublicSellerProfile(rawProductData.sellerId, sellerSnapshot.val()) : null;
 
         // Sanitize Previews (Ensure Array)
         let previews = rawProductData.previews || [];
@@ -320,4 +341,46 @@ export async function submitProductReport(input: z.infer<typeof ReportSchema>): 
     reportServerError('src/app/store/[productId]/actions.ts#9', error);
       return { success: false, message: error.message };
   }
+}
+
+/**
+ * 🔒 Bulk, public-safe seller profile lookup — used by the storefront
+ * listing page, which previously read the ENTIRE `sellerProfiles` RTDB
+ * node directly from the client (including every seller's UPI ID, bank
+ * account holder name, and payout QR code). This runs server-side with
+ * the Admin SDK and strips those fields before anything reaches the
+ * browser.
+ */
+export async function getPublicSellerProfilesMap(): Promise<Record<string, SellerProfile>> {
+    const { database } = initializeFirebase();
+    try {
+        const snap = await database.ref('sellerProfiles').get();
+        const raw = snap.val() || {};
+        const result: Record<string, SellerProfile> = {};
+        for (const [sellerId, val] of Object.entries(raw)) {
+            result[sellerId] = toPublicSellerProfile(sellerId, val);
+        }
+        return result;
+    } catch (error) {
+        reportServerError('src/app/store/[productId]/actions.ts#10', error);
+        return {};
+    }
+}
+
+/**
+ * 🔒 Single public-safe seller profile lookup — for storefront pages
+ * (a seller's own public store page, the "Following" list) that only
+ * need display fields, not payout/contact details.
+ */
+export async function getPublicSellerProfile(sellerId: string): Promise<SellerProfile | null> {
+    if (!sellerId) return null;
+    const { database } = initializeFirebase();
+    try {
+        const snap = await database.ref(`sellerProfiles/${sellerId}`).get();
+        if (!snap.exists()) return null;
+        return toPublicSellerProfile(sellerId, snap.val());
+    } catch (error) {
+        reportServerError('src/app/store/[productId]/actions.ts#11', error);
+        return null;
+    }
 }

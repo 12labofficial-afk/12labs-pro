@@ -111,10 +111,16 @@
     },
 
     "sellerProfiles": {
-      ".read": true,
       ".indexOn": ["isVerified", "storeName"],
       "$sellerId": {
-        ".write": "auth != null && (auth.uid === $sellerId || auth.token.role === 'admin')"
+        ".read": "auth != null && (auth.uid === $sellerId || auth.token.role === 'admin')",
+        ".write": "auth != null && (auth.uid === $sellerId || auth.token.role === 'admin')",
+        "storeName": { ".read": true },
+        "description": { ".read": true },
+        "profileImageUrl": { ".read": true },
+        "isVerified": { ".read": true },
+        "followerCount": { ".read": true },
+        "onboarded": { ".read": true }
       }
     },
 

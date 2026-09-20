@@ -4,7 +4,7 @@
 import { useParams } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { initializeFirebase } from '@/firebase';
-import { ref, onValue, get } from 'firebase/database';
+import { ref } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import type { SellerProfile, Product, StoreProduct } from '@/lib/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -25,6 +25,7 @@ import { cn, generateAvatarColor, getDisplayUrl, formatDistanceToNowShort } from
 import { useAuth } from '@/context/auth-provider';
 import { toggleFollowSeller, checkFollowStatus } from '../actions';
 import { adminToggleSellerVerification, adminDeleteProduct } from '@/app/store/admin-actions';
+import { getPublicSellerProfile } from '@/app/store/[productId]/actions';
 import { AdminEditProductDialog } from '@/components/store/admin-edit-product-dialog';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { Badge } from '@/components/ui/badge';
@@ -242,25 +243,38 @@ export default function SellerPublicProfilePage() {
     const [productsLoading, setProductsLoading] = useState(true);
 
     useEffect(() => {
-        if (sellerId && database) {
-            const profileRef = ref(database, `sellerProfiles/${sellerId}`);
-            const unsubscribe = onRtdbValue(profileRef, (snapshot) => {
-                if (snapshot.exists()) {
-                    const data = snapshot.val();
-                    setProfile(data);
-                    setFollowerCount(data.followerCount || 0);
-                } else {
-                    setProfile(null);
-                }
-                setProfileLoading(false);
-            }, (error) => {
-                console.error("Failed to fetch seller profile:", error);
-                setProfileLoading(false);
-            });
-            return () => unsubscribe();
-        } else {
+        if (!sellerId) {
             setProfileLoading(false);
+            return;
         }
+        let cancelled = false;
+        // Public-safe, server-side lookup — strips payout/contact fields
+        // before they reach the browser (this used to be a raw client
+        // listener on the seller's entire RTDB profile node, including
+        // their UPI ID, bank account holder name and payout QR).
+        getPublicSellerProfile(sellerId).then((data) => {
+            if (cancelled) return;
+            setProfile(data);
+            setFollowerCount(data?.followerCount || 0);
+            setProfileLoading(false);
+        }).catch((error) => {
+            console.error("Failed to fetch seller profile:", error);
+            if (!cancelled) setProfileLoading(false);
+        });
+        return () => { cancelled = true; };
+    }, [sellerId]);
+
+    // Follower count changes live (follow/unfollow) — that one field is
+    // publicly readable in the RTDB rules, so a lightweight listener on
+    // just that leaf keeps it fresh without re-exposing the rest of the
+    // profile.
+    useEffect(() => {
+        if (!sellerId || !database) return;
+        const countRef = ref(database, `sellerProfiles/${sellerId}/followerCount`);
+        const unsubscribe = onRtdbValue(countRef, (snapshot) => {
+            setFollowerCount(snapshot.val() || 0);
+        });
+        return () => unsubscribe();
     }, [sellerId, database]);
 
     useEffect(() => {
