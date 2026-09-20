@@ -22,14 +22,23 @@ const LiveChatWidget = dynamic(() => import(/* webpackPrefetch: true */ '@/compo
 // code up front — which is a big part of why the first paint was slow.
 // next/dynamic makes each a separate file fetched only when needed.
 // Hero, marquee and footer stay static: they're above the fold or tiny.
-const FeaturesSection = dynamic(() => import('@/components/landing/features-section').then(m => m.FeaturesSection));
-const DemoSection = dynamic(() => import('@/components/landing/demo-section').then(m => m.DemoSection));
-const PricingSection = dynamic(() => import('@/components/landing/pricing-section').then(m => m.PricingSection));
-const WhyChooseUsSection = dynamic(() => import('@/components/landing/why-choose-us-section').then(m => m.WhyChooseUsSection));
-const SellerCtaSection = dynamic(() => import('@/components/landing/seller-cta-section').then(m => m.SellerCtaSection));
-const FaqSection = dynamic(() => import('@/components/landing/faq-section').then(m => m.FaqSection));
-const CommunityCtaSection = dynamic(() => import('@/components/landing/community-cta-section').then(m => m.CommunityCtaSection));
-const FinalCtaSection = dynamic(() => import('@/components/landing/final-cta-section').then(m => m.FinalCtaSection));
+//
+// 🔴 FIX: none of these had webpackPrefetch, unlike LiveChatWidget above —
+// so the chunk request only started the instant LazySection's observer
+// fired (150px before the section enters view), which most scroll speeds
+// easily outrun. That's the "reach the bottom, then it suddenly loads"
+// feeling — the browser was still downloading+parsing the chunk exactly
+// when it needed to already be on screen. Prefetching in idle time right
+// after the initial page load means the chunk is already cached by the
+// time a visitor actually scrolls down to it, so mounting is instant.
+const FeaturesSection = dynamic(() => import(/* webpackPrefetch: true */ '@/components/landing/features-section').then(m => m.FeaturesSection));
+const DemoSection = dynamic(() => import(/* webpackPrefetch: true */ '@/components/landing/demo-section').then(m => m.DemoSection));
+const PricingSection = dynamic(() => import(/* webpackPrefetch: true */ '@/components/landing/pricing-section').then(m => m.PricingSection));
+const WhyChooseUsSection = dynamic(() => import(/* webpackPrefetch: true */ '@/components/landing/why-choose-us-section').then(m => m.WhyChooseUsSection));
+const SellerCtaSection = dynamic(() => import(/* webpackPrefetch: true */ '@/components/landing/seller-cta-section').then(m => m.SellerCtaSection));
+const FaqSection = dynamic(() => import(/* webpackPrefetch: true */ '@/components/landing/faq-section').then(m => m.FaqSection));
+const CommunityCtaSection = dynamic(() => import(/* webpackPrefetch: true */ '@/components/landing/community-cta-section').then(m => m.CommunityCtaSection));
+const FinalCtaSection = dynamic(() => import(/* webpackPrefetch: true */ '@/components/landing/final-cta-section').then(m => m.FinalCtaSection));
 
 import { LazySection } from '@/components/lazy-section';
 
@@ -79,7 +88,7 @@ export default function LandingPage() {
                     <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>
                         <div className="flex flex-col gap-0">
                             <LazySection minHeight="500px">
-                                <FeaturesSection user={user} />
+                                <FeaturesSection />
                             </LazySection>
                             <LazySection minHeight="500px">
                                 <DemoSection />

@@ -3,12 +3,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/context/auth-provider';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, MessageCircle, Bot, ImagePlus, X, Clock, ShieldCheck, Maximize2, Bell } from 'lucide-react';
-import { cn, generateAvatarColor, getDisplayUrl, compressImage } from '@/lib/utils';
+import { Loader2, Send, MessageCircle, ImagePlus, X, Clock, ShieldCheck, Maximize2, Bell } from 'lucide-react';
+import { cn, getDisplayUrl, compressImage } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { initializeFirebase } from '@/firebase';
 import { ref, onValue, query, orderByChild, update } from 'firebase/database';
@@ -20,32 +19,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@
 import { GetNotifiedButton } from '@/components/push-subscription-handler';
 import { reportClientError } from '@/lib/report-client-error';
 
-function ChatMessageItem({ 
-    message, 
-    localPreview, 
-    isUser, 
-    avatarColor, 
-    userInitial,
+function ChatMessageItem({
+    message,
+    localPreview,
+    isUser,
     onImageClick
-}: { 
-    message: LiveChatMessage & { status?: string }, 
-    localPreview?: string, 
-    isUser: boolean, 
-    avatarColor: { bg: string, text: string },
-    userInitial: string,
+}: {
+    message: LiveChatMessage & { status?: string },
+    localPreview?: string,
+    isUser: boolean,
     onImageClick: (url: string) => void
 }) {
     const isSending = message.status === 'sending';
     const displayUrl = getDisplayUrl(message.imageUrl);
     
     return (
-        <div className={cn("flex items-end gap-3 animate-in fade-in slide-in-from-bottom-1 duration-300", isUser ? 'justify-end' : 'justify-start')}>
-            {!isUser && (
-                <Avatar className="h-8 w-8 border-2 border-primary">
-                    <AvatarImage src="https://res.cloudinary.com/dptryoeis/image/upload/v1771298434/xbejozbxaqwgweq0ym6w.png" alt="12Labs Admin" />
-                    <AvatarFallback><Bot className="h-5 w-5"/></AvatarFallback>
-                </Avatar>
-            )}
+        <div className={cn("flex items-end animate-in fade-in slide-in-from-bottom-1 duration-300", isUser ? 'justify-end' : 'justify-start')}>
             <div className={cn('rounded-2xl px-3 py-2 max-w-[80%] shadow-sm relative group', isUser ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none')}>
                 {displayUrl && (
                     <div 
@@ -85,13 +74,6 @@ function ChatMessageItem({
                     )}
                 </div>
             </div>
-            {isUser && (
-                <Avatar className="h-8 w-8 border shadow-sm">
-                    <AvatarFallback className={cn("font-bold text-xs", avatarColor.bg, avatarColor.text)}>
-                        {userInitial}
-                    </AvatarFallback>
-                </Avatar>
-            )}
         </div>
     );
 }
@@ -145,7 +127,6 @@ export function LiveChatWidget() {
   }, []);
 
   const isMobile = isClient && typeof window !== 'undefined' && window.innerWidth < 768;
-  const avatarColor = user ? generateAvatarColor(user.email || '') : { bg: '', text: ''};
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -370,8 +351,6 @@ export function LiveChatWidget() {
                     message={message} 
                     localPreview={message.clientMessageId === (message as any).clientMessageId ? (message as any).imageUrl : undefined}
                     isUser={message.sender === 'user'}
-                    avatarColor={avatarColor}
-                    userInitial={(user.name || user.email || 'U').charAt(0).toUpperCase()}
                     onImageClick={setPreviewImage}
                 />
               ))}

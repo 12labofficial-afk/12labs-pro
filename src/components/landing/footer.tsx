@@ -143,7 +143,7 @@ export function Footer() {
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-4 border-t border-border/5">
                         <p>Proudly Built for the Indian Creative Economy</p>
                         <div className="flex items-center gap-6">
-                            <span>Made with ❤️ by 12Labs Neural Team</span>
+                            <span>Made by 12Labs Indian Team</span>
                         </div>
                     </div>
                 </div>

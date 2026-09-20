@@ -82,7 +82,13 @@ export function FaqSection() {
         </div>
 
         <Reveal animation="anim-in-rise-lg">
-          <div className="bg-card/80 dark:bg-zinc-900/60 backdrop-blur-xl rounded-3xl border border-border/80 dark:border-white/10 p-4 sm:p-8 shadow-xl">
+          {/* backdrop-blur-xl here made every accordion open/close feel
+              laggy: the card's height animates on every click, and a large
+              backdrop-filter has to be recomputed on each frame of that
+              resize (same class of cost as the sticky header fix). Static
+              content behind an opaque-enough background doesn't need the
+              blur at all — bg-card/95 alone reads the same to the eye. */}
+          <div className="bg-card/95 dark:bg-zinc-900/90 rounded-3xl border border-border/80 dark:border-white/10 p-4 sm:p-8 shadow-xl">
           <Accordion type="single" collapsible className="w-full">
             {faqItems.map((faq, index) => (
               <AccordionItem key={index} value={`item-${index}`} className="border-b border-border/40 last:border-0 px-2 sm:px-4">

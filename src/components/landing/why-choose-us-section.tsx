@@ -79,34 +79,26 @@ export function WhyChooseUsSection() {
               <Reveal key={item.title} animation="anim-in-rise-scale" delay={index * 2}>
                 <div
                   className={cn(
-                    'group relative h-full rounded-3xl p-8 bg-card/80 dark:bg-zinc-900/60',
+                    'group relative h-full rounded-3xl p-6 bg-card/80 dark:bg-zinc-900/60',
                     'border border-border/80 dark:border-white/10 shadow-sm backdrop-blur-xl',
-                    'flex flex-col justify-between overflow-hidden',
-                    'anim-surface-lift anim-surface-border anim-surface-sheen anim-surface-reveal-child'
+                    'flex flex-col overflow-hidden',
+                    'anim-surface-lift anim-surface-border anim-surface-sheen'
                   )}
                 >
-                  <div>
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="p-3.5 rounded-2xl bg-secondary dark:bg-white/5 border border-border/50 anim-surface-border">
-                        <IconComponent className="w-7 h-7 text-primary anim-icon-grow" />
-                      </div>
-                      <span className="text-[10px] font-extrabold tracking-wide text-muted-foreground px-2.5 py-1 rounded-full bg-secondary/80 border border-border/40">
-                        {item.badge}
-                      </span>
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="p-3 rounded-2xl bg-secondary dark:bg-white/5 border border-border/50 anim-surface-border">
+                      <IconComponent className="w-6 h-6 text-primary anim-icon-grow" />
                     </div>
-
-                    <h3 className="text-xl font-bold text-foreground mb-3">{item.title}</h3>
-
-                    <p className="text-sm text-muted-foreground leading-relaxed font-medium">
-                      {item.description}
-                    </p>
+                    <span className="text-[10px] font-extrabold tracking-wide text-muted-foreground px-2.5 py-1 rounded-full bg-secondary/80 border border-border/40">
+                      {item.badge}
+                    </span>
                   </div>
 
-                  {/* Appears on hover — answers the pointer instead of
-                      looping at people unprompted. */}
-                  <div className="mt-8 pt-4 border-t border-border/40 flex items-center gap-2 text-xs font-semibold text-primary anim-surface-reveal-target">
-                    <span className="anim-surface-rule">Explore capabilities</span>
-                  </div>
+                  <h3 className="text-lg font-bold text-foreground mb-2">{item.title}</h3>
+
+                  <p className="text-sm text-muted-foreground leading-relaxed font-medium">
+                    {item.description}
+                  </p>
                 </div>
               </Reveal>
             );

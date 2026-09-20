@@ -101,9 +101,16 @@ function parseYouTubeUrl(url: string) {
 export function DemoSection() {
     const { database } = initializeFirebase();
     const { ref: videoAnimRef, isVisible: videoIsVisible } = useScrollAnimation();
-    
+
     const [loadVideo, setLoadVideo] = useState(false);
     const [rawVideoUrl, setRawVideoUrl] = useState<string>('https://www.youtube.com/watch?v=ScMzIvxBSi4');
+    // The URL shape (/shorts/ vs watch?v=) is only a hint — an admin can
+    // paste a normal watch?v= link that's still 9:16 content (uploaded as
+    // a regular video, not a Short), which the URL alone can't tell us.
+    // Once the thumbnail image itself loads, its real pixel dimensions are
+    // the ground truth, so this overrides the URL-based guess the moment
+    // it's known — covering either aspect ratio regardless of link format.
+    const [detectedVertical, setDetectedVertical] = useState<boolean | null>(null);
     
     const [audioDemos, setAudioDemos] = useState<AudioDemo[]>(defaultAudioDemos);
     const [isLoadingDemos, setIsLoadingDemos] = useState(true);
@@ -135,6 +142,22 @@ export function DemoSection() {
 
     const videoConfig = useMemo(() => parseYouTubeUrl(rawVideoUrl), [rawVideoUrl]);
 
+    // Re-detect from the actual thumbnail whenever the video changes —
+    // otherwise a stale detection from a previous video could briefly
+    // apply to the new one before its own thumbnail loads.
+    useEffect(() => {
+        setDetectedVertical(null);
+    }, [videoConfig?.videoId]);
+
+    const isVertical = detectedVertical ?? videoConfig?.isVertical ?? false;
+
+    const handleThumbnailLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+        const img = e.currentTarget;
+        if (img.naturalWidth && img.naturalHeight) {
+            setDetectedVertical(img.naturalHeight > img.naturalWidth);
+        }
+    };
+
     return (
         <section id="demo" className="w-full py-16 md:py-24 overflow-hidden relative bg-muted/5">
             <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20 dark:opacity-40">
@@ -151,13 +174,13 @@ export function DemoSection() {
 
                 <div ref={videoAnimRef} className={cn("scroll-animate flex justify-center mb-16 transition-all duration-1000", videoIsVisible ? "scale-100 opacity-100 translate-y-0" : "scale-95 opacity-0 translate-y-12")}>
                     
-                    {videoConfig?.isVertical ? (
+                    {isVertical ? (
                         <div className="relative mx-auto border-gray-900 bg-gray-900 border-[14px] rounded-[3.5rem] h-[640px] w-[300px] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5),0_30px_60px_-30px_rgba(0,0,0,0.3)] ring-1 ring-white/10">
                             <div className="w-[140px] h-[22px] bg-gray-900 top-0 rounded-b-[1.2rem] left-1/2 -translate-x-1/2 absolute z-20"></div>
                             <div className="rounded-[2.5rem] overflow-hidden w-full h-full bg-black relative group shadow-inner cursor-pointer" onClick={() => setLoadVideo(true)}>
                                 {loadVideo ? (
                                     <iframe
-                                        src={videoConfig.embedUrl}
+                                        src={videoConfig?.embedUrl || ''}
                                         className="w-full h-full border-none"
                                         allow="autoplay; encrypted-media; picture-in-picture"
                                         allowFullScreen
@@ -165,12 +188,13 @@ export function DemoSection() {
                                 ) : (
                                     <div className="absolute inset-0">
                                         <div className="absolute inset-0 bg-black/30 z-10 group-hover:bg-black/10 transition-all duration-500" />
-                                        <img 
-                                            src={videoConfig.maxThumbnailUrl || videoConfig.thumbnailUrl} 
-                                            alt="Video preview" 
+                                        <img
+                                            src={videoConfig?.maxThumbnailUrl || videoConfig?.thumbnailUrl}
+                                            alt="Video preview"
                                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                                            onLoad={handleThumbnailLoad}
                                             onError={(e) => {
-                                                if (videoConfig.thumbnailUrl) {
+                                                if (videoConfig?.thumbnailUrl) {
                                                     (e.target as HTMLImageElement).src = videoConfig.thumbnailUrl;
                                                 }
                                             }}
@@ -198,9 +222,10 @@ export function DemoSection() {
                                     <div className="absolute inset-0">
                                         <div className="absolute inset-0 bg-black/40 z-10 group-hover:bg-black/20 transition-all duration-700" />
                                         <img 
-                                            src={videoConfig?.maxThumbnailUrl || videoConfig?.thumbnailUrl || "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&q=80"} 
-                                            alt="Wide preview" 
+                                            src={videoConfig?.maxThumbnailUrl || videoConfig?.thumbnailUrl || "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&q=80"}
+                                            alt="Wide preview"
                                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                                            onLoad={handleThumbnailLoad}
                                             onError={(e) => {
                                                 if (videoConfig?.thumbnailUrl) {
                                                     (e.target as HTMLImageElement).src = videoConfig.thumbnailUrl;
