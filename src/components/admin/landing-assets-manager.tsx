@@ -44,15 +44,16 @@ export function LandingAssetsManager() {
     const { database } = initializeFirebase();
     const { toast } = useToast();
     const [assets, setAssets] = useState<LandingAssets>(defaultAssets);
-    // 🔴 FIX: demo-section.tsx reads the Studio Showcase video from
-    // `settings/app/demoVideoUrl` — a DIFFERENT RTDB node than the rest of
-    // this panel's `settings/landingPage` blob — and falls back to a
-    // hardcoded YouTube link when it's empty. There was never an admin
-    // control for that path at all, so the fallback was effectively
-    // permanent. Tracked as its own field (not merged into `assets`)
-    // because it lives under a different root and is saved with its own
-    // `update()` call below, matching where demo-section.tsx actually reads it.
-    const [demoVideoUrl, setDemoVideoUrl] = useState('');
+    // 🔴 FIX: demo-section.tsx reads the Studio Showcase video(s) from
+    // `settings/app/demoVideos` — a DIFFERENT RTDB node than the rest of
+    // this panel's `settings/landingPage` blob. There was never an admin
+    // control for that path at all. Up to 3 fixed slots, same shape as
+    // audioDemos below — an empty slot means "no video here", and
+    // demo-section.tsx now hides the whole section when all 3 are empty
+    // instead of falling back to a hardcoded video nobody chose. Tracked
+    // separately from `assets` (not merged in) because it lives under a
+    // different root and is saved with its own `update()` call below.
+    const [demoVideos, setDemoVideos] = useState({ video1: '', video2: '', video3: '' });
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -76,9 +77,14 @@ export function LandingAssetsManager() {
             setIsLoading(false);
         });
 
-        const demoVideoRef = ref(db, 'settings/app/demoVideoUrl');
-        const unsubscribeVideo = onRtdbValue(demoVideoRef, (snapshot) => {
-            setDemoVideoUrl(snapshot.val() || '');
+        const demoVideosRef = ref(db, 'settings/app/demoVideos');
+        const unsubscribeVideo = onRtdbValue(demoVideosRef, (snapshot) => {
+            const data = snapshot.val() || {};
+            setDemoVideos({
+                video1: data.video1 || '',
+                video2: data.video2 || '',
+                video3: data.video3 || '',
+            });
         });
 
         return () => { unsubscribe(); unsubscribeVideo(); };
@@ -90,7 +96,13 @@ export function LandingAssetsManager() {
         try {
             await Promise.all([
                 update(ref(database, 'settings/landingPage'), assets),
-                update(ref(database, 'settings/app'), { demoVideoUrl: demoVideoUrl.trim() }),
+                update(ref(database, 'settings/app'), {
+                    demoVideos: {
+                        video1: demoVideos.video1.trim(),
+                        video2: demoVideos.video2.trim(),
+                        video3: demoVideos.video3.trim(),
+                    },
+                }),
             ]);
             toast({ title: 'Production Assets Synced', description: 'Landing page assets, logos and demo video updated.' });
         } catch (error: any) {
@@ -178,22 +190,23 @@ export function LandingAssetsManager() {
                 <CardHeader className="bg-primary/5 pb-6 border-b border-primary/10">
                     <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-3">
                         <Clapperboard className="h-6 w-6 text-primary" />
-                        Studio Showcase Video
+                        Studio Showcase Video(s)
                     </CardTitle>
-                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest">The demo video shown on the landing page. Falls back to a default if left empty.</CardDescription>
+                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Up to 3 demo videos. Leave all 3 empty to hide the whole section on the landing page.</CardDescription>
                 </CardHeader>
-                <CardContent className="pt-8">
-                    <div className="space-y-4 p-5 rounded-2xl bg-muted/30 border border-primary/5">
-                        <div className="space-y-2">
+                <CardContent className="space-y-4 pt-8">
+                    {(['video1', 'video2', 'video3'] as const).map((key, index) => (
+                        <div key={key} className="space-y-2 p-5 rounded-2xl bg-muted/30 border border-primary/5 relative">
+                            <Badge variant="outline" className="absolute -top-2.5 right-4 bg-background h-5 px-2 text-[8px] font-black uppercase">Slot {index + 1}</Badge>
                             <Label className="text-[10px] font-black uppercase text-muted-foreground px-1 flex items-center gap-2"><Globe className="h-3 w-3" /> YouTube Link</Label>
                             <Input
-                                value={demoVideoUrl}
-                                onChange={(e) => setDemoVideoUrl(e.target.value)}
+                                value={demoVideos[key]}
+                                onChange={(e) => setDemoVideos(prev => ({ ...prev, [key]: e.target.value }))}
                                 className="h-11 rounded-xl bg-background font-mono text-xs text-primary"
                                 placeholder="https://www.youtube.com/watch?v=... or /shorts/..."
                             />
                         </div>
-                    </div>
+                    ))}
                 </CardContent>
             </Card>
 

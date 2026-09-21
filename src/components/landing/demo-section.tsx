@@ -98,12 +98,11 @@ function parseYouTubeUrl(url: string) {
     };
 }
 
-export function DemoSection() {
-    const { database } = initializeFirebase();
+// One video's own play/aspect-detection state, so 2-3 configured videos
+// don't fight over a single shared `loadVideo`/`detectedVertical` pair.
+function DemoVideoPlayer({ url }: { url: string }) {
     const { ref: videoAnimRef, isVisible: videoIsVisible } = useScrollAnimation();
-
     const [loadVideo, setLoadVideo] = useState(false);
-    const [rawVideoUrl, setRawVideoUrl] = useState<string>('https://www.youtube.com/watch?v=ScMzIvxBSi4');
     // The URL shape (/shorts/ vs watch?v=) is only a hint — an admin can
     // paste a normal watch?v= link that's still 9:16 content (uploaded as
     // a regular video, not a Short), which the URL alone can't tell us.
@@ -111,36 +110,8 @@ export function DemoSection() {
     // the ground truth, so this overrides the URL-based guess the moment
     // it's known — covering either aspect ratio regardless of link format.
     const [detectedVertical, setDetectedVertical] = useState<boolean | null>(null);
-    
-    const [audioDemos, setAudioDemos] = useState<AudioDemo[]>(defaultAudioDemos);
-    const [isLoadingDemos, setIsLoadingDemos] = useState(true);
-    
-    useEffect(() => {
-        if (!database) return;
 
-        const videoLinkRef = ref(database, 'settings/app/demoVideoUrl');
-        onRtdbValue(videoLinkRef, (snapshot) => {
-            const url = snapshot.val();
-            if (url && url.trim() !== '') setRawVideoUrl(url);
-        });
-
-        const audioDemosRef = ref(database, 'settings/landingPage/audioDemos');
-        onRtdbValue(audioDemosRef, (snapshot) => {
-            if (snapshot.exists()) {
-                const data = snapshot.val();
-                const fetchedDemos: AudioDemo[] = [];
-                
-                if (data.demo1?.title && data.demo1?.fileId) fetchedDemos.push({ title: data.demo1.title, url: getDisplayUrl(data.demo1.fileId) });
-                if (data.demo2?.title && data.demo2?.fileId) fetchedDemos.push({ title: data.demo2.title, url: getDisplayUrl(data.demo2.fileId) });
-                if (data.demo3?.title && data.demo3?.fileId) fetchedDemos.push({ title: data.demo3.title, url: getDisplayUrl(data.demo3.fileId) });
-                
-                if (fetchedDemos.length > 0) setAudioDemos(fetchedDemos);
-            }
-            setIsLoadingDemos(false);
-        });
-    }, [database]);
-
-    const videoConfig = useMemo(() => parseYouTubeUrl(rawVideoUrl), [rawVideoUrl]);
+    const videoConfig = useMemo(() => parseYouTubeUrl(url), [url]);
 
     // Re-detect from the actual thumbnail whenever the video changes —
     // otherwise a stale detection from a previous video could briefly
@@ -158,6 +129,132 @@ export function DemoSection() {
         }
     };
 
+    if (!videoConfig) return null;
+
+    return (
+        <div ref={videoAnimRef} className={cn("scroll-animate flex justify-center transition-all duration-1000", videoIsVisible ? "scale-100 opacity-100 translate-y-0" : "scale-95 opacity-0 translate-y-12")}>
+
+            {isVertical ? (
+                <div className="relative mx-auto border-gray-900 bg-gray-900 border-[14px] rounded-[3.5rem] h-[640px] w-[300px] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5),0_30px_60px_-30px_rgba(0,0,0,0.3)] ring-1 ring-white/10">
+                    <div className="w-[140px] h-[22px] bg-gray-900 top-0 rounded-b-[1.2rem] left-1/2 -translate-x-1/2 absolute z-20"></div>
+                    <div className="rounded-[2.5rem] overflow-hidden w-full h-full bg-black relative group shadow-inner cursor-pointer" onClick={() => setLoadVideo(true)}>
+                        {loadVideo ? (
+                            <iframe
+                                src={videoConfig?.embedUrl || ''}
+                                className="w-full h-full border-none"
+                                allow="autoplay; encrypted-media; picture-in-picture"
+                                allowFullScreen
+                            />
+                        ) : (
+                            <div className="absolute inset-0">
+                                <div className="absolute inset-0 bg-black/30 z-10 group-hover:bg-black/10 transition-all duration-500" />
+                                <img
+                                    src={videoConfig?.maxThumbnailUrl || videoConfig?.thumbnailUrl}
+                                    alt="Video preview"
+                                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                                    onLoad={handleThumbnailLoad}
+                                    onError={(e) => {
+                                        if (videoConfig?.thumbnailUrl) {
+                                            (e.target as HTMLImageElement).src = videoConfig.thumbnailUrl;
+                                        }
+                                    }}
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                                    <div className="p-6 bg-white/10 backdrop-blur-2xl rounded-full border border-white/30 shadow-[0_0_50px_rgba(255,255,255,0.2)] scale-100 group-hover:scale-110 transition-transform duration-500 group-hover:bg-white/20">
+                                        <Play className="h-10 w-10 text-white fill-current" />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <div className="w-full max-w-5xl mx-auto rounded-[2.5rem] overflow-hidden border border-white/10 bg-zinc-950 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] relative group cursor-pointer" onClick={() => setLoadVideo(true)}>
+                    <div className="relative aspect-video w-full rounded-[2.5rem] overflow-hidden bg-black">
+                        {loadVideo ? (
+                            <iframe
+                                src={videoConfig?.embedUrl || ''}
+                                className="w-full h-full border-none"
+                                allow="autoplay; encrypted-media; picture-in-picture"
+                                allowFullScreen
+                            />
+                        ) : (
+                            <div className="absolute inset-0">
+                                <div className="absolute inset-0 bg-black/40 z-10 group-hover:bg-black/20 transition-all duration-700" />
+                                <img
+                                    src={videoConfig?.maxThumbnailUrl || videoConfig?.thumbnailUrl || "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&q=80"}
+                                    alt="Wide preview"
+                                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                                    onLoad={handleThumbnailLoad}
+                                    onError={(e) => {
+                                        if (videoConfig?.thumbnailUrl) {
+                                            (e.target as HTMLImageElement).src = videoConfig.thumbnailUrl;
+                                        }
+                                    }}
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                                    <div className="relative">
+                                        <div className="absolute inset-0 bg-primary/30 rounded-full blur-2xl animate-pulse scale-150" />
+                                        <div className="relative p-6 sm:p-8 bg-black/60 backdrop-blur-2xl rounded-full border border-white/30 shadow-3xl scale-100 group-hover:scale-110 transition-all duration-500 group-hover:bg-black/80">
+                                            <Play className="h-12 w-12 sm:h-14 sm:w-14 text-white fill-current ml-1 drop-shadow-2xl" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+        </div>
+    );
+}
+
+export function DemoSection() {
+    const { database } = initializeFirebase();
+
+    // null = still resolving from RTDB (nothing rendered yet, so there's
+    // no flash of "video slot empty but rest of section visible"); [] =
+    // resolved and the admin hasn't configured any demo video — the whole
+    // section stays hidden rather than falling back to a video nobody chose.
+    const [videoUrls, setVideoUrls] = useState<string[] | null>(null);
+
+    const [audioDemos, setAudioDemos] = useState<AudioDemo[]>(defaultAudioDemos);
+    const [isLoadingDemos, setIsLoadingDemos] = useState(true);
+
+    useEffect(() => {
+        if (!database) return;
+
+        // Up to 3 admin-configured videos (settings/app/demoVideos.video1-3),
+        // same fixed-slot shape as the audio demos below.
+        const videosRef = ref(database, 'settings/app/demoVideos');
+        onRtdbValue(videosRef, (snapshot) => {
+            const data = snapshot.val() || {};
+            const urls = [data.video1, data.video2, data.video3].filter(
+                (u): u is string => typeof u === 'string' && u.trim() !== ''
+            );
+            setVideoUrls(urls);
+        });
+
+        const audioDemosRef = ref(database, 'settings/landingPage/audioDemos');
+        onRtdbValue(audioDemosRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                const fetchedDemos: AudioDemo[] = [];
+
+                if (data.demo1?.title && data.demo1?.fileId) fetchedDemos.push({ title: data.demo1.title, url: getDisplayUrl(data.demo1.fileId) });
+                if (data.demo2?.title && data.demo2?.fileId) fetchedDemos.push({ title: data.demo2.title, url: getDisplayUrl(data.demo2.fileId) });
+                if (data.demo3?.title && data.demo3?.fileId) fetchedDemos.push({ title: data.demo3.title, url: getDisplayUrl(data.demo3.fileId) });
+
+                if (fetchedDemos.length > 0) setAudioDemos(fetchedDemos);
+            }
+            setIsLoadingDemos(false);
+        });
+    }, [database]);
+
+    // No configured video (or still loading) -> hide the entire section.
+    if (!videoUrls || videoUrls.length === 0) return null;
+
     return (
         <section id="demo" className="w-full py-16 md:py-24 overflow-hidden relative bg-muted/5">
             <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20 dark:opacity-40">
@@ -172,80 +269,10 @@ export function DemoSection() {
                     <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-none">Studio <span className="text-primary italic">Showcase</span></h2>
                 </div>
 
-                <div ref={videoAnimRef} className={cn("scroll-animate flex justify-center mb-16 transition-all duration-1000", videoIsVisible ? "scale-100 opacity-100 translate-y-0" : "scale-95 opacity-0 translate-y-12")}>
-                    
-                    {isVertical ? (
-                        <div className="relative mx-auto border-gray-900 bg-gray-900 border-[14px] rounded-[3.5rem] h-[640px] w-[300px] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5),0_30px_60px_-30px_rgba(0,0,0,0.3)] ring-1 ring-white/10">
-                            <div className="w-[140px] h-[22px] bg-gray-900 top-0 rounded-b-[1.2rem] left-1/2 -translate-x-1/2 absolute z-20"></div>
-                            <div className="rounded-[2.5rem] overflow-hidden w-full h-full bg-black relative group shadow-inner cursor-pointer" onClick={() => setLoadVideo(true)}>
-                                {loadVideo ? (
-                                    <iframe
-                                        src={videoConfig?.embedUrl || ''}
-                                        className="w-full h-full border-none"
-                                        allow="autoplay; encrypted-media; picture-in-picture"
-                                        allowFullScreen
-                                    />
-                                ) : (
-                                    <div className="absolute inset-0">
-                                        <div className="absolute inset-0 bg-black/30 z-10 group-hover:bg-black/10 transition-all duration-500" />
-                                        <img
-                                            src={videoConfig?.maxThumbnailUrl || videoConfig?.thumbnailUrl}
-                                            alt="Video preview"
-                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-                                            onLoad={handleThumbnailLoad}
-                                            onError={(e) => {
-                                                if (videoConfig?.thumbnailUrl) {
-                                                    (e.target as HTMLImageElement).src = videoConfig.thumbnailUrl;
-                                                }
-                                            }}
-                                        />
-                                        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                                            <div className="p-6 bg-white/10 backdrop-blur-2xl rounded-full border border-white/30 shadow-[0_0_50px_rgba(255,255,255,0.2)] scale-100 group-hover:scale-110 transition-transform duration-500 group-hover:bg-white/20">
-                                                <Play className="h-10 w-10 text-white fill-current" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="w-full max-w-5xl mx-auto rounded-[2.5rem] overflow-hidden border border-white/10 bg-zinc-950 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] relative group cursor-pointer" onClick={() => setLoadVideo(true)}>
-                            <div className="relative aspect-video w-full rounded-[2.5rem] overflow-hidden bg-black">
-                                {loadVideo ? (
-                                    <iframe
-                                        src={videoConfig?.embedUrl || ''}
-                                        className="w-full h-full border-none"
-                                        allow="autoplay; encrypted-media; picture-in-picture"
-                                        allowFullScreen
-                                    />
-                                ) : (
-                                    <div className="absolute inset-0">
-                                        <div className="absolute inset-0 bg-black/40 z-10 group-hover:bg-black/20 transition-all duration-700" />
-                                        <img 
-                                            src={videoConfig?.maxThumbnailUrl || videoConfig?.thumbnailUrl || "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&q=80"}
-                                            alt="Wide preview"
-                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                                            onLoad={handleThumbnailLoad}
-                                            onError={(e) => {
-                                                if (videoConfig?.thumbnailUrl) {
-                                                    (e.target as HTMLImageElement).src = videoConfig.thumbnailUrl;
-                                                }
-                                            }}
-                                        />
-                                        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                                            <div className="relative">
-                                                <div className="absolute inset-0 bg-primary/30 rounded-full blur-2xl animate-pulse scale-150" />
-                                                <div className="relative p-6 sm:p-8 bg-black/60 backdrop-blur-2xl rounded-full border border-white/30 shadow-3xl scale-100 group-hover:scale-110 transition-all duration-500 group-hover:bg-black/80">
-                                                    <Play className="h-12 w-12 sm:h-14 sm:w-14 text-white fill-current ml-1 drop-shadow-2xl" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
+                <div className="flex flex-col items-center gap-12 mb-16">
+                    {videoUrls.map((url) => (
+                        <DemoVideoPlayer key={url} url={url} />
+                    ))}
                 </div>
 
                 <div className="space-y-10 animate-in fade-in duration-1000">
