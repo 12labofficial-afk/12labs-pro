@@ -21,7 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { getDisplayUrl, generateAvatarColor, formatSafeDate } from '@/lib/utils';
+import { getDisplayUrl, generateAvatarColor, formatSafeDate, formatCredits } from '@/lib/utils';
 import { reportClientError } from '@/lib/report-client-error';
 import { getAccountSummaryAction, deleteMyAccountAction, type AccountSummary } from './actions';
 import {
@@ -156,7 +156,7 @@ export default function ProfilePage() {
                         <div className="p-4 rounded-2xl bg-muted/30 flex items-center gap-3">
                             <Coins className="h-5 w-5 text-primary" />
                             <div>
-                                <p className="text-lg font-black leading-none">{user.credits ?? 0}</p>
+                                <p className="text-lg font-black leading-none">{formatCredits(user.credits)}</p>
                                 <p className="text-[9px] font-bold uppercase text-muted-foreground tracking-widest">Credits</p>
                             </div>
                         </div>
