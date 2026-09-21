@@ -65,6 +65,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Helper function to check if a user is banned or suspended
   const checkIfUserIsBlocked = useCallback((profile: UserProfile): { isBlocked: boolean; reason?: string } => {
+    if (profile.status === 'deleted') {
+      // Self-service account deletion (see /profile) deletes the Firebase Auth
+      // user server-side via Admin SDK — but an ID token already issued to a
+      // still-open tab stays valid for up to its own ~1hr expiry regardless,
+      // so this real-time profile check is what actually kicks that session
+      // out immediately instead of leaving it functional until the token expires.
+      return { isBlocked: true, reason: 'This account has been deleted.' };
+    }
     if (profile.status === 'banned' || (profile as any).isBanned === true) {
       return { isBlocked: true, reason: 'This account has been terminated/banned.' };
     }

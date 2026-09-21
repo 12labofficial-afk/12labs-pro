@@ -33,7 +33,7 @@ export interface UserProfile {
   isAffiliate?: boolean;
   isSponsor?: boolean;
   credits: number;
-  status: 'active' | 'banned' | 'suspended';
+  status: 'active' | 'banned' | 'suspended' | 'deleted';
   suspensionEndDate?: string;
   createdAt?: string;
   termsAcceptedAt?: string; 

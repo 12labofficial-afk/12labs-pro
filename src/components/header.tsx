@@ -39,7 +39,8 @@ import {
     FileCode,
     Lock,
     Terminal,
-    Key
+    Key,
+    UserCircle
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -418,15 +419,11 @@ export function Header() {
                           </div>
                           <button
                             type="button"
-                            aria-label={currentTheme === 'light' ? 'Switch to night mode' : 'Switch to day mode'}
+                            aria-label="My Profile"
                             className="shrink-0 h-8 w-8 rounded-full flex items-center justify-center hover:bg-primary/10 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); setTheme(currentTheme === 'light' ? 'dark' : 'light'); }}
+                            onClick={(e) => { e.stopPropagation(); navigateTo('/profile'); }}
                           >
-                            {currentTheme === 'light' ? (
-                              <Moon className="w-4 h-4 text-primary/70" />
-                            ) : (
-                              <Sun className="w-4 h-4 text-amber-400" />
-                            )}
+                            <UserCircle className="w-4 h-4 text-primary/70" />
                           </button>
                       </div>
                   </DropdownMenuLabel>
