@@ -15,6 +15,18 @@ import { reportServerError } from '@/lib/report-error';
  * through this — the raw record also carries `payoutDetails`, which is
  * financial PII that has no business leaving the server.
  */
+// 🔒 Bots constantly crawl store URLs looking for leaked secrets/config
+// files (`/store/.env`, `/store/wp-config.php`, ...). Those land here as
+// `productId`, and RTDB path segments can't contain ".", "#", "$", "[", "]"
+// — Firebase's own SDK throws a path-validation error building the ref,
+// which was getting caught and reported as a genuine server error on every
+// single scan. Reject anything that can't possibly be a real product ID
+// before it ever reaches RTDB, the same way a 404 would for a bad route.
+const INVALID_RTDB_PATH_CHARS = /[.#$\[\]]/;
+function isValidProductId(id: string): boolean {
+    return typeof id === 'string' && id.length > 0 && !INVALID_RTDB_PATH_CHARS.test(id);
+}
+
 function toPublicSellerProfile(sellerId: string, raw: any): SellerProfile {
     return {
         id: sellerId,
@@ -35,7 +47,7 @@ function toPublicSellerProfile(sellerId: string, raw: any): SellerProfile {
  * Safety: Checks existence first to prevent creating ghost/blank entries.
  */
 export async function incrementProductView(productId: string): Promise<void> {
-    if (!productId) return;
+    if (!isValidProductId(productId)) return;
     const { database } = initializeFirebase();
     try {
         const storeSnap = await database.ref(`storeProducts/${productId}`).get();
@@ -56,8 +68,10 @@ export async function incrementProductView(productId: string): Promise<void> {
  * Now unified for both Admins and Users to show RTDB data first.
  */
 export async function getProductDetails(productId: string, userId?: string): Promise<{ product: StoreProduct | null, seller: SellerProfile | null }> {
+    if (!isValidProductId(productId)) return { product: null, seller: null };
+
     const { firestore, database } = initializeFirebase();
-    
+
     try {
         let rawProductData: any = null;
 
