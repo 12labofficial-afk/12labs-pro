@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn, generateAvatarColor, safeJsonStringify } from '@/lib/utils';
-import { Play, Pause, Loader2, Link as LinkIcon, Download, Music, Archive, RefreshCw, AlertCircle, ChevronDown, Edit, User, Check, ChevronsUpDown, Save, Activity, Plus, Trash2, Mic } from 'lucide-react';
+import { Play, Pause, Loader2, Link as LinkIcon, Download, Music, Archive, AlertCircle, ChevronDown, User, Check, ChevronsUpDown, Save, Activity, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -18,7 +18,6 @@ import type { GeneratedLine as GeneratedLineType, Character } from '@/lib/types'
 import { useAuth } from '@/context/auth-provider';
 import { convertMp3ToWav, trimAudioBlob } from '@/lib/audio-utils';
 import { Textarea } from '../ui/textarea';
-import { Label } from '../ui/label';
 import { voices } from '@/lib/voices';
 import { saveAs } from 'file-saver';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -343,10 +342,14 @@ export function GeneratedLines() {
     const { toast } = useToast();
     
     const [playingIndex, setPlayingIndex] = useState<number | null>(null);
-    const [editingIndex, setEditingIndex] = useState<number | null>(null);
-    const [editText, setEditText] = useState('');
-    const [editVoiceId, setEditVoiceId] = useState('');
-    const [editEmotion, setEditEmotion] = useState<string>('Neutral');
+    // 🔴 Simplified from one big "Edit" panel (text + voice + emotion all
+    // behind a single button, with separate Save/Cancel/Re-Sync controls)
+    // to tapping each field directly where it's shown — the emotion badge,
+    // the voice name, or the dialogue text itself — since that's simpler
+    // for the user than one combined edit mode.
+    const [dialogueEditingIndex, setDialogueEditingIndex] = useState<number | null>(null);
+    const [draftDialogueText, setDraftDialogueText] = useState('');
+    const [emotionEditingIndex, setEmotionEditingIndex] = useState<number | null>(null);
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
     
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -411,31 +414,38 @@ export function GeneratedLines() {
         document.body.removeChild(a);
     };
 
-    const startEditing = (index: number, line: GeneratedLineType) => {
-        setEditingIndex(index);
-        setEditText(line.dialogue);
-        const char = characters.find((c: Character) => c.name === line.characterName);
-        setEditVoiceId(line.voiceOverride || char?.voice || '');
-        setEditEmotion(line.emotion || 'Neutral');
+    // One shared commit path for all three inline-editable fields (dialogue,
+    // voice, emotion) — a "done" line re-synthesizes with whatever's
+    // changed (costs credits, same as the old Re-Sync), a draft line just
+    // updates local state (free, same as the old Save Draft).
+    const commitLineEdit = async (
+        line: GeneratedLineType,
+        updates: Partial<Pick<GeneratedLineType, 'dialogue' | 'voiceOverride' | 'emotion'>>
+    ) => {
+        if (line.status === 'done') {
+            await retryLineGeneration(
+                line.id,
+                updates.dialogue ?? line.dialogue,
+                updates.voiceOverride ?? line.voiceOverride,
+                updates.emotion ?? line.emotion
+            );
+        } else {
+            updateGeneratedLine(line.id, updates);
+        }
     };
 
-    const handleSaveDraftUpdate = (lineId: string) => {
-        updateGeneratedLine(lineId, {
-            dialogue: editText,
-            voiceOverride: editVoiceId,
-            emotion: editEmotion
-        });
-        setEditingIndex(null);
-        toast({ title: 'Draft Saved', description: 'Saved locally. Generation will execute when you start project.' });
+    const startEditingDialogue = (index: number, line: GeneratedLineType) => {
+        setDraftDialogueText(line.dialogue);
+        setDialogueEditingIndex(index);
     };
 
-    const handleSyncLine = async (lineId: string) => {
-        if (!editText.trim() || !editVoiceId) {
-            toast({ variant: 'destructive', title: 'Details Missing', description: 'Dialogue text and persona are required.' });
+    const saveDialogueEdit = (line: GeneratedLineType) => {
+        if (!draftDialogueText.trim()) {
+            toast({ variant: 'destructive', title: 'Dialogue Required', description: 'This line cannot be empty.' });
             return;
         }
-        await retryLineGeneration(lineId, editText, editVoiceId, editEmotion);
-        setEditingIndex(null);
+        commitLineEdit(line, { dialogue: draftDialogueText });
+        setDialogueEditingIndex(null);
     };
 
     return (
@@ -459,9 +469,9 @@ export function GeneratedLines() {
                         const characterName = line.characterName || 'Narrator';
                         const avatarColor = generateAvatarColor(characterName);
                         const isPlaying = playingIndex === index;
-                        const isEditing = editingIndex === index;
                         const isGenerating = line.status === 'generating';
                         const isDone = line.status === 'done';
+                        const currentVoiceId = line.voiceOverride || characters.find((c: Character) => c.name === line.characterName)?.voice || '';
 
                         const isLinked = index > 0 &&
                                          line.status === 'done' &&
@@ -488,7 +498,16 @@ export function GeneratedLines() {
                                             <div className="min-w-0">
                                                 <p className="font-black text-[13px] uppercase truncate tracking-tight leading-none text-foreground dark:text-white">{characterName}</p>
                                                 <div className="flex items-center gap-2 mt-1.5">
-                                                    <Badge variant="outline" className="h-4 px-1.5 text-[7px] font-black uppercase border-border dark:border-white/10 text-zinc-500">{line.emotion || 'Neutral'}</Badge>
+                                                    {emotionEditingIndex === index ? (
+                                                        <EmotionCapsules
+                                                            value={line.emotion || 'Neutral'}
+                                                            onChange={(emotion) => { commitLineEdit(line, { emotion }); setEmotionEditingIndex(null); }}
+                                                        />
+                                                    ) : (
+                                                        <button type="button" disabled={isGenerating} onClick={() => setEmotionEditingIndex(index)}>
+                                                            <Badge variant="outline" className="h-4 px-1.5 text-[7px] font-black uppercase border-border dark:border-white/10 text-zinc-500 hover:border-primary/40 hover:text-primary cursor-pointer transition-colors">{line.emotion || 'Neutral'}</Badge>
+                                                        </button>
+                                                    )}
                                                     <p className="text-[7px] font-bold text-zinc-600 uppercase tracking-widest opacity-40">NODE {index + 1}</p>
                                                 </div>
                                             </div>
@@ -514,69 +533,48 @@ export function GeneratedLines() {
                                             {!isGenerating && !isDone && (
                                                 <Badge variant="outline" className="h-5 px-2 text-[8px] font-black uppercase text-zinc-700">DRAFT</Badge>
                                             )}
+                                            <Button variant="ghost" size="icon" disabled={isGenerating} className="h-8 w-8 rounded-full text-zinc-500 hover:text-red-500 hover:bg-red-500/10" onClick={() => deleteGeneratedLine(line.id)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
                                         </div>
                                     </div>
 
-                                    {isEditing ? (
-                                        <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                                            <div className="space-y-2">
-                                                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">Neural Performance Script</Label>
-                                                <Textarea 
-                                                    value={editText} 
-                                                    onChange={(e) => setEditText(e.target.value)} 
-                                                    className="min-h-[120px] rounded-2xl bg-background dark:bg-white/5 border-border dark:border-white/10 text-[14px] font-medium p-4 leading-relaxed shadow-inner text-foreground dark:text-white"
-                                                    placeholder="Sync updated dialogue..."
+                                    <div className="space-y-3">
+                                        {dialogueEditingIndex === index ? (
+                                            <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
+                                                <Textarea
+                                                    autoFocus
+                                                    value={draftDialogueText}
+                                                    onChange={(e) => setDraftDialogueText(e.target.value)}
+                                                    className="min-h-[100px] rounded-2xl bg-background dark:bg-white/5 border-border dark:border-white/10 text-[14px] font-medium p-4 leading-relaxed shadow-inner text-foreground dark:text-white"
                                                 />
-                                            </div>
-                                            <div className="grid grid-cols-1 gap-3">
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">Assigned Persona</Label>
-                                                    <VoicePicker
-                                                        currentVoiceId={editVoiceId}
-                                                        onVoiceChange={setEditVoiceId}
-                                                        playingVoice={playingVoiceId}
-                                                        onTogglePlay={toggleVoicePreview}
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">Emotion</Label>
-                                                    <EmotionCapsules value={editEmotion} onChange={setEditEmotion} />
-                                                </div>
                                                 <div className="flex gap-2">
-                                                    <Button onClick={() => isDone ? handleSyncLine(line.id) : handleSaveDraftUpdate(line.id)} disabled={isGenerating} className="flex-1 h-12 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 btn-shine gap-3 text-white">
-                                                        {isGenerating ? <Loader2 className="h-4 w-4 animate-spin"/> : (isDone ? <RefreshCw className="h-4 w-4" /> : <Save className="h-4 w-4" />)}
-                                                        {isDone ? 'RE-SYNC CORE' : 'SAVE DRAFT NODE'}
+                                                    <Button size="sm" disabled={isGenerating} onClick={() => saveDialogueEdit(line)} className="h-9 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 text-white">
+                                                        {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
                                                     </Button>
-                                                    <Button variant="ghost" className="h-12 w-12 rounded-xl text-red-500 hover:bg-red-500/10" onClick={() => deleteGeneratedLine(line.id)}>
-                                                        <Trash2 className="h-5 w-5" />
-                                                    </Button>
+                                                    <Button size="sm" variant="ghost" className="h-9 rounded-xl text-[10px] font-black uppercase text-zinc-500" onClick={() => setDialogueEditingIndex(null)}>Cancel</Button>
                                                 </div>
-                                                <Button variant="ghost" size="sm" className="h-8 text-[9px] font-black uppercase text-zinc-600" onClick={() => setEditingIndex(null)}>Cancel Edit</Button>
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            <div className="rounded-2xl bg-muted/30 dark:bg-white/[0.01] border border-border dark:border-white/5 hover:border-border-hover dark:hover:border-white/10 transition-all shadow-inner p-4 group/text">
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                disabled={isGenerating}
+                                                onClick={() => startEditingDialogue(index, line)}
+                                                className="w-full text-left rounded-2xl bg-muted/30 dark:bg-white/[0.01] border border-border dark:border-white/5 hover:border-primary/30 transition-all shadow-inner p-4 group/text"
+                                            >
                                                 <p className="text-[15px] font-medium leading-relaxed text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap italic line-clamp-4">
                                                     &quot;{line.dialogue}&quot;
                                                 </p>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <Button variant="ghost" size="sm" className="h-8 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest text-primary/60 hover:bg-primary/10 hover:text-primary transition-all gap-2 border border-border dark:border-white/5 hover:border-primary/20" onClick={() => startEditing(index, line)}>
-                                                    <Edit className="h-3.5 w-3.5" /> {isDone ? 'Edit Performance' : 'Edit Draft'}
-                                                </Button>
-                                                
-                                                {!isDone && (
-                                                    <div className="flex items-center gap-1.5 opacity-40">
-                                                        <Mic className="h-3 w-3 text-zinc-500" />
-                                                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
-                                                            {voices.find((v) => v.id === (line.voiceOverride || characters.find(c => c.name === line.characterName)?.voice))?.name || line.voiceOverride || 'Ready'}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
+                                            </button>
+                                        )}
+
+                                        <VoicePicker
+                                            currentVoiceId={currentVoiceId}
+                                            onVoiceChange={(voiceId) => commitLineEdit(line, { voiceOverride: voiceId })}
+                                            playingVoice={playingVoiceId}
+                                            onTogglePlay={toggleVoicePreview}
+                                        />
+                                    </div>
                                 </div>
                              </div>
                         )
