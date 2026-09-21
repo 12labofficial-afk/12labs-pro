@@ -113,7 +113,7 @@ export default function PrivacyPage() {
 
                 <div className="space-y-2">
                     <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Fingerprint className="h-5 w-5 text-primary" />9. Your Rights</h2>
-                    <p>You have the right to access, correct, or delete your personal data. You can manage your projects and some personal information directly from your account. For other requests, please contact us.</p>
+                    <p>You have the right to access, correct, or delete your personal data. You can manage your projects, view your purchase history, and permanently delete your account and personal data at any time from your <Link href="/profile" className="text-primary underline underline-offset-2">Profile</Link> page. For other requests, please contact us.</p>
                 </div>
 
                 <div className="space-y-2">
