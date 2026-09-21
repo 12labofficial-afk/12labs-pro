@@ -88,6 +88,21 @@ export async function saveEditingHfBackendAction(data: { url: string; enabled: b
     }
 }
 
+export async function saveAiDialogueExpandCostAction(cost: number) {
+    try {
+        const { database } = initializeFirebase();
+        if (!database) throw new Error("Database service unavailable.");
+
+        await database.ref('settings/app').update({
+            aiDialogueExpandCost: Math.max(0, Math.round(cost)),
+        });
+        return { success: true };
+    } catch (error: any) {
+        reportServerError('src/app/admin/actions.ts#aiDialogueExpandCost', error);
+        return { success: false, error: error.message || 'Failed to update AI dialogue-fix cost.' };
+    }
+}
+
 export async function toggleToolLockAction(id: string, locked: boolean) {
     try {
         const { database } = initializeFirebase();

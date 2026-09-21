@@ -76,7 +76,7 @@ interface StudioContextType {
   updateGeneratedLine: (lineId: string, updates: Partial<GeneratedLine>) => void;
   deleteGeneratedLine: (lineId: string) => void;
   addGeneratedLine: (characterName: string) => void;
-  retryLineGeneration: (lineId: string, updatedText?: string, updatedVoiceId?: string) => Promise<void>;
+  retryLineGeneration: (lineId: string, updatedText?: string, updatedVoiceId?: string, updatedEmotion?: string) => Promise<void>;
   generationStatusMessage: string;
   isPaused: boolean;
   isFlying: boolean;
@@ -1503,40 +1503,49 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     };
   }, [database, activeUid, analysisExecutionMode, toast]);
 
-  const retryLineGeneration = async (lineId: string, updatedText?: string, updatedVoiceId?: string) => {
+  const retryLineGeneration = async (lineId: string, updatedText?: string, updatedVoiceId?: string, updatedEmotion?: string) => {
     const idx = generatedLines.findIndex(l => l.id === lineId); if (idx === -1) return;
-    const line = generatedLines[idx]; 
+    const line = generatedLines[idx];
     const char = characters.find((c: Character) => c.name === line.characterName);
-    const voiceId = updatedVoiceId || line.voiceOverride || char?.voice; 
+    const voiceId = updatedVoiceId || line.voiceOverride || char?.voice;
     const textToGen = updatedText || line.dialogue;
-    
+    const emotionToGen = updatedEmotion || line.emotion || 'Neutral';
+
     if (!voiceId) return;
 
     // If it was already done, it costs credits to regenerate
     const needsDeduction = line.status === 'done';
 
+    // 🔴 FIX: this single-line resync path (Fast-Gen's Gemini TTS call)
+    // has no structured emotion/style parameter — unlike the HQ/11Labs job
+    // payload, which sends `emotion` as its own field per dialogue. Fold it
+    // into the prompt itself using the same "[Emotion] text" bracket
+    // convention the script parser already understands elsewhere in this
+    // file, instead of silently dropping whatever the user picked.
+    const promptWithEmotion = emotionToGen && emotionToGen !== 'Neutral' ? `[${emotionToGen}] ${textToGen}` : textToGen;
+
     setGeneratedLines(prev => prev.map(l => l.id === lineId ? { ...l, status: 'generating' } : l));
     try {
         let result;
         if (needsDeduction) {
-            const res = await (import('@/app/studio/actions').then(m => m.regenerateLineWithCreditsAction(activeUid!, textToGen, voiceId)));
-            if (res.success && res.audioDataUri) { 
-                result = { success: true, audioDataUri: res.audioDataUri }; 
-                if (res.newCredits !== undefined) setUser({ ...user, credits: res.newCredits } as any); 
+            const res = await (import('@/app/studio/actions').then(m => m.regenerateLineWithCreditsAction(activeUid!, promptWithEmotion, voiceId)));
+            if (res.success && res.audioDataUri) {
+                result = { success: true, audioDataUri: res.audioDataUri };
+                if (res.newCredits !== undefined) setUser({ ...user, credits: res.newCredits } as any);
             } else throw new Error(res.error);
-        } else { 
-            result = await generateTtsAudioAction(textToGen, voiceId, activeUser?.email); 
+        } else {
+            result = await generateTtsAudioAction(promptWithEmotion, voiceId, activeUser?.email);
         }
 
         if (result.success && result.audioDataUri) {
-            const audioRes = await fetch(result.audioDataUri); 
-            const blob = await audioRes.blob(); 
+            const audioRes = await fetch(result.audioDataUri);
+            const blob = await audioRes.blob();
             await saveAudioNode(lineId, blob);
-            setGeneratedLines(prev => prev.map(l => l.id === lineId ? { ...l, status: 'done' as const, audioDataUri: URL.createObjectURL(blob), dialogue: textToGen, voiceOverride: voiceId } : l));
+            setGeneratedLines(prev => prev.map(l => l.id === lineId ? { ...l, status: 'done' as const, audioDataUri: URL.createObjectURL(blob), dialogue: textToGen, voiceOverride: voiceId, emotion: emotionToGen } : l));
         } else throw new Error(result.error);
     } catch (e: any) {
-            reportClientError('src/context/studio-provider.tsx:1206', e); 
-        setGeneratedLines(prev => prev.map(l => l.id === lineId ? { ...l, status: 'error', error: e.message } : l)); 
+            reportClientError('src/context/studio-provider.tsx:1206', e);
+        setGeneratedLines(prev => prev.map(l => l.id === lineId ? { ...l, status: 'error', error: e.message } : l));
     }
   };
 

@@ -52,8 +52,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { 
   saveDailyFreeScriptLimitAction, 
   saveHqBackendUrlAction, 
-  saveEditingHfBackendAction, 
-  toggleToolLockAction, 
+  saveEditingHfBackendAction,
+  saveAiDialogueExpandCostAction,
+  toggleToolLockAction,
   saveMusicWatermarkUrlAction,
   setAnalysisExecutionModeAction,
   getAdminDashboardStatsAction
@@ -422,6 +423,70 @@ function EditingHfBackendSettings() {
     );
 }
 
+// 🔴 Admin-configurable credit cost for the "AI-Fix" button in the pre-generate
+// Resolve wizard (studio/generation-settings.tsx) — the flat amount deducted
+// each time a user has the AI (Gemini 2.5 Flash Lite via OpenRouter) expand a
+// too-short dialogue line, instead of hardcoding a number in code.
+function AiDialogueFixSettings() {
+    const { database } = initializeFirebase();
+    const { toast } = useToast();
+    const [isSaving, setIsSaving] = useState(false);
+    const [cost, setCost] = useState(50);
+
+    useEffect(() => {
+        const { database: db } = initializeFirebase();
+        if (!db) return;
+        const unsubscribe = onRtdbValue(ref(db, 'settings/app/aiDialogueExpandCost'), (snapshot) => {
+            if (snapshot.exists()) setCost(snapshot.val());
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            const res = await saveAiDialogueExpandCostAction(cost);
+            if (res.success) {
+                toast({ title: 'AI-Fix Cost Updated', description: `Now costs ${cost} credits per expand.` });
+            } else {
+                toast({ variant: 'destructive', title: 'Update Failed', description: res.error });
+            }
+        } catch (error: any) {
+            reportClientError('src/app/admin/page.tsx:aiDialogueExpandCost', error);
+            toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
+        } finally { setIsSaving(false); }
+    };
+
+    return (
+        <Card className="rounded-3xl border-none shadow-xl bg-card overflow-hidden">
+            <CardHeader className="bg-primary/5 border-b border-primary/10 p-5">
+                <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    Resolve Wizard: AI-Fix Cost
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+                <div className="space-y-2">
+                    <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/60 px-1">Credits per AI dialogue expand</Label>
+                    <Input
+                        type="number"
+                        min={0}
+                        value={cost}
+                        onChange={(e) => setCost(Number(e.target.value) || 0)}
+                        className="h-11 rounded-2xl bg-muted/10 border-primary/5 font-mono text-[11px] px-4"
+                    />
+                    <p className="text-[7px] font-bold text-muted-foreground uppercase px-1">
+                        Charged when a user clicks "AI-Fix" on a too-short dialogue line during the pre-generate Resolve flow.
+                    </p>
+                </div>
+                <Button onClick={handleSave} disabled={isSaving} className="w-full h-11 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20">
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} SAVE AI-FIX COST
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
 function AnalysisExecutionModeSettings() {
     const { toast } = useToast();
     // Default 'server' — matches the app default now that all analysis runs
@@ -703,6 +768,7 @@ export default function AdminPage() {
                 <DailyFreeScriptLimitSettings />
                 <HqBackendSettings />
                 <EditingHfBackendSettings />
+                <AiDialogueFixSettings />
             </div>
         </TabsContent>
 

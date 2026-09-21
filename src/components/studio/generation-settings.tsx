@@ -22,6 +22,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { reportClientError } from '@/lib/report-client-error';
+import { isDialogueTooShort } from '@/lib/dialogue-validation';
+import { ResolveDialoguesDialog } from '@/components/studio/resolve-dialogues-dialog';
 
 const GENRE_IMAGES: Record<string, string> = {
   'horror': 'https://storage.12labs.in/Uploaded%20previews/horror_story_preview.webp',
@@ -66,6 +68,7 @@ export function GenerationSettings() {
     const [isFastGenLocked, setIsFastGenLocked] = useState(false);
     const [isLoadingSettings, setIsLoadingSettings] = useState(true);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [isResolveOpen, setIsResolveOpen] = useState(false);
     const { database } = initializeFirebase();
 
     const [visibleBlocks, setVisibleBlocks] = useState(0);
@@ -513,14 +516,25 @@ export function GenerationSettings() {
                 )}
             </CardContent>
             <CardFooter className="p-8 pt-0 flex flex-col gap-4">
-                <Button 
-                    onClick={() => { if (isPremiumOnlyMode && !isAdmin && !isSponsor && !isPaidUser) showPremiumBlock(); else handleGeneration(); }} 
-                    disabled={isFinalizing || !isReady || !canAfford || (isFastGenDisabled && generationMode === 'fast')} 
+                <Button
+                    onClick={() => {
+                        if (isPremiumOnlyMode && !isAdmin && !isSponsor && !isPaidUser) { showPremiumBlock(); return; }
+                        if (generatedLines.some((l) => isDialogueTooShort(l.dialogue))) { setIsResolveOpen(true); return; }
+                        handleGeneration();
+                    }}
+                    disabled={isFinalizing || !isReady || !canAfford || (isFastGenDisabled && generationMode === 'fast')}
                     className="w-full h-16 text-lg font-black rounded-2xl shadow-xl shadow-primary/30 btn-shine uppercase transition-all active:scale-95 group text-white"
                 >
                     {isFinalizing ? <Loader2 className="mr-3 h-8 w-8 animate-spin" /> : <Sparkles className="mr-3 h-8 w-8 fill-current group-hover:rotate-12 transition-transform" />}
                     <span>Start {generationMode === 'high-quality' ? 'SuperFast' : 'Generation'}</span>
                 </Button>
+
+                <ResolveDialoguesDialog
+                    open={isResolveOpen}
+                    onOpenChange={setIsResolveOpen}
+                    onGenerateAnyway={handleGeneration}
+                    onAllResolved={() => {}}
+                />
 
                 {!canAfford && isReady && !isGenerating && !isPaused && (
                     <div className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-[1.5rem] bg-destructive/10 text-destructive border border-destructive/20 w-full animate-in fade-in duration-500">

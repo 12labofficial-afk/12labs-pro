@@ -23,6 +23,7 @@ import { voices } from '@/lib/voices';
 import { saveAs } from 'file-saver';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { reportClientError } from '@/lib/report-client-error';
+import { EmotionCapsules } from './emotion-capsules';
 
 const THEME_BG_IMAGE = "https://storage.googleapis.com/12labspublic/store/previews/20260721_134259.jpg";
 
@@ -345,6 +346,7 @@ export function GeneratedLines() {
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [editText, setEditText] = useState('');
     const [editVoiceId, setEditVoiceId] = useState('');
+    const [editEmotion, setEditEmotion] = useState<string>('Neutral');
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
     
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -414,12 +416,14 @@ export function GeneratedLines() {
         setEditText(line.dialogue);
         const char = characters.find((c: Character) => c.name === line.characterName);
         setEditVoiceId(line.voiceOverride || char?.voice || '');
+        setEditEmotion(line.emotion || 'Neutral');
     };
 
     const handleSaveDraftUpdate = (lineId: string) => {
         updateGeneratedLine(lineId, {
             dialogue: editText,
-            voiceOverride: editVoiceId
+            voiceOverride: editVoiceId,
+            emotion: editEmotion
         });
         setEditingIndex(null);
         toast({ title: 'Draft Saved', description: 'Saved locally. Generation will execute when you start project.' });
@@ -430,7 +434,7 @@ export function GeneratedLines() {
             toast({ variant: 'destructive', title: 'Details Missing', description: 'Dialogue text and persona are required.' });
             return;
         }
-        await retryLineGeneration(lineId, editText, editVoiceId);
+        await retryLineGeneration(lineId, editText, editVoiceId, editEmotion);
         setEditingIndex(null);
     };
 
@@ -527,12 +531,16 @@ export function GeneratedLines() {
                                             <div className="grid grid-cols-1 gap-3">
                                                 <div className="space-y-2">
                                                     <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">Assigned Persona</Label>
-                                                    <VoicePicker 
-                                                        currentVoiceId={editVoiceId} 
-                                                        onVoiceChange={setEditVoiceId} 
-                                                        playingVoice={playingVoiceId} 
-                                                        onTogglePlay={toggleVoicePreview} 
+                                                    <VoicePicker
+                                                        currentVoiceId={editVoiceId}
+                                                        onVoiceChange={setEditVoiceId}
+                                                        playingVoice={playingVoiceId}
+                                                        onTogglePlay={toggleVoicePreview}
                                                     />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">Emotion</Label>
+                                                    <EmotionCapsules value={editEmotion} onChange={setEditEmotion} />
                                                 </div>
                                                 <div className="flex gap-2">
                                                     <Button onClick={() => isDone ? handleSyncLine(line.id) : handleSaveDraftUpdate(line.id)} disabled={isGenerating} className="flex-1 h-12 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 btn-shine gap-3 text-white">
