@@ -1,33 +1,19 @@
 'use client';
 
-import { cn } from '@/lib/utils';
-import { EMOTIONS } from '@/lib/emotions';
+import { Input } from '@/components/ui/input';
 
 /**
- * Tappable "capsule" (pill) row for picking a dialogue line's emotion —
- * shared by the normal per-line editor (generated-lines.tsx) and the
- * pre-generate Resolve wizard (resolve-dialogues-dialog.tsx). Deliberately
- * just a flat wrap of buttons, not a dropdown/combobox — the whole point
- * (per how this was asked for) is the simplest possible interface for this.
+ * Free-text emotion entry — the user types whatever they want (not
+ * restricted to a fixed list). Plain controlled input, same pattern as the
+ * dialogue Textarea next to it — the caller owns when to actually commit it.
  */
 export function EmotionCapsules({ value, onChange }: { value: string; onChange: (emotion: string) => void }) {
     return (
-        <div className="flex flex-wrap gap-1.5">
-            {EMOTIONS.map((emotion) => (
-                <button
-                    key={emotion}
-                    type="button"
-                    onClick={() => onChange(emotion)}
-                    className={cn(
-                        "h-7 px-3 rounded-full text-[10px] font-black uppercase tracking-wide transition-all border",
-                        value === emotion
-                            ? "bg-primary text-white border-primary shadow-sm"
-                            : "bg-muted/40 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground"
-                    )}
-                >
-                    {emotion}
-                </button>
-            ))}
-        </div>
+        <Input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="e.g. Happy, Sad, Angry..."
+            className="h-9 rounded-xl text-xs font-bold"
+        />
     );
 }

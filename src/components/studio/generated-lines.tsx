@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn, generateAvatarColor, safeJsonStringify } from '@/lib/utils';
-import { Play, Pause, Loader2, Link as LinkIcon, Download, Music, Archive, AlertCircle, ChevronDown, User, Check, ChevronsUpDown, Save, Activity, Plus, Trash2 } from 'lucide-react';
+import { Play, Pause, Loader2, Link as LinkIcon, Download, Music, Archive, AlertCircle, ChevronDown, User, Check, X, ChevronsUpDown, Save, Activity, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -337,7 +337,7 @@ function DownloadOptions() {
 
 
 export function GeneratedLines() {
-    const { generatedLines, retryLineGeneration, characters, updateGeneratedLine, deleteGeneratedLine, addGeneratedLine } = useStudio();
+    const { generatedLines, retryLineGeneration, characters, updateGeneratedLine, deleteGeneratedLine } = useStudio();
     const { user, isImpersonating } = useAuth();
     const { toast } = useToast();
     
@@ -350,6 +350,7 @@ export function GeneratedLines() {
     const [dialogueEditingIndex, setDialogueEditingIndex] = useState<number | null>(null);
     const [draftDialogueText, setDraftDialogueText] = useState('');
     const [emotionEditingIndex, setEmotionEditingIndex] = useState<number | null>(null);
+    const [draftEmotion, setDraftEmotion] = useState('');
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
     
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -448,6 +449,20 @@ export function GeneratedLines() {
         setDialogueEditingIndex(null);
     };
 
+    const startEditingEmotion = (index: number, line: GeneratedLineType) => {
+        setDraftEmotion(line.emotion || 'Neutral');
+        setEmotionEditingIndex(index);
+    };
+
+    const saveEmotionEdit = (line: GeneratedLineType) => {
+        if (!draftEmotion.trim()) {
+            toast({ variant: 'destructive', title: 'Emotion Required' });
+            return;
+        }
+        commitLineEdit(line, { emotion: draftEmotion.trim() });
+        setEmotionEditingIndex(null);
+    };
+
     return (
         <Card className="mt-8 border-border dark:border-white/10 shadow-2xl bg-card dark:bg-white/[0.02] backdrop-blur-3xl overflow-hidden rounded-[2rem]">
             <CardHeader className="bg-primary/5 pb-6 border-b border-border/50 dark:border-white/5">
@@ -499,12 +514,17 @@ export function GeneratedLines() {
                                                 <p className="font-black text-[13px] uppercase truncate tracking-tight leading-none text-foreground dark:text-white">{characterName}</p>
                                                 <div className="flex items-center gap-2 mt-1.5">
                                                     {emotionEditingIndex === index ? (
-                                                        <EmotionCapsules
-                                                            value={line.emotion || 'Neutral'}
-                                                            onChange={(emotion) => { commitLineEdit(line, { emotion }); setEmotionEditingIndex(null); }}
-                                                        />
+                                                        <div className="flex items-center gap-1.5">
+                                                            <EmotionCapsules value={draftEmotion} onChange={setDraftEmotion} />
+                                                            <Button size="icon" className="h-7 w-7 rounded-lg shrink-0" onClick={() => saveEmotionEdit(line)} disabled={isGenerating}>
+                                                                <Check className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg shrink-0 text-zinc-500" onClick={() => setEmotionEditingIndex(null)}>
+                                                                <X className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
                                                     ) : (
-                                                        <button type="button" disabled={isGenerating} onClick={() => setEmotionEditingIndex(index)}>
+                                                        <button type="button" disabled={isGenerating} onClick={() => startEditingEmotion(index, line)}>
                                                             <Badge variant="outline" className="h-4 px-1.5 text-[7px] font-black uppercase border-border dark:border-white/10 text-zinc-500 hover:border-primary/40 hover:text-primary cursor-pointer transition-colors">{line.emotion || 'Neutral'}</Badge>
                                                         </button>
                                                     )}
@@ -581,31 +601,6 @@ export function GeneratedLines() {
                     })}
                 </div>
                 </ScrollArea>
-                
-                 <div className="mt-6 pt-6 border-t border-dashed border-border dark:border-white/10">
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full h-14 rounded-2xl border-2 border-dashed border-border dark:border-white/10 font-black uppercase tracking-widest text-xs gap-3 hover:bg-muted dark:hover:bg-white/5 hover:border-primary/30 text-zinc-500 hover:text-primary transition-all">
-                                <Plus className="h-5 w-5" /> ADD DIALOGUE NODE
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-64 p-2 rounded-xl shadow-2xl border-border dark:border-white/10 bg-popover text-popover-foreground dark:bg-[#0a0a0b]/95 dark:backdrop-blur-3xl dark:text-white">
-                            <p className="px-3 py-2 text-[10px] font-black uppercase text-zinc-600 tracking-widest">Select Speaker</p>
-                            <ScrollArea className="h-48">
-                                <div className="space-y-1">
-                                    {characters.map((char: Character) => (
-                                        <Button key={char.id} variant="ghost" className="w-full justify-start font-bold text-xs uppercase h-10 rounded-lg text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/5" onClick={() => addGeneratedLine(char.name)}>
-                                            <Avatar className="h-6 w-6 mr-3">
-                                                <AvatarFallback className={cn("text-[8px]", generateAvatarColor(char.name).bg, generateAvatarColor(char.name).text)}>{char.name[0]}</AvatarFallback>
-                                            </Avatar>
-                                            {char.name}
-                                        </Button>
-                                    ))}
-                                </div>
-                            </ScrollArea>
-                        </PopoverContent>
-                    </Popover>
-                </div>
             </CardContent>
         </Card>
     )
