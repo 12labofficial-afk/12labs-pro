@@ -9,7 +9,7 @@ import { initializeFirebase } from '@/firebase';
 import { ref, onValue, update } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Music, Save, Link2, Type, Globe, ImageIcon, ShieldCheck } from 'lucide-react';
+import { Loader2, Music, Save, Link2, Type, Globe, ImageIcon, ShieldCheck, Clapperboard } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { getDisplayUrl } from '@/lib/utils';
@@ -44,6 +44,15 @@ export function LandingAssetsManager() {
     const { database } = initializeFirebase();
     const { toast } = useToast();
     const [assets, setAssets] = useState<LandingAssets>(defaultAssets);
+    // 🔴 FIX: demo-section.tsx reads the Studio Showcase video from
+    // `settings/app/demoVideoUrl` — a DIFFERENT RTDB node than the rest of
+    // this panel's `settings/landingPage` blob — and falls back to a
+    // hardcoded YouTube link when it's empty. There was never an admin
+    // control for that path at all, so the fallback was effectively
+    // permanent. Tracked as its own field (not merged into `assets`)
+    // because it lives under a different root and is saved with its own
+    // `update()` call below, matching where demo-section.tsx actually reads it.
+    const [demoVideoUrl, setDemoVideoUrl] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -66,15 +75,24 @@ export function LandingAssetsManager() {
             }
             setIsLoading(false);
         });
-        return () => unsubscribe();
+
+        const demoVideoRef = ref(db, 'settings/app/demoVideoUrl');
+        const unsubscribeVideo = onRtdbValue(demoVideoRef, (snapshot) => {
+            setDemoVideoUrl(snapshot.val() || '');
+        });
+
+        return () => { unsubscribe(); unsubscribeVideo(); };
     }, []);
 
     const handleSave = async () => {
         if (!database) return;
         setIsSaving(true);
         try {
-            await update(ref(database, 'settings/landingPage'), assets);
-            toast({ title: 'Production Assets Synced', description: 'Landing page assets and logos updated.' });
+            await Promise.all([
+                update(ref(database, 'settings/landingPage'), assets),
+                update(ref(database, 'settings/app'), { demoVideoUrl: demoVideoUrl.trim() }),
+            ]);
+            toast({ title: 'Production Assets Synced', description: 'Landing page assets, logos and demo video updated.' });
         } catch (error: any) {
             reportClientError('src/components/admin/landing-assets-manager.tsx:77', error);
             toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
@@ -152,6 +170,29 @@ export function LandingAssetsManager() {
                                 </p>
                             </div>
                         )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card className="rounded-[2rem] border-none shadow-xl bg-card overflow-hidden">
+                <CardHeader className="bg-primary/5 pb-6 border-b border-primary/10">
+                    <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-3">
+                        <Clapperboard className="h-6 w-6 text-primary" />
+                        Studio Showcase Video
+                    </CardTitle>
+                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest">The demo video shown on the landing page. Falls back to a default if left empty.</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-8">
+                    <div className="space-y-4 p-5 rounded-2xl bg-muted/30 border border-primary/5">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground px-1 flex items-center gap-2"><Globe className="h-3 w-3" /> YouTube Link</Label>
+                            <Input
+                                value={demoVideoUrl}
+                                onChange={(e) => setDemoVideoUrl(e.target.value)}
+                                className="h-11 rounded-xl bg-background font-mono text-xs text-primary"
+                                placeholder="https://www.youtube.com/watch?v=... or /shorts/..."
+                            />
+                        </div>
                     </div>
                 </CardContent>
             </Card>
