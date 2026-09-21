@@ -434,8 +434,20 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             if (saved) {
                 setScript(saved.script || ''); setCleanScript(saved.cleanScript || ''); setProjectName(saved.projectName || '');
                 setScriptState(saved.scriptState || 'pristine'); setCharacters(saved.characters || []);
-                setScriptAnalysis(saved.scriptAnalysis || null); setGenerationMode(saved.generationMode || 'high-quality'); setVoiceEngineState(saved.voiceEngine || 'gemini'); 
-                setHqProjectId(saved.hqProjectId || null); setSilenceGap(saved.silenceGap || 800); 
+                setScriptAnalysis(saved.scriptAnalysis || null); setGenerationMode(saved.generationMode || 'high-quality'); setVoiceEngineState(saved.voiceEngine || 'gemini');
+                // 🔴 FIX: voicesByEngine (the per-engine voice-assignment
+                // parking lot — see setVoiceEngine/handleVoiceChange) is a
+                // useRef, so it lived only in memory for this component
+                // instance. It correctly kept both engines' assignments
+                // separate while switching back and forth WITHIN one
+                // session, but was never persisted here — only `characters`
+                // (i.e. whichever engine was active) was saved. Any reload,
+                // re-navigation to /studio, or provider remount reset it to
+                // empty, silently discarding the parked (non-active)
+                // engine's assignments for good. Restoring it here, and
+                // saving it below, makes that separation actually durable.
+                if (saved.voicesByEngine) voicesByEngine.current = saved.voicesByEngine;
+                setHqProjectId(saved.hqProjectId || null); setSilenceGap(saved.silenceGap || 800);
                 setIsPaid(saved.isPaid || false); setCurrentFastGenProjectId(saved.currentFastGenProjectId || null);
                 setIncludeEmotion(saved.includeEmotion || false); setGeneratedAudioUrl(saved.generatedAudioUrl || null);
                 setHqSubmissionId(saved.hqSubmissionId || null);
@@ -459,10 +471,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             const db = await getDB();
             if (!db) return;
             const tx = db.transaction(PRODUCTION_STORE, 'readwrite');
-            tx.objectStore(PRODUCTION_STORE).put({ 
-                script, cleanScript, projectName, scriptState, characters, scriptAnalysis, 
-                generatedLines, generationMode, voiceEngine: voiceEngineState, hqProjectId, silenceGap, isPaid, 
-                currentFastGenProjectId, includeEmotion, generatedAudioUrl, hqSubmissionId 
+            tx.objectStore(PRODUCTION_STORE).put({
+                script, cleanScript, projectName, scriptState, characters, scriptAnalysis,
+                generatedLines, generationMode, voiceEngine: voiceEngineState, hqProjectId, silenceGap, isPaid,
+                currentFastGenProjectId, includeEmotion, generatedAudioUrl, hqSubmissionId,
+                voicesByEngine: voicesByEngine.current
             }, `production_${activeUid}`);
         };
         saveDraft();
