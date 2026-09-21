@@ -13,7 +13,7 @@ const pacifico = Pacifico({
 import { initializeFirebase } from '@/firebase';
 import { ref, onValue } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
-import { collection, onSnapshot, query, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, limit, where } from 'firebase/firestore';
 import { submitThumbnailRequestAction, removeThumbnailJobAction } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
