@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { cn, generateAvatarColor } from '@/lib/utils';
+import { cn, generateAvatarColor, safeJsonStringify } from '@/lib/utils';
 import { Play, Pause, Loader2, Link as LinkIcon, Download, Music, Archive, AlertCircle, ChevronDown, User, Check, ChevronsUpDown, Save, Activity, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -228,6 +228,13 @@ function DownloadOptions() {
             return;
         }
 
+        const jsonManifestData = {
+            projectName: projectName || 'Untitled Project',
+            exportDate: new Date().toISOString(),
+            totalDialogues: validLines.length,
+            dialogues: [] as any[]
+        };
+
         let timelineAcc = 0;
 
         await Promise.all(
@@ -247,12 +254,39 @@ function DownloadOptions() {
                 const fileName = `${String(index + 1).padStart(3, '0')}_${cleanCharName}_${startFormatted}-${endFormatted}.wav`;
 
                 zip.file(fileName, trimmedBlob);
+
+                jsonManifestData.dialogues.push({
+                    index: index + 1,
+                    id: line.id,
+                    filename: fileName,
+                    characterName: line.characterName,
+                    dialogue: line.dialogue,
+                    voiceId: line.voiceOverride || 'default',
+                    emotion: line.emotion || 'Normal',
+                    startTimeSeconds: Number(startSec.toFixed(2)),
+                    endTimeSeconds: Number(endSec.toFixed(2)),
+                    durationSeconds: Number((duration || (endSec - startSec)).toFixed(2)),
+                    audioUrl: line.audioDataUri,
+                    voiceReplacementMetadata: {
+                        allowVoiceReplacement: true,
+                        hfBackendSupport: true
+                    }
+                });
             })
         );
 
+        jsonManifestData.dialogues.sort((a, b) => a.index - b.index);
+
+        zip.file('timeline_manifest.json', safeJsonStringify(jsonManifestData, 2));
+        zip.file('voice_replacement_schema.json', safeJsonStringify({
+            instructions: "Send POST request to configured Editing HF Backend URL to regenerate or edit voice for any line ID.",
+            project: jsonManifestData.projectName,
+            dialogues: jsonManifestData.dialogues
+        }, 2));
+
         zip.generateAsync({ type: 'blob' }).then((content) => {
             saveAs(content, `12labs_trimmed_${(projectName || 'project').replace(/\s+/g, '_')}_${Date.now()}.zip`);
-            toast({ title: 'ZIP Bundle Downloaded', description: 'Trimmed dialogue audio, ready to use.' });
+            toast({ title: 'ZIP Bundle Downloaded', description: 'Includes trimmed dialogue audio and replacement JSON.' });
         }).catch((err) => {
         reportClientError('src/components/studio/generated-lines.tsx:290', err);
             console.error("[GeneratedLines] ZIP generation failed:", err);
