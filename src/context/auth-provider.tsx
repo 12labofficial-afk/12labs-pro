@@ -421,13 +421,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
     } catch (error: any) {
+      // 🔇 The user closing the popup themselves (or a second click
+      // cancelling a still-open one) isn't a failure — it's an intentional
+      // cancellation. Reporting it as an error and showing a destructive
+      // toast was pure noise on every "changed my mind" / accidental
+      // double-click.
+      const isUserCancelled = error?.code === 'auth/popup-closed-by-user' || error?.code === 'auth/cancelled-popup-request';
+      if (!isUserCancelled) {
         reportClientError('src/context/auth-provider.tsx:399', error);
-      console.error("Google Login Error:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Google Sign-In Failed',
-        description: error.message || 'An unknown error occurred.',
-      });
+        console.error("Google Login Error:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Google Sign-In Failed',
+          description: error.message || 'An unknown error occurred.',
+        });
+      }
       setLoading(false);
     }
   };
