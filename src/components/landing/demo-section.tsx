@@ -214,10 +214,10 @@ export function DemoSection() {
     const { database } = initializeFirebase();
 
     // null = still resolving from RTDB (nothing rendered yet, so there's
-    // no flash of "video slot empty but rest of section visible"); [] =
-    // resolved and the admin hasn't configured any demo video — the whole
+    // no flash of "video slot empty but rest of section visible"); '' =
+    // resolved and the admin hasn't configured a demo video — the whole
     // section stays hidden rather than falling back to a video nobody chose.
-    const [videoUrls, setVideoUrls] = useState<string[] | null>(null);
+    const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
     const [audioDemos, setAudioDemos] = useState<AudioDemo[]>(defaultAudioDemos);
     const [isLoadingDemos, setIsLoadingDemos] = useState(true);
@@ -225,15 +225,10 @@ export function DemoSection() {
     useEffect(() => {
         if (!database) return;
 
-        // Up to 3 admin-configured videos (settings/app/demoVideos.video1-3),
-        // same fixed-slot shape as the audio demos below.
-        const videosRef = ref(database, 'settings/app/demoVideos');
-        onRtdbValue(videosRef, (snapshot) => {
-            const data = snapshot.val() || {};
-            const urls = [data.video1, data.video2, data.video3].filter(
-                (u): u is string => typeof u === 'string' && u.trim() !== ''
-            );
-            setVideoUrls(urls);
+        const videoRef = ref(database, 'settings/app/demoVideoUrl');
+        onRtdbValue(videoRef, (snapshot) => {
+            const url = snapshot.val();
+            setVideoUrl(typeof url === 'string' ? url.trim() : '');
         });
 
         const audioDemosRef = ref(database, 'settings/landingPage/audioDemos');
@@ -253,7 +248,7 @@ export function DemoSection() {
     }, [database]);
 
     // No configured video (or still loading) -> hide the entire section.
-    if (!videoUrls || videoUrls.length === 0) return null;
+    if (!videoUrl) return null;
 
     return (
         <section id="demo" className="w-full py-16 md:py-24 overflow-hidden relative bg-muted/5">
@@ -270,9 +265,7 @@ export function DemoSection() {
                 </div>
 
                 <div className="flex flex-col items-center gap-12 mb-16">
-                    {videoUrls.map((url) => (
-                        <DemoVideoPlayer key={url} url={url} />
-                    ))}
+                    <DemoVideoPlayer url={videoUrl} />
                 </div>
 
                 <div className="space-y-10 animate-in fade-in duration-1000">
