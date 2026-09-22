@@ -215,8 +215,14 @@ export function PushSubscriptionHandler() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!('serviceWorker' in navigator)) return;
+    // Best-effort, silent background registration — no user gesture, no UI
+    // depends on it. A failure here is almost always an ad-blocker or
+    // privacy browser (Brave, some in-app webviews) blocking service
+    // workers outright, not something our code can fix, so it's not worth
+    // paging to Telegram. The user-initiated subscribe flow below (and in
+    // subscribeToPushNotifications) still reports its own failures, since
+    // those are actionable.
     navigator.serviceWorker.register('/sw.js').catch((err) => {
-        reportClientError('src/components/push-subscription-handler.tsx:218', err);
       console.warn('[SW] Registration failed:', err);
     });
   }, []);
