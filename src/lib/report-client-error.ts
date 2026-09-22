@@ -4,6 +4,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { getCurrentUserEmail } from '@/lib/current-user-email';
 import { notifyStaleBuildIfNeeded } from '@/lib/stale-build-guard';
+import { isIgnorableError } from '@/lib/ignorable-errors';
 
 // Cooldown so a hot error path doesn't spam the bot (per browser tab).
 const COOLDOWN_MS = 10 * 60 * 1000;
@@ -28,6 +29,11 @@ export function reportClientError(context: string, error: unknown, extra?: Recor
     const last = lastReported.get(key) || 0;
 
     console.error(`[Client:${context}]`, err);
+
+    // Known-benign noise (e.g. Next.js's Server Action transport error when
+    // a navigation cancels an in-flight action) — still logged to the
+    // console above for local debugging, just not spammed to Telegram.
+    if (isIgnorableError(err.message)) return;
 
     // Runs unconditionally (ahead of the Telegram cooldown gate below,
     // which is a separate concern) — a user on a stale build deserves the
