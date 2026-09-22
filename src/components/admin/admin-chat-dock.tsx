@@ -3,23 +3,30 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/context/auth-provider';
 import { initializeFirebase } from '@/firebase';
-import { ref, query, orderByChild, equalTo, update, type DataSnapshot } from 'firebase/database';
+import { ref, query, orderByChild, equalTo, update, remove, type DataSnapshot } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import type { LiveChatSession, LiveChatMessage } from '@/lib/types';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, Send, Loader2, X } from 'lucide-react';
+import { MessageCircle, Send, Loader2, X, MoreHorizontal, Edit, Trash2, Check, CheckCheck } from 'lucide-react';
 import { cn, generateAvatarColor } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { sendAdminChatReply } from '@/app/admin/chat/actions';
+import { sendAdminChatReply, deleteSingleChatMessage } from '@/app/admin/chat/actions';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { format } from 'date-fns';
 import { reportClientError } from '@/lib/report-client-error';
 
 /**
@@ -131,9 +138,11 @@ function AdminChatReplyDialog({ session, onClose }: { session: LiveChatSession |
   const [isLoading, setIsLoading] = useState(false);
   const [reply, setReply] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<{ id: string; text: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    setEditingMessage(null);
     if (!session || !database) {
       setMessages([]);
       return;
@@ -184,6 +193,38 @@ function AdminChatReplyDialog({ session, onClose }: { session: LiveChatSession |
     }
   };
 
+  const handleSaveEdit = async () => {
+    if (!editingMessage || !session || !database) return;
+    setIsSending(true);
+    try {
+      const messageRef = ref(database, `chats/${session.userId}/messages/${editingMessage.id}`);
+      await update(messageRef, { text: editingMessage.text, isEdited: true });
+      setEditingMessage(null);
+    } catch (err: any) {
+      reportClientError('src/components/admin/admin-chat-dock.tsx:handleSaveEdit', err);
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not save message changes.' });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!session || !database) return;
+    try {
+      const messageRef = ref(database, `chats/${session.userId}/messages/${messageId}`);
+      await remove(messageRef);
+      toast({ title: 'Message Deleted' });
+    } catch (err: any) {
+      reportClientError('src/components/admin/admin-chat-dock.tsx:handleDeleteMessage', err);
+      const result = await deleteSingleChatMessage(session.userId, messageId);
+      if (result.success) {
+        toast({ title: 'Message Deleted' });
+      } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.message });
+      }
+    }
+  };
+
   return (
     <Dialog open={!!session} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md w-[95vw] h-[70vh] flex flex-col p-0 rounded-[2rem] overflow-hidden">
@@ -212,18 +253,67 @@ function AdminChatReplyDialog({ session, onClose }: { session: LiveChatSession |
             ) : messages.length === 0 ? (
               <p className="text-center text-xs text-muted-foreground py-10">No messages yet.</p>
             ) : (
-              messages.map((message) => (
-                <div key={message.id} className={cn('flex', message.sender === 'admin' ? 'justify-end' : 'justify-start')}>
-                  <div
-                    className={cn(
-                      'rounded-2xl px-3.5 py-2 max-w-[80%] text-xs font-medium leading-relaxed',
-                      message.sender === 'admin' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm'
+              messages.map((message) => {
+                const isEditingThis = editingMessage?.id === message.id;
+                return (
+                  <div key={message.id} className={cn('flex items-center gap-1 group/msg', message.sender === 'admin' ? 'justify-end' : 'justify-start')}>
+                    {!isEditingThis && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover/msg:opacity-100 transition-opacity shrink-0">
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align={message.sender === 'admin' ? 'end' : 'start'} className="rounded-xl shadow-xl p-1.5 border border-border bg-popover z-50">
+                          {message.sender === 'admin' && message.text && (
+                            <DropdownMenuItem className="h-8 rounded-lg cursor-pointer font-bold text-xs" onClick={() => setEditingMessage({ id: message.id, text: message.text || '' })}>
+                              <Edit className="mr-2 h-3.5 w-3.5 text-primary" /> Edit
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem className="h-8 rounded-lg cursor-pointer font-bold text-xs text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => handleDeleteMessage(message.id)}>
+                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
-                  >
-                    {message.text}
+                    <div
+                      className={cn(
+                        'rounded-2xl px-3.5 py-2 max-w-[80%] text-xs font-medium leading-relaxed',
+                        message.sender === 'admin' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm'
+                      )}
+                    >
+                      {isEditingThis ? (
+                        <div className="space-y-2 w-56">
+                          <Textarea
+                            value={editingMessage.text}
+                            onChange={(e) => setEditingMessage({ ...editingMessage, text: e.target.value })}
+                            className="bg-background text-foreground text-xs rounded-lg min-h-[60px]"
+                          />
+                          <div className="flex justify-end gap-1.5">
+                            <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setEditingMessage(null)}>Cancel</Button>
+                            <Button size="sm" className="h-7 text-[10px]" onClick={handleSaveEdit} disabled={isSending}>
+                              {isSending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />} Save
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {message.text}
+                          <div className={cn('flex items-center justify-end gap-1.5 mt-1 text-[8px] font-black uppercase tracking-widest', message.sender === 'admin' ? 'text-primary-foreground/70' : 'text-muted-foreground/60')}>
+                            {message.isEdited && <span>(edited)</span>}
+                            <span>{format(new Date(message.timestamp), 'p')}</span>
+                            {message.sender === 'admin' && (
+                              <span className="inline-flex align-middle">
+                                {message.seen ? <CheckCheck className="h-3 w-3 text-white" /> : <Check className="h-3 w-3" />}
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </ScrollArea>
