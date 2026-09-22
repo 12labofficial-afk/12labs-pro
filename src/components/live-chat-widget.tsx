@@ -6,16 +6,27 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/context/auth-provider';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, MessageCircle, ImagePlus, X, Clock, ShieldCheck, Maximize2, Bell } from 'lucide-react';
+import { Loader2, Send, MessageCircle, ImagePlus, X, Clock, ShieldCheck, Maximize2, Bell, Trash2 } from 'lucide-react';
 import { cn, getDisplayUrl, compressImage } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { initializeFirebase } from '@/firebase';
 import { ref, onValue, query, orderByChild, update } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import type { LiveChatMessage } from '@/lib/types';
-import { sendUserChatMessage, uploadChatImageToGCS } from '@/app/admin/chat/actions';
+import { sendUserChatMessage, uploadChatImageToGCS, deleteChatSession } from '@/app/admin/chat/actions';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { GetNotifiedButton } from '@/components/push-subscription-handler';
 import { reportClientError } from '@/lib/report-client-error';
 
@@ -105,6 +116,7 @@ export function LiveChatWidget() {
   const moveDetected = useRef(false);
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isDeletingChat, setIsDeletingChat] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -286,6 +298,23 @@ export function LiveChatWidget() {
     }
   };
 
+  const handleDeleteChat = async () => {
+    if (!user) return;
+    setIsDeletingChat(true);
+    try {
+        const result = await deleteChatSession(user.uid, user.email || 'N/A');
+        if (!result.success) throw new Error(result.message);
+        setMessages([]);
+        toast({ title: 'Conversation Deleted' });
+        setIsOpen(false);
+    } catch (error: any) {
+        reportClientError('src/components/live-chat-widget.tsx:deleteChat', error);
+        toast({ variant: 'destructive', title: 'Delete Failed', description: error.message });
+    } finally {
+        setIsDeletingChat(false);
+    }
+  };
+
   if (!user || isHidden) return null;
 
   return (
@@ -318,6 +347,27 @@ export function LiveChatWidget() {
             <div className="flex items-center gap-2 absolute top-2 right-12 opacity-30 text-[8px] font-black uppercase tracking-widest"><ShieldCheck className="h-2.5 w-2.5" /> Encrypted & Secure</div>
             <SheetTitle className="text-2xl font-black uppercase tracking-tight">Private Support</SheetTitle>
             <SheetDescription className="font-bold text-xs opacity-70">Secured line for {user.name || 'Account ID'}</SheetDescription>
+            {messages.length > 0 && (
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="absolute bottom-3 right-4 h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Delete this conversation?</AlertDialogTitle>
+                            <AlertDialogDescription>This permanently deletes your entire chat history with support. This cannot be undone.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteChat} disabled={isDeletingChat} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                {isDeletingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Delete'}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
           </SheetHeader>
 
           {showNotificationPrompt && (
