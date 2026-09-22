@@ -20,6 +20,14 @@ export const IGNORED_ERROR_SUBSTRINGS = [
   // Not something app code can catch or prevent, and the action either
   // already completed server-side or the user has moved on regardless.
   'An unexpected response was received from the server',
+  // HTMLMediaElement's own documented behavior (not a bug): calling
+  // .pause() (or starting a new .play()) while a previous .play() promise
+  // is still pending rejects that promise with this exact message. Fires
+  // constantly on any audio/video player where the user can switch tracks
+  // or toggle play/pause quickly (music-library, Studio voice preview,
+  // sound-search, etc.) — every one of those call sites already has its
+  // own .catch(), so this is always already handled, never uncaught.
+  'The play() request was interrupted by a call to pause()',
 ];
 
 export function isIgnorableError(message: string): boolean {
