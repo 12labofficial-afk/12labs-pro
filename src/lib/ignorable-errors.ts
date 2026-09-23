@@ -28,6 +28,10 @@ export const IGNORED_ERROR_SUBSTRINGS = [
   // sound-search, etc.) — every one of those call sites already has its
   // own .catch(), so this is always already handled, never uncaught.
   'The play() request was interrupted by a call to pause()',
+  // Firestore SDK's message when the user's device has no connection —
+  // e.g. "Failed to get document because the client is offline." The
+  // network is down on their end; callers already fall back to cached data.
+  'because the client is offline',
 ];
 
 export function isIgnorableError(message: string): boolean {
