@@ -150,49 +150,11 @@ export async function submitMusicProjectRequestAction(input: {
         revalidatePath('/history');
         revalidatePath('/music-studio');
 
-        // --- 🚀 TRIGGER AI GENERATION NODE (v2.0) ---
-        // We trigger the generation in the background so the user doesn't wait for the audio file,
-        // but the request is immediately dispatched to the HF/Vertex nodes.
-        try {
-            const { ai } = await import('@/ai/genkit');
-            const generationParams = {
-                productionMode,
-                language: selectedLanguage,
-                tags: selectedTags,
-                lyrics,
-                mood,
-                duration,
-                tempo,
-                genre,
-                category,
-                instruments
-            };
-
-            // Call the generation hub (Genkit)
-            // It will route to Vertex Lyria or HF Bridge depending on settings
-            ai.generate({
-                model: 'lyria-3-pro-preview', // High fidelity music model
-                prompt: enhancedPrompt,
-                metadata: {
-                    userId,
-                    userEmail,
-                    projectId,
-                    taskType: 'Music Generation',
-                    projectName: `AI MUSIC: ${enhancedPrompt.slice(0, 30)}`,
-                    generationParams
-                }
-            }).catch(err => {
-        reportServerError('src/app/music-studio/actions.ts:184', err);
-                console.error("[Music Dispatch Background Error]:", err.message);
-                // Update Firestore status to error if dispatch fails immediately
-                firestore.collection('music_project').doc(projectId).update({ status: 'error', error: err.message }).catch((e: any) => { reportServerError('src/app/music-studio/actions.ts:188', e); return null; });
-                firestore.collection('music_project').doc(userId).collection('userProjects').doc(projectId).update({ status: 'error', error: err.message }).catch((e: any) => { reportServerError('src/app/music-studio/actions.ts:189', e); return null; });
-            });
-
-        } catch (dispatchErr: any) {
-    reportServerError('src/app/music-studio/actions.ts#1', dispatchErr);
-            console.error("[Music AI Import/Dispatch Error]:", dispatchErr.message);
-        }
+        // Generation is done by the HQ cluster's music_generation.py, which
+        // listens on the root music_project/{projectId} doc written above.
+        // Don't also dispatch through ai.generate here: that second path
+        // generated the same track again (double Vertex cost) and its
+        // result was never saved anywhere.
 
         return {
             success: true,
