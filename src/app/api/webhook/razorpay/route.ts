@@ -289,10 +289,18 @@ async function handleCreditPurchase(
   const subscriptionId = entity.subscription_id || notes.subscriptionId || null;
   const amountInOriginalCurrency = (entity.amount || orderEntity?.amount || 0) / 100;
   const currency = entity.currency || orderEntity?.currency || 'INR';
-  const isAutopay = !!subscriptionId || notes.productId === 'autopay_pro' || notes.productId === 'test_sub' || isRecurring || (currency === 'INR' && amountInOriginalCurrency === 700);
+  // Identified from the order's own notes/subscription, never from the amount:
+  // a ₹700 custom top-up used to be misread as the ₹700 autopay plan and got
+  // 20,000 credits instead of what it paid for.
+  const isAutopay = !!subscriptionId || notes.type === 'subscription_payment' || notes.productId === 'autopay_pro' || notes.productId === 'test_sub' || isRecurring;
   const currencySymbol = currency === 'USD' ? '$' : '₹';
 
   const paymentInInr = currency === 'USD' ? amountInOriginalCurrency * 85 : amountInOriginalCurrency;
+
+  // Set once the grant transaction commits (or finds the payment already
+  // processed). Anything failing before that means the user has NOT been
+  // credited, so the error must reach Razorpay as a non-2xx and get retried.
+  let grantSettled = false;
 
   try {
     let userId = notes.userId;
@@ -477,6 +485,7 @@ async function handleCreditPurchase(
         };
     });
 
+    grantSettled = true;
     if (!transactionResult || (transactionResult as any).stopProcessing) return;
     const tr = transactionResult as any;
 
@@ -504,7 +513,15 @@ async function handleCreditPurchase(
      await sendToTelegram(`<b>💎 CREDIT PURCHASE SUCCESSFUL</b>\n\n<b>User:</b> ${tr.userEmail}\n<b>Amount:</b> ${currencySymbol}${amountInOriginalCurrency}\n<b>Credit Grant:</b> +${tr.creditsToAdd.toLocaleString()}${recurringGrantText}\n<b>Total Investment:</b> ${creditTotalInvestFormatted}\n\n${todayEarningsText}`);
   } catch (e: any) {
         reportServerError('src/app/api/webhook/razorpay/route.ts:501', e);
-      await sendToTelegram(`🚨 <b>PAYMENT SYNC FAILED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Error:</b> ${e.message}`);
+      if (!grantSettled) {
+          // Credits were NOT added. Re-throw so POST answers 500 and Razorpay
+          // redelivers the webhook; processedPayments keeps the retry from
+          // double-crediting once it does go through.
+          await sendToTelegram(`🚨 <b>PAYMENT SYNC FAILED — CREDITS NOT ADDED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Email:</b> ${escapeHtml(paymentEmail || 'N/A')}\n<b>Error:</b> ${escapeHtml(e.message)}\n\nRazorpay will retry automatically. If it keeps failing, approve it from Admin → Payments.`);
+          throw e;
+      }
+      // Credits already added — only a post-grant step (affiliate/revenue log/Telegram) failed.
+      await sendToTelegram(`⚠️ <b>Payment credited, post-step failed</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Error:</b> ${escapeHtml(e.message)}`);
   }
 }
 
@@ -514,8 +531,12 @@ export async function POST(req: NextRequest) {
     const text = await req.text();
     const signature = req.headers.get('x-razorpay-signature');
 
+    // These rejections used to be console-only. When the secret is missing or
+    // doesn't match the Razorpay dashboard, EVERY paid purchase fails to
+    // credit with nothing showing up anywhere — so they alert now.
     if (!secret) {
       console.error('[Razorpay Webhook Error] Neither RAZORPAY_WEBHOOK_SECRET nor RAZORPAY_KEY_SECRET is set.');
+      await sendToTelegram(`🚨 <b>RAZORPAY WEBHOOK REJECTED</b>\nNo webhook secret is configured on the server — paid purchases are NOT being credited.`).catch(() => null);
       return NextResponse.json({ status: 'error', message: 'Webhook secret not configured on server' }, { status: 400 });
     }
 
@@ -530,6 +551,9 @@ export async function POST(req: NextRequest) {
 
     if (hmacBuf.length !== sigBuf.length || !crypto.timingSafeEqual(hmacBuf, sigBuf)) {
       console.error('[Razorpay Webhook Error] Signature verification failed. Ensure RAZORPAY_WEBHOOK_SECRET in environment matches Razorpay dashboard webhook secret.');
+      let eventName = 'unknown';
+      try { eventName = JSON.parse(text)?.event || 'unknown'; } catch { /* body isn't JSON */ }
+      await sendToTelegram(`🚨 <b>RAZORPAY WEBHOOK REJECTED — BAD SIGNATURE</b>\n<b>Event:</b> ${escapeHtml(eventName)}\nRAZORPAY_WEBHOOK_SECRET on the server doesn't match the Razorpay dashboard webhook secret — paid purchases are NOT being credited.`).catch(() => null);
       return NextResponse.json({ status: 'error', message: 'Invalid signature' }, { status: 400 });
     }
     
