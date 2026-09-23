@@ -101,7 +101,6 @@ function parseYouTubeUrl(url: string) {
 // One video's own play/aspect-detection state, so 2-3 configured videos
 // don't fight over a single shared `loadVideo`/`detectedVertical` pair.
 function DemoVideoPlayer({ url }: { url: string }) {
-    const { ref: videoAnimRef, isVisible: videoIsVisible } = useScrollAnimation();
     const [loadVideo, setLoadVideo] = useState(false);
     // The URL shape (/shorts/ vs watch?v=) is only a hint — an admin can
     // paste a normal watch?v= link that's still 9:16 content (uploaded as
@@ -132,7 +131,22 @@ function DemoVideoPlayer({ url }: { url: string }) {
     if (!videoConfig) return null;
 
     return (
-        <div ref={videoAnimRef} className={cn("scroll-animate flex justify-center transition-all duration-1000", videoIsVisible ? "scale-100 opacity-100 translate-y-0" : "scale-95 opacity-0 translate-y-12")}>
+        // 🔴 FIX: this used to be gated behind useScrollAnimation's isVisible
+        // (opacity-0 until an IntersectionObserver reported the block on
+        // screen). Everywhere else that hook is used, the reveal is applied
+        // through a `scroll-animate`/`is-visible` CSS class pair that has no
+        // actual stylesheet rule (checked globals.css — neither exists), so
+        // those spots were always effectively visible regardless of whether
+        // the observer ever fired. This was the one place applying REAL
+        // Tailwind opacity/scale classes straight off that same isVisible —
+        // so on any visit where the observer didn't fire (the exact,
+        // previously-unconfirmed "demo video shows blank" report), the
+        // whole showcase video stayed permanently invisible while still
+        // reserving its layout height, i.e. this exact blank gap. The
+        // showcase video is the one thing on this section that must never
+        // be allowed to end up invisible, so it's no longer gated on it at
+        // all — always rendered at full opacity/scale.
+        <div className="flex justify-center">
 
             {isVertical ? (
                 <div className="relative mx-auto border-gray-900 bg-gray-900 border-[14px] rounded-[3.5rem] h-[640px] w-[300px] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5),0_30px_60px_-30px_rgba(0,0,0,0.3)] ring-1 ring-white/10">
