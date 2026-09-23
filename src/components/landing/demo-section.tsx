@@ -146,7 +146,11 @@ function DemoVideoPlayer({ url }: { url: string }) {
         // showcase video is the one thing on this section that must never
         // be allowed to end up invisible, so it's no longer gated on it at
         // all — always rendered at full opacity/scale.
-        <div className="flex justify-center">
+        // w-full is load-bearing: the parent is `flex flex-col items-center`,
+        // which sizes children to their content width, and the 16:9 box's
+        // content is all absolutely positioned — without this it collapses
+        // to 0px wide (just its shadow showing as a dot).
+        <div className="flex justify-center w-full">
 
             {isVertical ? (
                 <div className="relative mx-auto border-gray-900 bg-gray-900 border-[14px] rounded-[3.5rem] h-[640px] w-[300px] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5),0_30px_60px_-30px_rgba(0,0,0,0.3)] ring-1 ring-white/10">
