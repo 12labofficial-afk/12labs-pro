@@ -85,10 +85,20 @@ export function ResolveDialoguesDialog({ open, onOpenChange, onGenerateAnyway, o
 
     const handleAiFix = async () => {
         if (!activeUid) return;
+        // 🔴 FIX: this used to send `current.dialogue` — the line's ORIGINAL
+        // flagged text — ignoring whatever the user had already typed into
+        // the textarea below. Any edit made before pressing AI-Fix was
+        // silently discarded, and for a line flagged for being empty, this
+        // meant AI-Fix always failed with "Empty dialogue line" no matter
+        // what the user typed, because it never looked at their input.
+        if (!text.trim()) {
+            toast({ variant: 'destructive', title: 'Nothing to Expand', description: 'Type at least a word or two first, then AI-Fix can expand it.' });
+            return;
+        }
         setIsAiFixing(true);
         try {
             const fullScript = generatedLines.map((l) => `${l.characterName}: ${l.dialogue}`).join('\n');
-            const result = await expandDialogueWithAiAction(activeUid, current.dialogue, current.characterName, fullScript);
+            const result = await expandDialogueWithAiAction(activeUid, text, current.characterName, fullScript);
             if (!result.success || !result.expandedText) throw new Error(result.error);
             setText(result.expandedText);
             if (result.newCredits !== undefined) setUser({ ...user, credits: result.newCredits } as any);
