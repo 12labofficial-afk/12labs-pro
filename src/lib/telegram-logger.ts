@@ -34,6 +34,13 @@ export async function sendToTelegram(
   const endpoint = photoUrl ? 'sendPhoto' : 'sendMessage';
   const url = `https://api.telegram.org/bot${token}/${endpoint}`;
 
+  // Error reports can quote a failed request URL (Next.js does this for
+  // fetches), which for Telegram contains the bot token itself. Strip any
+  // bot token before it goes out in a message.
+  message = message
+    .split(token).join('<redacted>')
+    .replace(/bot\d{6,}:[A-Za-z0-9_-]{20,}/g, 'bot<redacted>');
+
   try {
       await Promise.all(chatIdArray.map(async (chatId) => {
           const body: any = {

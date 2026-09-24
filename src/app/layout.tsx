@@ -14,7 +14,6 @@ import { ImpersonationBar } from '@/components/impersonation-bar';
 import { MainBottomNav } from '@/components/main-bottom-nav';
 import { initializeFirebase } from '@/firebase/server';
 import { Header } from '@/components/header';
-import { reportServerError } from '@/lib/report-error';
 
 const fontSans = Inter({
   subsets: ['latin'],
@@ -78,8 +77,11 @@ export async function generateMetadata(): Promise<Metadata> {
       console.warn("[MetadataNode] Firebase Database not initialized.");
     }
   } catch (e) {
-        reportServerError('src/app/layout.tsx:79', e);
-    console.warn("[MetadataNode] Using fallback logo due to sync timeout or network boundary.");
+    // Console only, deliberately not reportServerError: this runs during the
+    // static/ISR render of every page, and the Telegram fetch (no-store)
+    // made Next.js abort that render with "Page changed from static to
+    // dynamic at runtime". The fallback logo above is a fine outcome.
+    console.warn("[MetadataNode] Using fallback logo due to sync timeout or network boundary.", e);
   }
 
   return {
