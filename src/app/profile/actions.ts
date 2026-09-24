@@ -75,7 +75,8 @@ export async function getAccountSummaryAction(uid: string): Promise<AccountSumma
 export async function deleteMyAccountAction(
     uid: string,
     email: string,
-    keepProductsUnderPlatform: boolean
+    keepProductsUnderPlatform: boolean,
+    googleAccessToken?: string
 ): Promise<{ success: boolean; message: string }> {
     if (!uid) return { success: false, message: 'Missing user ID.' };
 
@@ -177,8 +178,29 @@ export async function deleteMyAccountAction(
             await auth.deleteUser(uid).catch((e: any) => { reportServerError('src/app/profile/actions.ts:deleteAuthUser', e); });
         }
 
+        // 5. Revoke the permission the user gave 12Labs on their Google
+        // account (the "see your name, email, profile picture" consent), so
+        // the app disappears from their Google account's connected apps and
+        // Google asks for consent again if they ever come back. Done from the
+        // server: Google's revoke endpoint doesn't allow browser (CORS) calls.
+        let googleAccessRevoked = false;
+        if (googleAccessToken) {
+            try {
+                const res = await fetch('https://oauth2.googleapis.com/revoke', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ token: googleAccessToken }).toString(),
+                    cache: 'no-store',
+                });
+                googleAccessRevoked = res.ok;
+                if (!res.ok) reportServerError('src/app/profile/actions.ts:googleRevoke', new Error(`Google revoke HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`));
+            } catch (e) {
+                reportServerError('src/app/profile/actions.ts:googleRevoke', e);
+            }
+        }
+
         await sendToTelegram(
-            `🗑️ <b>Account Deleted (Self-Service)</b>\n<b>UID:</b> ${escapeHtml(uid)}\n<b>Email:</b> ${escapeHtml(email)}\n<b>Was Seller:</b> ${isSeller ? 'Yes' : 'No'}${isSeller ? `\n<b>Products:</b> ${keepProductsUnderPlatform ? 'Kept under platform (Unknown Seller)' : 'Deleted'}` : ''}`
+            `🗑️ <b>Account Deleted (Self-Service)</b>\n<b>UID:</b> ${escapeHtml(uid)}\n<b>Email:</b> ${escapeHtml(email)}\n<b>Was Seller:</b> ${isSeller ? 'Yes' : 'No'}${isSeller ? `\n<b>Products:</b> ${keepProductsUnderPlatform ? 'Kept under platform (Unknown Seller)' : 'Deleted'}` : ''}\n<b>Google access:</b> ${googleAccessToken ? (googleAccessRevoked ? 'Revoked' : 'Revoke failed') : 'Not a Google login'}`
         ).catch((e: any) => { reportServerError('src/app/profile/actions.ts:telegram', e); return null; });
 
         return { success: true, message: 'Account deleted.' };

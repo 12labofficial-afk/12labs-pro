@@ -64,7 +64,7 @@ export async function createNewUserProfileOnServer(
     photoURL?: string | null;
   },
   deviceId: string
-): Promise<{ success: boolean; profile?: UserProfile; error?: string; accountDeleted?: boolean }> {
+): Promise<{ success: boolean; profile?: UserProfile; error?: string }> {
   if (!user.uid || !user.email) {
     return { success: false, error: 'User ID and email are required.' };
   }
@@ -107,18 +107,13 @@ export async function createNewUserProfileOnServer(
       return { success: true, profile: serializeProfile(profileWithPhoto) };
     }
     
-    // An email whose account was deleted (see deleteMyAccountAction) can't
-    // come back as a new account — admins included. Remove the auth user
-    // that sign-in just created so nothing is left half-registered.
+    // An email whose account was deleted (see deleteMyAccountAction) may sign
+    // up again, but without the free signup credits — admins included. This
+    // also covers signing up again on a different device, which the device
+    // check below can't see.
     const deletedDoc = await firestore.collection('deletedAccounts').doc(hashEmailForAbuseCheck(user.email)).get()
       .catch((e: any) => { reportServerError('src/app/actions.ts:deletedAccounts', e); return null; });
-    if (deletedDoc?.exists) {
-      if (adminAuth) {
-        await adminAuth.deleteUser(user.uid).catch((e: any) => { reportServerError('src/app/actions.ts:deleteReSignupAuth', e); return null; });
-      }
-      await sendToTelegram(`🚫 <b>DELETED ACCOUNT TRIED TO SIGN UP AGAIN</b>\n<b>Email:</b> ${escapeHtml(user.email)}\n<b>Result:</b> Refused — no account created.`).catch(() => null);
-      return { success: false, accountDeleted: true, error: 'This account has been deleted and cannot be used again.' };
-    }
+    const isRecreatedAccount = !!deletedDoc?.exists;
 
     const adminEmails = [
         'toonday378@gmail.com',
@@ -190,6 +185,11 @@ export async function createNewUserProfileOnServer(
       }
     }
 
+    if (isRecreatedAccount && initialCredits > 0) {
+      initialCredits = 0;
+      await sendToTelegram(`🚫 <b>RE-CREATED ACCOUNT — NO FREE CREDITS</b>\n<b>User:</b> ${escapeHtml(user.email)}\n<b>Reason:</b> This email's previous account was deleted.\n<b>Granted Credits:</b> 0 Credits`).catch(() => null);
+    }
+
     const newUserProfile: UserProfile = {
       uid: user.uid,
       email: user.email,
@@ -209,7 +209,11 @@ export async function createNewUserProfileOnServer(
     if (database) {
       await (database as any).ref(`creditHistory/${user.uid}`).push({
         amount: initialCredits,
-        reason: isAltAccount ? 'Blocked free credits (Multiple accounts on device)' : 'Initial credits',
+        reason: isAltAccount
+          ? 'Blocked free credits (Multiple accounts on device)'
+          : isRecreatedAccount
+            ? 'No free credits (Account re-created after deletion)'
+            : 'Initial credits',
         timestamp: now.toISOString(),
       });
     }

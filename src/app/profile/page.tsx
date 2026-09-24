@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-provider';
 import { initializeFirebase } from '@/firebase';
@@ -88,13 +88,18 @@ export default function ProfilePage() {
         setIsDeleting(false);
     };
 
+    const googleAccessTokenRef = useRef<string | null>(null);
+
     const handleReauth = async () => {
         const { auth } = initializeFirebase();
         if (!auth?.currentUser) return;
         try {
             if (isGoogleUser) {
                 const provider = new GoogleAuthProvider();
-                await reauthenticateWithPopup(auth.currentUser, provider);
+                const reauthResult = await reauthenticateWithPopup(auth.currentUser, provider);
+                // Kept only to revoke 12Labs' Google permission after the
+                // account is deleted (done server-side, see deleteMyAccountAction).
+                googleAccessTokenRef.current = GoogleAuthProvider.credentialFromResult(reauthResult)?.accessToken || null;
             } else {
                 if (!password) {
                     toast({ variant: 'destructive', title: 'Password Required' });
@@ -114,7 +119,7 @@ export default function ProfilePage() {
         if (!isReauthed || confirmText !== 'DELETE') return;
         setIsDeleting(true);
         try {
-            const result = await deleteMyAccountAction(user.uid, user.email || '', keepProducts === 'keep');
+            const result = await deleteMyAccountAction(user.uid, user.email || '', keepProducts === 'keep', googleAccessTokenRef.current || undefined);
             if (!result.success) throw new Error(result.message);
 
             const { auth } = initializeFirebase();
@@ -201,7 +206,7 @@ export default function ProfilePage() {
                         Delete Account
                     </CardTitle>
                     <CardDescription className="text-xs">
-                        Permanently deletes your login and personal data, as per your right to erasure under the DPDP Act. This cannot be undone, and this email can't be used to create a new account afterwards.
+                        Permanently deletes your login and personal data, as per your right to erasure under the DPDP Act. This cannot be undone, and 12Labs' access to your Google account is revoked too. Signing up again later with the same email won't include free signup credits.
                     </CardDescription>
                 </CardHeader>
                 <CardFooter className="p-6">
