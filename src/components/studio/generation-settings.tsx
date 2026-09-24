@@ -5,7 +5,7 @@ import { GenerationFeedback } from '@/components/studio/generation-feedback';
 import { useAuth } from '@/context/auth-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Zap, AlertTriangle, Sparkles, Clock, Coins, Play, Pause, FileText, Loader2, Cpu, CheckCircle, Download, Activity, ShieldCheck, History, Plus, Radio, X, Info } from 'lucide-react';
+import { Zap, AlertTriangle, Sparkles, Clock, Coins, Play, Pause, FileText, Loader2, Cpu, CheckCircle, Download, Activity, ShieldCheck, History, Plus, Radio, Info } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -279,14 +279,21 @@ export function GenerationSettings() {
                                     // job got stuck (0/0, no progress ever arriving) —
                                     // closing the app, reopening, and refreshing all
                                     // restore the exact same state from IndexedDB, so
-                                    // users reported being stuck here permanently.
-                                    // This only resets the LOCAL watch state; it never
-                                    // touches credits or the server-side job — if the
-                                    // job is actually still running, it finishes on its
-                                    // own and lands in /history regardless.
-                                    <Button onClick={clearStudioState} variant="ghost" className="w-full h-10 rounded-2xl font-black text-[10px] uppercase tracking-widest text-zinc-500 hover:text-foreground hover:bg-muted dark:hover:bg-white/5">
-                                        <X className="mr-1.5 h-3.5 w-3.5" /> Cancel & Start New
-                                    </Button>
+                                    // users reported being stuck here permanently. This
+                                    // only resets the LOCAL watch state — it never
+                                    // touches credits or the server-side job, so the
+                                    // wording deliberately avoids "Cancel": the job (if
+                                    // it's genuinely still running) keeps going on its
+                                    // own and lands in /history regardless of this
+                                    // screen being left.
+                                    <div className="space-y-2">
+                                        <p className="text-[9px] font-bold text-zinc-500 text-center leading-relaxed px-2">
+                                            Your production keeps running in the background even if you leave this screen — check My Projects in a few minutes to find it.
+                                        </p>
+                                        <Button onClick={clearStudioState} variant="ghost" className="w-full h-10 rounded-2xl font-black text-[10px] uppercase tracking-widest text-zinc-500 hover:text-foreground hover:bg-muted dark:hover:bg-white/5">
+                                            <Plus className="mr-1.5 h-3.5 w-3.5" /> Start a New Production
+                                        </Button>
+                                    </div>
                                 )}
                             </CardContent>
                         </Card>
