@@ -201,7 +201,7 @@ export default function ProfilePage() {
                         Delete Account
                     </CardTitle>
                     <CardDescription className="text-xs">
-                        Permanently deletes your login and personal data, as per your right to erasure under the DPDP Act. This cannot be undone.
+                        Permanently deletes your login and personal data, as per your right to erasure under the DPDP Act. This cannot be undone, and this email can't be used to create a new account afterwards.
                     </CardDescription>
                 </CardHeader>
                 <CardFooter className="p-6">

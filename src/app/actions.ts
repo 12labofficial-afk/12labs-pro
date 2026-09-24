@@ -64,7 +64,7 @@ export async function createNewUserProfileOnServer(
     photoURL?: string | null;
   },
   deviceId: string
-): Promise<{ success: boolean; profile?: UserProfile; error?: string }> {
+): Promise<{ success: boolean; profile?: UserProfile; error?: string; accountDeleted?: boolean }> {
   if (!user.uid || !user.email) {
     return { success: false, error: 'User ID and email are required.' };
   }
@@ -107,6 +107,19 @@ export async function createNewUserProfileOnServer(
       return { success: true, profile: serializeProfile(profileWithPhoto) };
     }
     
+    // An email whose account was deleted (see deleteMyAccountAction) can't
+    // come back as a new account — admins included. Remove the auth user
+    // that sign-in just created so nothing is left half-registered.
+    const deletedDoc = await firestore.collection('deletedAccounts').doc(hashEmailForAbuseCheck(user.email)).get()
+      .catch((e: any) => { reportServerError('src/app/actions.ts:deletedAccounts', e); return null; });
+    if (deletedDoc?.exists) {
+      if (adminAuth) {
+        await adminAuth.deleteUser(user.uid).catch((e: any) => { reportServerError('src/app/actions.ts:deleteReSignupAuth', e); return null; });
+      }
+      await sendToTelegram(`🚫 <b>DELETED ACCOUNT TRIED TO SIGN UP AGAIN</b>\n<b>Email:</b> ${escapeHtml(user.email)}\n<b>Result:</b> Refused — no account created.`).catch(() => null);
+      return { success: false, accountDeleted: true, error: 'This account has been deleted and cannot be used again.' };
+    }
+
     const adminEmails = [
         'toonday378@gmail.com',
         'yrathod18495@gmail.com',
@@ -122,10 +135,11 @@ export async function createNewUserProfileOnServer(
 
     const now = new Date();
     let isAltAccount = false;
-    let initialCredits = (!cleanDeviceId && !isAdmin) ? 0 : 2000;
+    // Admins are not exempt: free signup credits follow the same device rule for everyone.
+    let initialCredits = cleanDeviceId ? 2000 : 0;
 
     // --- MULTI-TIER DEVICE & HARDWARE FINGERPRINT CHECK ---
-    if (cleanDeviceId && !isAdmin) {
+    if (cleanDeviceId) {
       const deviceDocRef = firestore.collection('devices').doc(cleanDeviceId);
       const deviceDoc = await deviceDocRef.get();
 
@@ -176,20 +190,6 @@ export async function createNewUserProfileOnServer(
       }
     }
 
-    // Same email re-registering after a self-service account deletion: the
-    // device check above misses this when they sign up on a different
-    // device, so the deleted account's email hash is checked too.
-    let isRecreatedAccount = false;
-    if (!isAdmin && initialCredits > 0) {
-      const deletedDoc = await firestore.collection('deletedAccounts').doc(hashEmailForAbuseCheck(user.email)).get()
-        .catch((e: any) => { reportServerError('src/app/actions.ts:deletedAccounts', e); return null; });
-      if (deletedDoc?.exists) {
-        isRecreatedAccount = true;
-        initialCredits = 0;
-        await sendToTelegram(`🚫 <b>RE-CREATED ACCOUNT BLOCKED</b>\n<b>User:</b> ${escapeHtml(user.email)}\n<b>Reason:</b> This email's previous account was deleted after getting free credits.\n<b>Granted Credits:</b> 0 Credits`).catch(() => null);
-      }
-    }
-
     const newUserProfile: UserProfile = {
       uid: user.uid,
       email: user.email,
@@ -209,11 +209,7 @@ export async function createNewUserProfileOnServer(
     if (database) {
       await (database as any).ref(`creditHistory/${user.uid}`).push({
         amount: initialCredits,
-        reason: isAltAccount
-          ? 'Blocked free credits (Multiple accounts on device)'
-          : isRecreatedAccount
-            ? 'Blocked free credits (Account re-created after deletion)'
-            : 'Initial credits',
+        reason: isAltAccount ? 'Blocked free credits (Multiple accounts on device)' : 'Initial credits',
         timestamp: now.toISOString(),
       });
     }

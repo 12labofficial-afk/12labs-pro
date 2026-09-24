@@ -316,6 +316,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 photoURL: firebaseUser.photoURL
             }, deviceId);
 
+            if (creationResult?.accountDeleted) {
+                // This email's account was deleted; the server refused to
+                // recreate it and removed the new login. Sign out for good.
+                localStorage.removeItem(CACHE_KEY);
+                setUser(null);
+                await signOut(auth).catch(() => null);
+                toast({ variant: 'destructive', title: 'Account Deleted', description: creationResult.error || 'This account has been deleted and cannot be used again.' });
+                router.push('/login');
+                return;
+            }
             if (creationResult?.success && creationResult?.profile) {
                 profile = creationResult.profile;
             }
