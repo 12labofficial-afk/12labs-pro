@@ -274,6 +274,20 @@ export function GenerationSettings() {
                                         <span className="text-[7px] font-black uppercase text-zinc-600 mt-1 tracking-tighter">TOTAL</span>
                                     </div>
                                 </div>
+                                {!isHqReady && (
+                                    // 🔴 FIX: there was no way out of this screen if a
+                                    // job got stuck (0/0, no progress ever arriving) —
+                                    // closing the app, reopening, and refreshing all
+                                    // restore the exact same state from IndexedDB, so
+                                    // users reported being stuck here permanently.
+                                    // This only resets the LOCAL watch state; it never
+                                    // touches credits or the server-side job — if the
+                                    // job is actually still running, it finishes on its
+                                    // own and lands in /history regardless.
+                                    <Button onClick={clearStudioState} variant="ghost" className="w-full h-10 rounded-2xl font-black text-[10px] uppercase tracking-widest text-zinc-500 hover:text-foreground hover:bg-muted dark:hover:bg-white/5">
+                                        <X className="mr-1.5 h-3.5 w-3.5" /> Cancel & Start New
+                                    </Button>
+                                )}
                             </CardContent>
                         </Card>
                     )}
