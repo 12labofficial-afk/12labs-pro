@@ -51,6 +51,10 @@ export default function ProfilePage() {
     const [confirmText, setConfirmText] = useState('');
     const [isReauthed, setIsReauthed] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    // Must stay above the early `return` below: after the account is deleted
+    // `user` becomes null and that return runs, and a hook declared after it
+    // makes React crash with error #300 (fewer hooks than the last render).
+    const googleAccessTokenRef = useRef<string | null>(null);
 
     const isGoogleUser = user?.providerData?.[0]?.providerId === 'google.com';
 
@@ -87,8 +91,6 @@ export default function ProfilePage() {
         setIsReauthed(false);
         setIsDeleting(false);
     };
-
-    const googleAccessTokenRef = useRef<string | null>(null);
 
     const handleReauth = async () => {
         const { auth } = initializeFirebase();
