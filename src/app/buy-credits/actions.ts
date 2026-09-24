@@ -1,6 +1,7 @@
 'use server';
 
 import Razorpay from 'razorpay';
+import crypto from 'crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { initializeFirebase } from '@/firebase/server';
 import { sendToTelegram } from '@/lib/telegram-logger';
@@ -8,6 +9,7 @@ import { logSummaryEvent } from '@/lib/summary-logger';
 import { applyPromoCode } from './promo-actions';
 import { plans } from '@/lib/plans';
 import { reportServerError } from '@/lib/report-error';
+import { handleCreditPurchase } from '@/lib/credit-purchase';
 
 interface RazorpayOrderOutput {
   id: string;
@@ -410,4 +412,70 @@ export async function cancelSubscriptionAction(userId: string): Promise<{ succes
     console.error('Error in cancelSubscriptionAction:', err);
     return { success: false, error: err.message || 'An unknown error occurred during cancellation.' };
   }
+}
+
+/**
+ * Called by the browser right after Razorpay Checkout succeeds, with the
+ * payment_id / order_id / signature Checkout hands back. Credits used to be
+ * granted ONLY by the webhook, so any webhook problem (wrong URL or secret in
+ * the Razorpay dashboard, event not subscribed, auto-capture off) meant the
+ * user paid and got nothing. This grants on the spot instead; the webhook
+ * still runs as a backup, and processedPayments keeps the two from ever
+ * double-crediting.
+ *
+ * Nothing from the browser is trusted beyond the IDs: the signature is
+ * checked with the key secret, and the amount/status/notes (incl. userId and
+ * credits) are re-read from Razorpay's own API.
+ */
+export async function confirmRazorpayCreditPayment(params: {
+    razorpay_payment_id: string;
+    razorpay_order_id: string;
+    razorpay_signature: string;
+}): Promise<{ success: boolean; error?: string }> {
+    const { razorpay_payment_id: paymentId, razorpay_order_id: orderId, razorpay_signature: signature } = params || ({} as any);
+    try {
+        if (!paymentId || !orderId || !signature) {
+            return { success: false, error: 'Missing payment details.' };
+        }
+
+        const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+        const keySecret = process.env.RAZORPAY_KEY_SECRET;
+        if (!keyId || !keySecret) throw new Error('Razorpay keys are not configured on the server.');
+
+        const expected = crypto.createHmac('sha256', keySecret).update(`${orderId}|${paymentId}`).digest('hex');
+        const expectedBuf = Buffer.from(expected, 'utf8');
+        const sigBuf = Buffer.from(String(signature), 'utf8');
+        if (expectedBuf.length !== sigBuf.length || !crypto.timingSafeEqual(expectedBuf, sigBuf)) {
+            return { success: false, error: 'Payment signature could not be verified.' };
+        }
+
+        const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+        let payment: any = await razorpay.payments.fetch(paymentId);
+        if (payment.order_id !== orderId) {
+            return { success: false, error: 'Payment does not belong to this order.' };
+        }
+
+        // With auto-capture off in the Razorpay dashboard a successful payment
+        // stays "authorized" and is auto-refunded after a few days, and no
+        // payment.captured / order.paid webhook is ever sent. Capture it here.
+        if (payment.status === 'authorized') {
+            payment = await razorpay.payments.capture(paymentId, payment.amount, payment.currency);
+        }
+        if (payment.status !== 'captured') {
+            return { success: false, error: `Payment is ${payment.status}, not completed.` };
+        }
+
+        const order: any = await razorpay.orders.fetch(orderId);
+        const notes = { ...(order?.notes || {}), ...(payment?.notes || {}) };
+        if (notes.type === 'music_track_purchase' || notes.type === 'product_order' || notes.pendingOrderId) {
+            return { success: false, error: 'Not a credit purchase.' };
+        }
+
+        const { firestore, database } = initializeFirebase();
+        await handleCreditPurchase(firestore, database, payment, order);
+        return { success: true };
+    } catch (error: any) {
+        reportServerError('src/app/buy-credits/actions.ts#confirmPayment', error, { paymentId: paymentId || 'unknown', orderId: orderId || 'unknown' });
+        return { success: false, error: error?.error?.description || error.message || 'Could not confirm payment.' };
+    }
 }

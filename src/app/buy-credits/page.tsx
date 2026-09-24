@@ -9,7 +9,7 @@ import { cn, getDisplayUrl, formatCredits } from '@/lib/utils';
 import { useAuth } from '@/context/auth-provider';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { handlePurchaseAction, cancelSubscriptionAction } from './actions';
+import { handlePurchaseAction, cancelSubscriptionAction, confirmRazorpayCreditPayment } from './actions';
 import { applyPromoCode } from './promo-actions';
 import { Input } from '@/components/ui/input';
 import { initializeFirebase } from '@/firebase';
@@ -282,11 +282,24 @@ export default function BuyCreditsPage() {
             name: '12Labs AI Studio',
             image: 'https://res.cloudinary.com/dulnj3uns/image/upload/v1779601872/12labs/z8hs6j2vmghbigabi5q1.png',
             description: `${plan.name} - ${plan.credits.toLocaleString()} Credits`,
-            handler: function (response: any) {
-                toast({ 
-                    title: 'Payment Secured!', 
-                    description: 'Your credits are being synchronized. This might take a few moments.' 
-                });
+            handler: async function (response: any) {
+                // Subscriptions return razorpay_subscription_id instead of an
+                // order id; those are still granted by the webhook.
+                if (response?.razorpay_order_id && response?.razorpay_payment_id) {
+                    const confirmed = await confirmRazorpayCreditPayment({
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_signature: response.razorpay_signature,
+                    }).catch((e: any) => ({ success: false, error: e?.message }));
+                    if (confirmed.success) {
+                        toast({ title: 'Payment Successful!', description: 'Your credits have been added.' });
+                    } else {
+                        reportClientError('src/app/buy-credits/page.tsx:confirm', new Error(confirmed.error || 'confirm failed'), { paymentId: response.razorpay_payment_id });
+                        toast({ title: 'Payment Received', description: 'Your credits are being synchronized. If they do not appear in a few minutes, contact support with your payment ID.' });
+                    }
+                } else {
+                    toast({ title: 'Payment Secured!', description: 'Your credits are being synchronized. This might take a few moments.' });
+                }
                 setLoadingPlan(null);
             },
             prefill: { name: user.name, email: user.email },

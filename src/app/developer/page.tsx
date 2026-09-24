@@ -48,7 +48,7 @@ import {
   Power,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { handleCustomTopupAction } from '@/app/buy-credits/actions';
+import { handleCustomTopupAction, confirmRazorpayCreditPayment } from '@/app/buy-credits/actions';
 import {
   Dialog,
   DialogContent,
@@ -131,11 +131,18 @@ export default function DeveloperDashboardPage() {
             name: '12Labs AI Studio',
             image: 'https://res.cloudinary.com/dulnj3uns/image/upload/v1779601872/12labs/z8hs6j2vmghbigabi5q1.png',
             description: `API Credits Top-up - ${result.breakdown.totalCredits.toLocaleString()} Credits`,
-            handler: function () {
-                toast({
-                    title: 'Payment Secured!',
-                    description: 'Your API credits are being synchronized. This might take a few moments.'
-                });
+            handler: async function (response: any) {
+                const confirmed = await confirmRazorpayCreditPayment({
+                    razorpay_payment_id: response?.razorpay_payment_id,
+                    razorpay_order_id: response?.razorpay_order_id,
+                    razorpay_signature: response?.razorpay_signature,
+                }).catch((e: any) => ({ success: false, error: e?.message }));
+                if (confirmed.success) {
+                    toast({ title: 'Payment Successful!', description: 'Your API credits have been added.' });
+                } else {
+                    reportClientError('src/app/developer/page.tsx:confirm', new Error(confirmed.error || 'confirm failed'), { paymentId: response?.razorpay_payment_id });
+                    toast({ title: 'Payment Received', description: 'Your API credits are being synchronized. If they do not appear in a few minutes, contact support with your payment ID.' });
+                }
                 setIsToppingUp(false);
             },
             prefill: { name: user.name, email: user.email },
