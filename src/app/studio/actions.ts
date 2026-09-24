@@ -343,7 +343,7 @@ export async function processHighQualityGenerationAndDeductCredits(
 export async function regenerateLineWithCreditsAction(userId: string, text: string, voiceId: string): Promise<{ success: boolean; audioDataUri?: string; error?: string; newCredits?: number }> {
     const { firestore, database } = initializeFirebase();
     const userRef = firestore.collection('users').doc(userId);
-    const cost = Math.ceil(text.length * 1.2);
+    const cost = Math.ceil(text.length * await getEngineRate('gemini'));
     
     try {
         if (!R2_BUCKET) throw new Error("R2 Node: Bucket ID missing.");
@@ -462,7 +462,7 @@ export async function createCharacterVoiceReplacementJobAction({
 
         // Calculate character length & credits
         const totalChars = affectedIndices.reduce((acc, item) => acc + (dialogues[item.idx].line || '').length, 0);
-        const cost = Math.max(1, Math.ceil(totalChars * 1.2));
+        const cost = Math.max(1, Math.ceil(totalChars * await getEngineRate('gemini')));
 
         // Deduct credits
         const newBalance = await firestore.runTransaction(async (transaction: any) => {
