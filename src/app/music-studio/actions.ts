@@ -3,7 +3,7 @@
 import { initializeFirebase } from '@/firebase/server';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { logSummaryEvent } from '@/lib/summary-logger';
-import { escapeHtml } from '@/lib/utils';
+import { escapeHtml, formatCredits } from '@/lib/utils';
 import type { UserProfile } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
@@ -60,7 +60,7 @@ export async function submitMusicProjectRequestAction(input: {
             const userData = userDoc.data() as UserProfile;
             const currentCredits = userData.credits || 0;
             if (currentCredits < cost) {
-                throw new Error(`Insufficient credits (${currentCredits.toLocaleString()}/${cost.toLocaleString()}).`);
+                throw new Error(`Insufficient credits (${formatCredits(currentCredits)}/${cost.toLocaleString()}).`);
             }
 
             const updatedBalance = Math.max(0, currentCredits - cost);

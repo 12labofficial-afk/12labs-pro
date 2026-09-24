@@ -21,7 +21,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { voices } from '@/lib/voices';
-import { cn } from '@/lib/utils';
+import { cn, formatCredits } from '@/lib/utils';
 import {
   Key,
   Terminal,
@@ -566,7 +566,7 @@ export default function DeveloperDashboardPage() {
                 <p className="text-[10px] font-bold uppercase tracking-wider">Account Live Credits</p>
               </div>
               <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 leading-tight">
-                {currentAccountCredits.toLocaleString()}
+                {formatCredits(currentAccountCredits)}
               </p>
             </div>
             <div className="space-y-1.5 rounded-2xl border border-neutral-200/70 dark:border-neutral-800 bg-white/60 dark:bg-neutral-950/30 p-3.5">
@@ -634,7 +634,7 @@ export default function DeveloperDashboardPage() {
                   <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3.5 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
                     <ShieldCheck className="w-4.5 h-4.5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
                     <span className="leading-relaxed">
-                      Your generated API key will share your account live credit balance (<strong>{currentAccountCredits.toLocaleString()} Credits</strong>).
+                      Your generated API key will share your account live credit balance (<strong>{formatCredits(currentAccountCredits)} Credits</strong>).
                     </span>
                   </div>
                 </div>
@@ -827,7 +827,7 @@ export default function DeveloperDashboardPage() {
                           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                             <Coins className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                             <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                              {currentAccountCredits.toLocaleString()}
+                              {formatCredits(currentAccountCredits)}
                             </span>
                           </div>
 

@@ -1,6 +1,7 @@
 
 'use server';
 
+import { formatCredits } from '@/lib/utils';
 import { initializeFirebase } from '@/firebase/server';
 import { FieldValue, Transaction } from 'firebase-admin/firestore';
 import { sendToTelegram } from '@/lib/telegram-logger';
@@ -96,7 +97,7 @@ export async function manuallyApprovePayment(
 
     // Send Telegram log after successful transaction
     await sendToTelegram(
-      `✅ *Payment Manually Approved by Admin*\n*Payment ID:* ${paymentId}\n*New Balance:* ${newCredits.toLocaleString()}`
+      `✅ *Payment Manually Approved by Admin*\n*Payment ID:* ${paymentId}\n*New Balance:* ${formatCredits(newCredits)}`
     );
 
     revalidatePath('/admin/payments');

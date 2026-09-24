@@ -6,7 +6,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import type { UserProfile, Product, SellerProfile } from '@/lib/types';
 import { FieldValue } from 'firebase-admin/firestore';
 import { logSummaryEvent } from '@/lib/summary-logger';
-import { escapeHtml } from '@/lib/utils';
+import { escapeHtml, formatCredits } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
 
 // This will be passed from the client
@@ -240,7 +240,7 @@ export async function processCreditOrder(
             
             const currentCredits = userDoc.data()?.credits || 0;
             if (currentCredits < totalCreditCost) {
-                throw new Error(`Insufficient credits. You need ${totalCreditCost.toLocaleString()}, but have ${currentCredits.toLocaleString()}.`);
+                throw new Error(`Insufficient credits. You need ${totalCreditCost.toLocaleString()}, but have ${formatCredits(currentCredits)}.`);
             }
 
             updatedBalance = Math.max(0, currentCredits - totalCreditCost);
@@ -314,7 +314,7 @@ export async function processCreditOrder(
             `💳 <b>Paid via Credits:</b> 💎 ${totalCreditCost.toLocaleString()} Credits\n\n` +
             telegramLogLines.join('\n') +
             `🆔 <b>Order:</b> <code>${lastOrderId}</code>\n` +
-            `📉 <b>New Balance:</b> ${updatedBalance.toLocaleString()}`;
+            `📉 <b>New Balance:</b> ${formatCredits(updatedBalance)}`;
 
         await sendToTelegram(finalTelegramMessage);
 

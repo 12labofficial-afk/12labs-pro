@@ -8,7 +8,7 @@ import type { UserProfile, UserSubscription, CreditHistoryEntry, Order } from '@
 import type admin from 'firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { sendToTelegram } from '@/lib/telegram-logger';
-import { escapeHtml } from '@/lib/utils';
+import { escapeHtml, formatCredits } from '@/lib/utils';
 import { FieldValue } from 'firebase-admin/firestore';
 import { plans } from '@/lib/plans';
 import { syncUserSubscriptionInstallments, syncAllPendingSubscriptions } from '@/app/actions';
@@ -192,7 +192,7 @@ export async function adjustUserCredits(
                        `<b>Admin:</b> ${escapeHtml(adminEmail)}\n` +
                        `<b>User:</b> ${escapeHtml(userEmail)}\n` +
                        `<b>Change:</b> <code>${sign}${difference.toLocaleString()}</code>\n` +
-                       `<b>New Balance:</b> <code>${newCreditAmount.toLocaleString()}</code>\n` +
+                       `<b>New Balance:</b> <code>${formatCredits(newCreditAmount)}</code>\n` +
                        `<b>Reason:</b> <i>${escapeHtml(reason || 'N/A')}</i>`;
 
     await sendToTelegram(logMessage, undefined, { targetChatId: targetUserId });

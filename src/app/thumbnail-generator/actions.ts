@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import { logSummaryEvent } from '@/lib/summary-logger';
-import { getISTDateString, escapeHtml } from '@/lib/utils';
+import { getISTDateString, escapeHtml, formatCredits } from '@/lib/utils';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import type { UserProfile } from '@/lib/types';
 import { reportServerError } from '@/lib/report-error';
@@ -105,7 +105,7 @@ export async function submitThumbnailRequestAction(
       const currentCredits = freshUserDoc.data()?.credits || 0;
 
       if (currentCredits < cost) {
-        throw new Error(`Insufficient credits. Required: ${cost}, Available: ${currentCredits}. Please top up your balance.`);
+        throw new Error(`Insufficient credits. Required: ${cost}, Available: ${formatCredits(currentCredits)}. Please top up your balance.`);
       }
 
       const updatedBalance = Math.max(0, currentCredits - cost);

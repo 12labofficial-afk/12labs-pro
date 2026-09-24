@@ -455,7 +455,11 @@ export function formatCredits(value: number | null | undefined): string {
   const n = Number(value);
   if (!Number.isFinite(n)) return '0';
 
-  // Floor rather than round: never show someone more credits than they can
-  // actually spend.
-  return Math.floor(n).toLocaleString('en-US');
+  // Balances are fractional (per-character rates), and float math leaves
+  // tails like 15179.660000000003. Show at most 2 decimals, truncated rather
+  // than rounded so we never show more credits than can actually be spent.
+  // The 1e-6 nudge keeps values like 0.29 (stored as 0.28999…) from
+  // truncating down to 0.28.
+  const truncated = Math.trunc(n * 100 + Math.sign(n) * 1e-6) / 100;
+  return truncated.toLocaleString('en-US', { maximumFractionDigits: 2 });
 }

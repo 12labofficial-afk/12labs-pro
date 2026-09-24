@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { UserProfile, CreditHistoryEntry } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { cn, formatCredits } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { format } from 'date-fns';
 import { 
@@ -307,7 +307,7 @@ export function CreditHistoryDialog({ user, open, onOpenChange, showBuyButton = 
               <div>
                   <DialogTitle className="text-2xl font-black uppercase tracking-tighter">Production & Plans Ledger</DialogTitle>
                   <DialogDescription className="font-black text-[10px] uppercase tracking-[0.2em] text-primary/60 mt-1">
-                    Balance: {user.credits.toLocaleString()} Credits
+                    Balance: {formatCredits(user.credits)} Credits
                   </DialogDescription>
               </div>
           </div>

@@ -11,7 +11,7 @@ import { Loader2, Wand2, FileUp, Trash2, Copy, Check, FilePenLine, RotateCcw, Za
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import mammoth from 'mammoth';
-import { cn } from '@/lib/utils';
+import { cn, formatCredits } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScriptGuidelinesDialog } from './script-guidelines-dialog';
 
@@ -375,7 +375,7 @@ export function ScriptEditor() {
                                     <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500 shrink-0" />
                                     <div className="flex items-baseline gap-1 font-mono whitespace-nowrap">
                                         <span className="text-[11px] sm:text-xs font-black text-foreground">
-                                            {userCredits.toLocaleString()}
+                                            {formatCredits(userCredits)}
                                         </span>
                                         <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
                                             Credits

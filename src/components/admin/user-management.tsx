@@ -58,7 +58,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { cn, generateAvatarColor, getDisplayUrl, shortVoiceLabel } from '@/lib/utils';
+import { cn, generateAvatarColor, getDisplayUrl, shortVoiceLabel, formatCredits } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -1128,7 +1128,7 @@ function UserUnifiedViewDialog({
                                             </div>
                                             <div className="flex items-center gap-2 text-3xl font-black tracking-tighter text-primary">
                                                 <Coins className="h-7 w-7 shrink-0" />
-                                                <span className="truncate">{user.credits.toLocaleString()}</span>
+                                                <span className="truncate">{formatCredits(user.credits)}</span>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border/60">
@@ -1376,7 +1376,7 @@ function UserUnifiedViewDialog({
                                                             <div className="bg-muted/40 p-3.5 rounded-xl border border-border/60">
                                                                 <span className="text-[10px] font-black text-muted-foreground uppercase block tracking-wider mb-1">Vault Balance</span>
                                                                 <span className="font-black text-sm uppercase tracking-tight text-emerald-600 dark:text-emerald-400">
-                                                                    {user.credits.toLocaleString()} Credits
+                                                                    {formatCredits(user.credits)} Credits
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -1504,7 +1504,7 @@ function UserUnifiedViewDialog({
                                                     <div>
                                                         <h4 className="font-black uppercase text-sm text-foreground">Vault Credit Circulation</h4>
                                                         <p className="text-xs font-semibold text-muted-foreground mt-0.5">
-                                                            Current balance: <span className="text-emerald-600 dark:text-emerald-400 font-black">{user.credits.toLocaleString()} credits</span>.
+                                                            Current balance: <span className="text-emerald-600 dark:text-emerald-400 font-black">{formatCredits(user.credits)} credits</span>.
                                                         </p>
                                                     </div>
                                                 </div>
@@ -1947,7 +1947,7 @@ export function UserManagement() {
                                         </div>
                                     </div>
                                 </TableCell>
-                                <TableCell>{profile ? (<div className="flex items-center gap-2"><Coins className="h-3.5 w-3.5 text-primary" /><span className="text-base font-black tracking-tight">{profile.credits.toLocaleString()}</span></div>) : <Badge variant="outline" className="opacity-30">NO PROFILE</Badge>}</TableCell>
+                                <TableCell>{profile ? (<div className="flex items-center gap-2"><Coins className="h-3.5 w-3.5 text-primary" /><span className="text-base font-black tracking-tight">{formatCredits(profile.credits)}</span></div>) : <Badge variant="outline" className="opacity-30">NO PROFILE</Badge>}</TableCell>
                                 <TableCell><div className="flex wrap gap-1">{profile?.role === 'admin' && <Badge className="bg-primary/10 text-primary border-none text-[8px] h-5 font-black uppercase">ROOT</Badge>}{profile?.isSeller && <Badge className="bg-orange-100 text-orange-700 border-none text-[8px] h-5 font-black uppercase">MERCHANT</Badge>}</div></TableCell>
                                 <TableCell><LastSeenCell uid={user.uid} /></TableCell>
                                 <TableCell className="pr-8 text-right">
@@ -2001,7 +2001,7 @@ export function UserManagement() {
                   <div className="grid grid-cols-2 gap-4">
                       <div className="p-4 rounded-2xl bg-muted/30 border border-primary/5">
                           <p className="text-[9px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Current Balance</p>
-                          <p className="text-xl font-black font-mono">{selectedProfile?.credits.toLocaleString()}</p>
+                          <p className="text-xl font-black font-mono">{formatCredits(selectedProfile?.credits)}</p>
                       </div>
                       <div className={cn(
                           "p-4 rounded-2xl border transition-all duration-500",

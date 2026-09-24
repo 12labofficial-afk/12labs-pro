@@ -5,7 +5,7 @@
 
 import { ai, extractJson } from '@/ai/genkit';
 import { sendToTelegram } from '@/lib/telegram-logger';
-import { escapeHtml, getISTDateString, checkIsPaidUser } from '@/lib/utils';
+import { escapeHtml, getISTDateString, checkIsPaidUser, formatCredits } from '@/lib/utils';
 import { initializeFirebase } from '@/firebase/server';
 import "server-only";
 import { reportServerError } from '@/lib/report-error';
@@ -283,7 +283,7 @@ export async function analyzeScriptStudio(input: { script: string, userId: strin
   const userCredits = Number(userData.credits || 0);
 
   if (!isSponsorOrAdmin && userCredits < scriptCharCount) {
-    throw new Error(`Not Enough Credits. Your script has ${scriptCharCount.toLocaleString()} characters, but you only have ${userCredits.toLocaleString()} credits.`);
+    throw new Error(`Not Enough Credits. Your script has ${scriptCharCount.toLocaleString()} characters, but you only have ${formatCredits(userCredits)} credits.`);
   }
 
   // 3. Check Daily Script Analysis Limit (Free: 2/day, Paid: 5/day). Past
@@ -303,14 +303,14 @@ export async function analyzeScriptStudio(input: { script: string, userId: strin
 
   if (overDailyLimit) {
     if (userCredits < OVER_LIMIT_ANALYSIS_COST) {
-      throw new Error(`Daily script analysis limit reached (${currentDailyCount}/${maxDailyLimit} used today). Further analyses cost ${OVER_LIMIT_ANALYSIS_COST} credits each — you have ${userCredits.toLocaleString()}.`);
+      throw new Error(`Daily script analysis limit reached (${currentDailyCount}/${maxDailyLimit} used today). Further analyses cost ${OVER_LIMIT_ANALYSIS_COST} credits each — you have ${formatCredits(userCredits)}.`);
     }
     try {
       await firestore.runTransaction(async (transaction: any) => {
         const freshDoc = await transaction.get(userRef);
         const freshCredits = Number(freshDoc.data()?.credits || 0);
         if (freshCredits < OVER_LIMIT_ANALYSIS_COST) {
-          throw new Error(`Daily script analysis limit reached (${currentDailyCount}/${maxDailyLimit} used today). Further analyses cost ${OVER_LIMIT_ANALYSIS_COST} credits each — you have ${freshCredits.toLocaleString()}.`);
+          throw new Error(`Daily script analysis limit reached (${currentDailyCount}/${maxDailyLimit} used today). Further analyses cost ${OVER_LIMIT_ANALYSIS_COST} credits each — you have ${formatCredits(freshCredits)}.`);
         }
         transaction.update(userRef, { credits: freshCredits - OVER_LIMIT_ANALYSIS_COST });
       });

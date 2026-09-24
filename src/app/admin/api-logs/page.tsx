@@ -1,5 +1,6 @@
 'use client';
 
+import { formatCredits } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Activity, ArrowRight, Clock3, Coins, RefreshCw, UserRound } from 'lucide-react';
@@ -100,7 +101,7 @@ export default function AdminApiLogsPage() {
                   <div className="flex flex-wrap items-center gap-5 text-sm">
                     <span className="flex items-center gap-1.5"><Coins className="h-4 w-4 text-emerald-500" />-{Number(log.cost || 0).toLocaleString()}</span>
                     <span className="flex items-center gap-1.5 text-muted-foreground"><Clock3 className="h-4 w-4" />{Number(log.latencyMs || 0)}ms</span>
-                    <span className="text-xs text-muted-foreground">Balance: <b className="text-foreground">{Number(log.remainingCredits || 0).toLocaleString()}</b></span>
+                    <span className="text-xs text-muted-foreground">Balance: <b className="text-foreground">{formatCredits(log.remainingCredits)}</b></span>
                   </div>
                 </div>
               ))}
