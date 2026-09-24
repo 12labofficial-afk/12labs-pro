@@ -283,7 +283,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           profile = await getUserProfileFromServer(firebaseUser.uid, deviceId);
         } catch (serverErr) {
-        reportClientError('src/context/auth-provider.tsx:getUserProfileFromServer', serverErr);
+          // Non-fatal by design: the client-side Firestore fallback right
+          // below covers this, so a flaky network blip here never blocks
+          // login. Not reported to Telegram — nothing to act on.
           console.warn("Server profile sync non-fatal error:", serverErr);
         }
         
