@@ -5,6 +5,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
 import { deleteProductAction } from '@/app/seller/products/actions';
+import { hashEmailForAbuseCheck } from '@/lib/email-hash';
 
 export interface AccountSummary {
     projectCount: number;
@@ -125,6 +126,18 @@ export async function deleteMyAccountAction(
                 profileImageUrl: '',
                 payoutDetails: null,
             }).catch((e: any) => { reportServerError('src/app/profile/actions.ts:sellerProfile', e); return null; });
+        }
+
+        // 2a. Remember (as a one-way hash only) that this email already had
+        // its free signup credits, so re-creating the account with the same
+        // email — even on another device — doesn't grant them again. Must be
+        // written before the email is anonymized below.
+        const originalEmail = profile?.email || email;
+        if (originalEmail) {
+            await firestore.collection('deletedAccounts').doc(hashEmailForAbuseCheck(originalEmail)).set({
+                deletedAt: new Date().toISOString(),
+                uid,
+            }, { merge: true }).catch((e: any) => { reportServerError('src/app/profile/actions.ts:deletedAccounts', e); return null; });
         }
 
         // 2. Anonymize the account record in place — see the function

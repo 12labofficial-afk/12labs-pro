@@ -10,6 +10,7 @@ import { escapeHtml } from '@/lib/utils';
 import crypto from 'crypto';
 import { reportServerError } from '@/lib/report-error';
 import { plans } from '@/lib/plans';
+import { hashEmailForAbuseCheck } from '@/lib/email-hash';
 
 /**
  * Recursively converts Firestore Timestamps to ISO strings to ensure
@@ -175,6 +176,20 @@ export async function createNewUserProfileOnServer(
       }
     }
 
+    // Same email re-registering after a self-service account deletion: the
+    // device check above misses this when they sign up on a different
+    // device, so the deleted account's email hash is checked too.
+    let isRecreatedAccount = false;
+    if (!isAdmin && initialCredits > 0) {
+      const deletedDoc = await firestore.collection('deletedAccounts').doc(hashEmailForAbuseCheck(user.email)).get()
+        .catch((e: any) => { reportServerError('src/app/actions.ts:deletedAccounts', e); return null; });
+      if (deletedDoc?.exists) {
+        isRecreatedAccount = true;
+        initialCredits = 0;
+        await sendToTelegram(`🚫 <b>RE-CREATED ACCOUNT BLOCKED</b>\n<b>User:</b> ${escapeHtml(user.email)}\n<b>Reason:</b> This email's previous account was deleted after getting free credits.\n<b>Granted Credits:</b> 0 Credits`).catch(() => null);
+      }
+    }
+
     const newUserProfile: UserProfile = {
       uid: user.uid,
       email: user.email,
@@ -194,7 +209,11 @@ export async function createNewUserProfileOnServer(
     if (database) {
       await (database as any).ref(`creditHistory/${user.uid}`).push({
         amount: initialCredits,
-        reason: isAltAccount ? 'Blocked free credits (Multiple accounts on device)' : 'Initial credits',
+        reason: isAltAccount
+          ? 'Blocked free credits (Multiple accounts on device)'
+          : isRecreatedAccount
+            ? 'Blocked free credits (Account re-created after deletion)'
+            : 'Initial credits',
         timestamp: now.toISOString(),
       });
     }
