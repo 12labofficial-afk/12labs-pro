@@ -424,11 +424,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signInWithPopup(auth, provider);
     } catch (error: any) {
       // 🔇 The user closing the popup themselves (or a second click
-      // cancelling a still-open one) isn't a failure — it's an intentional
+      // cancelling a still-open one), or explicitly denying permission on
+      // Google's own consent screen, isn't a failure — it's an intentional
       // cancellation. Reporting it as an error and showing a destructive
       // toast was pure noise on every "changed my mind" / accidental
-      // double-click.
-      const isUserCancelled = error?.code === 'auth/popup-closed-by-user' || error?.code === 'auth/cancelled-popup-request';
+      // double-click / "no thanks" on the permission prompt.
+      const isUserCancelled = error?.code === 'auth/popup-closed-by-user' || error?.code === 'auth/cancelled-popup-request' || error?.code === 'auth/user-cancelled';
       if (!isUserCancelled) {
         reportClientError('src/context/auth-provider.tsx:399', error);
         console.error("Google Login Error:", error);
