@@ -771,6 +771,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (!checkPremiumAccess()) { showPremiumBlock(); return; }
     if (options?.forceLocalFinalize) { await finalizeMaster(); return; }
     if (isPaused) { togglePause(); return; }
+    // 🔴 FIX: submitting with zero dialogue lines (e.g. a race with a still
+    // re-rendering line list, or every line having been deleted) reached the
+    // server, charged credits, and queued a job with total_dialogues: 0 —
+    // the worker has nothing to synthesize, so it never advances and the
+    // progress screen shows "…/… Signals" and sits at 0% forever, with no
+    // way to tell whether anything was even charged for it. Caught here
+    // before any credits are touched.
+    if (generationMode === 'high-quality' && generatedLines.length === 0) {
+        toast({ variant: 'destructive', title: 'Nothing to Generate', description: 'There are no dialogue lines in this script. Add at least one before starting.' });
+        return;
+    }
 
     submissionLock.current = true;
     const clientTimestamp = new Date().toISOString();

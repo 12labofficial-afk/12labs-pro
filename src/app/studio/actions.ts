@@ -241,9 +241,19 @@ export async function processHighQualityGenerationAndDeductCredits(
   // picked for that engine, so nothing else about the payload changes.
   voiceEngine: 'gemini' | 'elevenlabs' = 'gemini'
 ): Promise<{ success: boolean; newCredits?: number; projectId?: string; error?: string }> {
+    // 🔴 FIX: a submission with an empty (or missing) dialogues array used
+    // to sail straight through — credits deducted, a Firestore project doc
+    // created, and a job queued with total_dialogues: 0. Nothing exists for
+    // the worker to synthesize, so the job never advances: the frontend
+    // shows "…/… Signals" and sits at 0% forever, with no way to tell it
+    // was ever charged for. Rejected here, before the credit transaction.
+    if (!Array.isArray(syncData?.dialogues) || syncData.dialogues.length === 0) {
+        return { success: false, error: 'No dialogue lines to generate. Nothing was charged.' };
+    }
+
     const { firestore, database } = initializeFirebase();
     const userRef = firestore.collection('users').doc(userId);
-    
+
     const rate = await getEngineRate(voiceEngine);
     const serverCost = Math.ceil(totalChars * rate);
     const cost = typeof customCost === 'number' && customCost > serverCost ? Math.ceil(customCost) : serverCost;
@@ -287,36 +297,54 @@ export async function processHighQualityGenerationAndDeductCredits(
             return updated;
         });
 
-        await database.ref(`${rtdbNode}/${projectId}`).set({ 
-            status: 'in_queue',
-            voiceEngine,
-            // Tells 11.py which Firestore collection holds the doc the
-            // frontend actually reads, so it updates the right one.
-            firestoreCollection: 'projects',
-            userId,
-            userEmail: userEmail || '',
-            projectName: projectName || 'Untitled',
-            characters: characters || [],
-            dialogues: syncData?.dialogues || [],
-            genre: syncData?.genere || syncData?.genre || 'general',
-            genere: syncData?.genere || syncData?.genre || 'general',
-            toneGuidance: syncData?.toneGuidance || '',
-            queuedAt: Date.now(),
-            timestamp: Date.now(),
-            // Extra fields for website backend tracking
-            id: projectId,
-            userName,
-            script,
-            cost,
-            creditCost: cost,
-            createdAt,
-            clientTimestamp: createdAt,
-            projectType: 'hq-submission',
-            syncData: syncData || null,
-            total_dialogues: (syncData?.dialogues || []).length,
-            processed_dialogues: 0,
-            rejected_nodes: 0
-        });
+        // 🔴 FIX: this is the write that actually hands the job to the
+        // worker (studio.py/11.py listen on this RTDB node, not on the
+        // Firestore doc). It used to share the outer try/catch with
+        // everything else — if it failed after the transaction above had
+        // already committed (credits deducted, Firestore doc created), the
+        // function still just returned {success:false}: credits gone, a
+        // Firestore doc sitting at 'in_queue' forever, and no job ever
+        // queued anywhere for the worker to pick up. Caught separately so a
+        // failure here refunds the charge and marks the doc as errored
+        // instead of leaving a paid-for phantom job behind.
+        try {
+            await database.ref(`${rtdbNode}/${projectId}`).set({
+                status: 'in_queue',
+                voiceEngine,
+                // Tells 11.py which Firestore collection holds the doc the
+                // frontend actually reads, so it updates the right one.
+                firestoreCollection: 'projects',
+                userId,
+                userEmail: userEmail || '',
+                projectName: projectName || 'Untitled',
+                characters: characters || [],
+                dialogues: syncData?.dialogues || [],
+                genre: syncData?.genere || syncData?.genre || 'general',
+                genere: syncData?.genere || syncData?.genre || 'general',
+                toneGuidance: syncData?.toneGuidance || '',
+                queuedAt: Date.now(),
+                timestamp: Date.now(),
+                // Extra fields for website backend tracking
+                id: projectId,
+                userName,
+                script,
+                cost,
+                creditCost: cost,
+                createdAt,
+                clientTimestamp: createdAt,
+                projectType: 'hq-submission',
+                syncData: syncData || null,
+                total_dialogues: (syncData?.dialogues || []).length,
+                processed_dialogues: 0,
+                rejected_nodes: 0
+            });
+        } catch (queueErr: any) {
+            reportServerError('src/app/studio/actions.ts#queueFailed', queueErr, { userId, projectId });
+            await projectRef.set({ status: 'error', error: 'Failed to queue for the production worker.' }, { merge: true }).catch(() => null);
+            const refunded = await refundCreditsWithHistory(userId, cost, `Refund: HQ Studio job failed to queue (${projectName || 'Untitled'})`, { projectId });
+            await sendToTelegram(`🚨 <b>HQ JOB FAILED TO QUEUE — REFUNDED</b>\n<b>User:</b> ${escapeHtml(userEmail || userId)}\n<b>Project:</b> ${escapeHtml(projectName || 'Untitled')}\n<b>Refunded:</b> ${refunded}\n<b>Error:</b> ${escapeHtml(queueErr.message)}`).catch(() => null);
+            return { success: false, error: 'Could not start generation. Your credits have been refunded — please try again.', newCredits: newBalanceAfterDeduction + refunded };
+        }
 
         // 📝 Record Deduction to History Ledger
         if (database) {
