@@ -7,7 +7,7 @@ import { collection, query, where, orderBy, limit, doc, documentId } from 'fireb
 import type { Project, Thumbnail } from '@/lib/types';
 import { ProjectCard } from '@/app/history/project-card';
 import { ThumbnailCard } from '@/components/history/thumbnail-card';
-import { History as HistoryIcon, ShoppingBag, ClipboardCopy, Check, FileText, Loader2, Plus, X, Sparkles } from 'lucide-react';
+import { History as HistoryIcon, ShoppingBag, ClipboardCopy, Check, FileText, Loader2, Plus, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,6 @@ import {
     DialogTitle,
     DialogDescription,
     DialogFooter,
-    DialogClose,
   } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -521,9 +520,6 @@ function HistoryPageContent() {
                         </div>
                     </div>
                 </div>
-                <DialogClose className="absolute right-6 top-6 rounded-full p-2 hover:bg-muted transition-colors">
-                    <X className="h-5 w-5 sm:h-6 sm:w-6" />
-                </DialogClose>
             </DialogHeader>
             
             <ScrollArea className="flex-1 bg-background">
