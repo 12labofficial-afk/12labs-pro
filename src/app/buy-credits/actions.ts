@@ -212,6 +212,13 @@ export async function handlePurchaseAction(
             });
         });
 
+        // historyEntry above was built but never saved, so free activations
+        // never appeared in the user's credit history.
+        if (database) {
+            await database.ref(`creditHistory/${user.uid}`).push({ ...historyEntry, promoCode: promoCode || null, type: 'purchase' })
+                .catch((e: any) => { reportServerError('src/app/buy-credits/actions.ts#freeHistory', e); return null; });
+        }
+
         await logSummaryEvent('creditsPurchased', finalCredits);
         return { success: true, free_purchase: true };
 

@@ -268,6 +268,8 @@ export async function handleCreditPurchase(
             userName: userDoc.data()?.name || 'User', 
             userEmail: paymentEmail, 
             creditsToAdd,
+            planName,
+            grantedAt: now.toISOString(),
              grantCycle,
              isRecurring,
             totalInvestment: newTotalInvestment
@@ -277,6 +279,21 @@ export async function handleCreditPurchase(
     grantSettled = true;
     if (!transactionResult || (transactionResult as any).stopProcessing) return;
     const tr = transactionResult as any;
+
+    // The credits ledger (CreditHistoryDialog) reads creditHistory/{uid};
+    // purchases were never written there, so a paid pack never showed up in
+    // the user's history. Runs only after a fresh grant (never on the
+    // duplicate webhook/confirm call), so there is exactly one entry.
+    await database.ref(`creditHistory/${tr.userId}`).push({
+        amount: tr.creditsToAdd,
+        reason: `Purchase - ${tr.planName}`,
+        timestamp: tr.grantedAt,
+        type: 'purchase',
+        paymentId,
+        orderId: orderId || null,
+        amountPaid: amountInOriginalCurrency,
+        currency,
+    });
 
     if (notes.promoCode) {
         await handleAffiliateCommission(database, notes.promoCode, tr.userEmail, paymentInInr, paymentId);
