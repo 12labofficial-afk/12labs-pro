@@ -6,7 +6,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import type { UserProfile, Product, SellerProfile } from '@/lib/types';
 import { FieldValue } from 'firebase-admin/firestore';
 import { logSummaryEvent } from '@/lib/summary-logger';
-import { escapeHtml, formatCredits } from '@/lib/utils';
+import { escapeHtml, formatCredits, wholeCredits } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
 
 // This will be passed from the client
@@ -243,7 +243,7 @@ export async function processCreditOrder(
                 throw new Error(`Insufficient credits. You need ${totalCreditCost.toLocaleString()}, but have ${formatCredits(currentCredits)}.`);
             }
 
-            updatedBalance = Math.max(0, currentCredits - totalCreditCost);
+            updatedBalance = wholeCredits(Math.max(0, currentCredits - totalCreditCost));
             const createdAt = new Date().toISOString();
 
             // 1. Deduct Credits

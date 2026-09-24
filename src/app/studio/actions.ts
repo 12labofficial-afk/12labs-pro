@@ -9,7 +9,7 @@ import { logSummaryEvent } from '@/lib/summary-logger';
 import { ai } from '@/ai/genkit';
 import { TTS_MODEL } from '@/ai/config';
 import wav from 'wav';
-import { escapeHtml, getDisplayUrl } from '@/lib/utils';
+import { escapeHtml, getDisplayUrl, wholeCredits } from '@/lib/utils';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -162,7 +162,7 @@ export async function deductFastGenCreditsAction(
     // Only ever take the client's number when it is HIGHER (it may have
     // priced a longer script than the count we were handed) — never lower,
     // or the price becomes editable from the browser.
-    const cost = typeof customCost === 'number' && customCost > serverCost ? customCost : serverCost;
+    const cost = typeof customCost === 'number' && customCost > serverCost ? Math.ceil(customCost) : serverCost;
 
     try {
         // Voice replacement requests are asynchronous. Do not charge again while
@@ -196,7 +196,7 @@ export async function deductFastGenCreditsAction(
                 throw new Error(`Insufficient credits. Required: ${cost.toLocaleString()}, Available: ${currentCredits.toLocaleString()}.`);
             }
             
-            const updatedBalance = Math.max(0, currentCredits - cost);
+            const updatedBalance = wholeCredits(Math.max(0, currentCredits - cost));
             transaction.update(userRef, { credits: updatedBalance, hasMadeFirstPurchase: true });
             return updatedBalance;
         });
@@ -245,7 +245,7 @@ export async function processHighQualityGenerationAndDeductCredits(
     
     const rate = await getEngineRate(voiceEngine);
     const serverCost = Math.ceil(totalChars * rate);
-    const cost = typeof customCost === 'number' && customCost > serverCost ? customCost : serverCost;
+    const cost = typeof customCost === 'number' && customCost > serverCost ? Math.ceil(customCost) : serverCost;
     // 🔴 FIX: providedProjectId (the client's hqSubmissionId) is minted once
     // per script ANALYSIS, not per generation — if the same analysis gets
     // generated with both engines (e.g. a quick engine switch before the
@@ -276,7 +276,7 @@ export async function processHighQualityGenerationAndDeductCredits(
                 throw new Error(`Insufficient credits. Required: ${cost.toLocaleString()}, Available: ${currentCredits.toLocaleString()}.`);
             }
             
-            const updated = Math.max(0, currentCredits - cost);
+            const updated = wholeCredits(Math.max(0, currentCredits - cost));
             transaction.set(projectRef, { 
                 id: projectId, userId, projectName, script, characters, cost, creditCost: cost,
                 status: 'in_queue', projectType: 'hq-submission', voiceEngine,
@@ -356,7 +356,7 @@ export async function regenerateLineWithCreditsAction(userId: string, text: stri
             const freshUserDoc = await transaction.get(userRef);
             const currentCredits = freshUserDoc.data()?.credits || 0;
             if (currentCredits < cost) throw new Error(`Required: ${cost.toLocaleString()}, Available: ${currentCredits.toLocaleString()}.`);
-            const updated = Math.max(0, currentCredits - cost);
+            const updated = wholeCredits(Math.max(0, currentCredits - cost));
             transaction.update(userRef, { credits: updated, hasMadeFirstPurchase: true });
             return updated;
         });
@@ -471,7 +471,7 @@ export async function createCharacterVoiceReplacementJobAction({
             if (currentCredits < cost) {
                 throw new Error(`Insufficient credits. Required: ${cost.toLocaleString()}, Available: ${currentCredits.toLocaleString()}.`);
             }
-            const updated = Math.max(0, currentCredits - cost);
+            const updated = wholeCredits(Math.max(0, currentCredits - cost));
             transaction.update(userRef, { credits: updated, hasMadeFirstPurchase: true });
             return updated;
         });

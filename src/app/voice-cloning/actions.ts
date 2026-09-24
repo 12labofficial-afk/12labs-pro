@@ -10,7 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { sendToTelegram } from '@/lib/telegram-logger';
-import { escapeHtml } from '@/lib/utils';
+import { escapeHtml, wholeCredits } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
 
 const CheckCreditsInputSchema = z.object({
@@ -49,7 +49,7 @@ export async function checkAndDeductCloningCredits(input: z.infer<typeof CheckCr
         throw new Error(`Insufficient credits. You need ${cost.toLocaleString()} credits.`);
       }
       
-      newCredits = Math.max(0, currentCredits - cost);
+      newCredits = wholeCredits(Math.max(0, currentCredits - cost));
       
       transaction.update(userRef, { credits: newCredits });
     });

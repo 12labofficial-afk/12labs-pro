@@ -1,5 +1,6 @@
 'use server';
 
+import { wholeCredits } from '@/lib/utils';
 import { initializeFirebase } from '@/firebase/server';
 import { callOpenRouterText } from '@/ai/engines/openrouter';
 import { reportServerError } from '@/lib/report-error';
@@ -29,7 +30,7 @@ export async function expandDialogueWithAiAction(
 
     try {
         const costSnap = await database.ref('settings/app/aiDialogueExpandCost').get();
-        const cost = costSnap.exists() ? Number(costSnap.val()) : DEFAULT_AI_FIX_COST;
+        const cost = Math.ceil(costSnap.exists() ? Number(costSnap.val()) : DEFAULT_AI_FIX_COST);
 
         // Charge first (same order as checkAndDeductCloningCredits) — if the
         // AI call itself fails after this, the credit loss is refunded below.
@@ -40,7 +41,7 @@ export async function expandDialogueWithAiAction(
             if (!userDoc.exists) throw new Error('User profile not found.');
             const currentCredits = userDoc.data()?.credits || 0;
             if (currentCredits < cost) throw new Error(`Insufficient credits. You need ${cost} credits for AI-Fix.`);
-            newCredits = Math.max(0, currentCredits - cost);
+            newCredits = wholeCredits(Math.max(0, currentCredits - cost));
             transaction.update(userRef, { credits: newCredits });
         });
 
@@ -66,7 +67,7 @@ Rewrite ONLY this one line so it is at least ${MIN_DIALOGUE_WORDS} words and sou
 
         if (result._error || !result.text) {
             // Refund — the credit was charged but nothing was delivered.
-            await userRef.update({ credits: newCredits + cost }).catch((e: any) => { reportServerError('src/app/studio/ai-fix-actions.ts:refund', e); return null; });
+            await userRef.update({ credits: wholeCredits(newCredits + cost) }).catch((e: any) => { reportServerError('src/app/studio/ai-fix-actions.ts:refund', e); return null; });
             throw new Error(result.message || 'AI engine returned no result.');
         }
 
@@ -75,7 +76,7 @@ Rewrite ONLY this one line so it is at least ${MIN_DIALOGUE_WORDS} words and sou
         if (isDialogueTooShort(expandedText)) {
             // The model didn't actually fix it — refund rather than charge
             // for a no-op.
-            await userRef.update({ credits: newCredits + cost }).catch((e: any) => { reportServerError('src/app/studio/ai-fix-actions.ts:refundNoop', e); return null; });
+            await userRef.update({ credits: wholeCredits(newCredits + cost) }).catch((e: any) => { reportServerError('src/app/studio/ai-fix-actions.ts:refundNoop', e); return null; });
             throw new Error('AI could not expand this line sufficiently. Try editing it manually.');
         }
 

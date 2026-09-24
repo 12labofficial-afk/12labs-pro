@@ -451,6 +451,18 @@ export function getCookie(name: string) {
  * Deliberately NOT abbreviated: "100,197" reads as a real balance, while
  * "100.2K" makes the same amount feel smaller than it is.
  */
+/**
+ * Credit balances are stored as whole numbers only. Use this on every value
+ * written to users/{uid}.credits: it drops anything after the decimal point
+ * (floor), so a balance can never end up like 15179.660000000003. The 1e-9
+ * nudge keeps a float like 99.99999999999 (really 100) from flooring to 99.
+ */
+export function wholeCredits(value: number | null | undefined): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.floor(n + 1e-9);
+}
+
 export function formatCredits(value: number | null | undefined): string {
   const n = Number(value);
   if (!Number.isFinite(n)) return '0';

@@ -5,7 +5,7 @@
 
 import { ai, extractJson } from '@/ai/genkit';
 import { sendToTelegram } from '@/lib/telegram-logger';
-import { escapeHtml, getISTDateString, checkIsPaidUser, formatCredits } from '@/lib/utils';
+import { escapeHtml, getISTDateString, checkIsPaidUser, formatCredits, wholeCredits } from '@/lib/utils';
 import { initializeFirebase } from '@/firebase/server';
 import "server-only";
 import { reportServerError } from '@/lib/report-error';
@@ -312,7 +312,7 @@ export async function analyzeScriptStudio(input: { script: string, userId: strin
         if (freshCredits < OVER_LIMIT_ANALYSIS_COST) {
           throw new Error(`Daily script analysis limit reached (${currentDailyCount}/${maxDailyLimit} used today). Further analyses cost ${OVER_LIMIT_ANALYSIS_COST} credits each — you have ${formatCredits(freshCredits)}.`);
         }
-        transaction.update(userRef, { credits: freshCredits - OVER_LIMIT_ANALYSIS_COST });
+        transaction.update(userRef, { credits: wholeCredits(freshCredits - OVER_LIMIT_ANALYSIS_COST) });
       });
     } catch (creditErr: any) {
         reportServerError('src/ai/flows/analyze-script-studio.ts:317', creditErr);

@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import { logSummaryEvent } from '@/lib/summary-logger';
-import { getISTDateString, escapeHtml, formatCredits } from '@/lib/utils';
+import { getISTDateString, escapeHtml, formatCredits, wholeCredits } from '@/lib/utils';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import type { UserProfile } from '@/lib/types';
 import { reportServerError } from '@/lib/report-error';
@@ -108,7 +108,7 @@ export async function submitThumbnailRequestAction(
         throw new Error(`Insufficient credits. Required: ${cost}, Available: ${formatCredits(currentCredits)}. Please top up your balance.`);
       }
 
-      const updatedBalance = Math.max(0, currentCredits - cost);
+      const updatedBalance = wholeCredits(Math.max(0, currentCredits - cost));
       transaction.update(userRef, {
         credits: updatedBalance,
       });

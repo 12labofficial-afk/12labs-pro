@@ -8,7 +8,7 @@ import type { UserProfile, UserSubscription, CreditHistoryEntry, Order } from '@
 import type admin from 'firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { sendToTelegram } from '@/lib/telegram-logger';
-import { escapeHtml, formatCredits } from '@/lib/utils';
+import { escapeHtml, formatCredits, wholeCredits } from '@/lib/utils';
 import { FieldValue } from 'firebase-admin/firestore';
 import { plans } from '@/lib/plans';
 import { syncUserSubscriptionInstallments, syncAllPendingSubscriptions } from '@/app/actions';
@@ -160,7 +160,7 @@ export async function adjustUserCredits(
   
   // Set hasMadeFirstPurchase to true on ANY manual adjustment to unlock account
   batch.update(userRef, { 
-    credits: newCreditAmount,
+    credits: wholeCredits(newCreditAmount),
     hasMadeFirstPurchase: true
   });
 
@@ -873,7 +873,7 @@ export async function fixUserDuplicateGrants(
             if (!uDoc.exists) return;
             const currentBal = Number(uDoc.data()?.credits || 0);
             const newBal = Math.max(0, currentBal - creditsToDeduct);
-            t.update(userRef, { credits: newBal });
+            t.update(userRef, { credits: wholeCredits(newBal) });
         });
 
         // 5. Recalculate financials to ensure exact sync
@@ -1000,7 +1000,7 @@ export async function logCreditExpiry(
             if (!uDoc.exists) return;
             const currentBal = Number(uDoc.data()?.credits || 0);
             const newBal = Math.max(0, currentBal - Math.abs(expiredAmount));
-            t.update(userRef, { credits: newBal });
+            t.update(userRef, { credits: wholeCredits(newBal) });
         });
 
         revalidatePath('/admin/users');

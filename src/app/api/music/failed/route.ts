@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase/server';
 import { sendToTelegram } from '@/lib/telegram-logger';
-import { escapeHtml } from '@/lib/utils';
+import { escapeHtml, wholeCredits } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
 import { FieldValue } from 'firebase-admin/firestore';
 import { reportServerError } from '@/lib/report-error';
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
             }
             const userData = userDoc.data();
             const currentCredits = userData?.credits || 0;
-            const updatedCredits = currentCredits + cost;
+            const updatedCredits = wholeCredits(currentCredits + cost);
 
             // Refund credits
             transaction.update(userRef, { credits: updatedCredits });

@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import { logSummaryEvent } from '@/lib/summary-logger';
-import { getISTDateString, escapeHtml, checkIsPaidUser, formatCredits } from '@/lib/utils';
+import { getISTDateString, escapeHtml, checkIsPaidUser, formatCredits, wholeCredits } from '@/lib/utils';
 import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import { sendToTelegram } from '@/lib/telegram-logger';
@@ -106,7 +106,7 @@ export async function deductScriptCreditsAction(
             
             if (currentCredits < cost) throw new Error(`Insufficient credits. Required: ${cost}, Available: ${formatCredits(currentCredits)}.`);
             
-            const updatedBalance = Math.max(0, currentCredits - cost);
+            const updatedBalance = wholeCredits(Math.max(0, currentCredits - cost));
             transaction.update(userRef, { 
                 credits: updatedBalance,
                 hasMadeFirstPurchase: true 
