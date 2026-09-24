@@ -263,6 +263,7 @@ export async function POST(req: NextRequest) {
     const event = JSON.parse(text);
     const { firestore, database } = initializeFirebase();
     const entity = event?.payload?.payment?.entity || event?.payload?.subscription?.entity;
+    const subscriptionEntity = event?.payload?.subscription?.entity;
     const notes = { ...(event?.payload?.order?.entity?.notes || {}), ...(entity?.notes || {}) };
 
     if (event.event === 'payment.authorized' && entity?.id && entity?.order_id) {
@@ -288,16 +289,40 @@ export async function POST(req: NextRequest) {
         else await handleCreditPurchase(firestore, database, entity, event.payload?.order?.entity);
      } else if (event.event === 'subscription.charged') {
         await handleCreditPurchase(firestore, database, entity, undefined, true);
-     } else if (event.event === 'subscription.cancelled' || event.event === 'subscription.completed' || event.event === 'subscription.paused') {
-         const subscriptionId = entity?.id || entity?.subscription_id;
+     } else if (['subscription.cancelled', 'subscription.completed', 'subscription.paused', 'subscription.halted'].includes(event.event)) {
+         // Cancelled from outside the app too: the user revoking the mandate in
+         // their UPI/bank app, a cancel in the Razorpay dashboard, or Razorpay
+         // halting it after repeated failed charges.
+         const subscriptionId = subscriptionEntity?.id || entity?.subscription_id;
+         const eventLabel: Record<string, string> = {
+             'subscription.cancelled': 'CANCELLED (mandate revoked / cancelled on Razorpay)',
+             'subscription.completed': 'COMPLETED (all billing cycles done)',
+             'subscription.paused': 'PAUSED',
+             'subscription.halted': 'HALTED (charges kept failing)',
+         };
          if (subscriptionId) {
              const matchingUsers = await firestore.collection('users')
                  .where('subscription.subscriptionId', '==', subscriptionId).limit(1).get();
+             const nextStatus = event.event === 'subscription.paused' || event.event === 'subscription.halted' ? 'past_due' : 'cancelled';
              if (!matchingUsers.empty) {
                  const userDoc = matchingUsers.docs[0];
-                 const nextStatus = event.event === 'subscription.paused' ? 'past_due' : 'cancelled';
-                 await userDoc.ref.update({ 'subscription.status': nextStatus });
-                 await sendToTelegram(`📡 <b>RAZORPAY SUBSCRIPTION ${nextStatus.toUpperCase()}</b>\n<b>User:</b> ${escapeHtml(userDoc.data()?.email || 'N/A')}\n<b>Subscription ID:</b> <code>${escapeHtml(subscriptionId)}</code>`);
+                 const u = userDoc.data() || {};
+                 await userDoc.ref.update({ 'subscription.status': nextStatus, 'subscription.statusUpdatedAt': new Date().toISOString() });
+                 await sendToTelegram(
+                     `📡 <b>SUBSCRIPTION ${escapeHtml(eventLabel[event.event])}</b>\n\n` +
+                     `<b>By:</b> Razorpay\n` +
+                     `<b>User:</b> ${escapeHtml(u.name || 'N/A')} (${escapeHtml(u.email || 'N/A')})\n` +
+                     `<b>Plan:</b> ${escapeHtml(u.subscription?.planId || 'N/A')}\n` +
+                     `<b>Grants given:</b> ${Number(u.subscription?.weeklyGrantCount || 0)}\n` +
+                     `<b>App status now:</b> ${nextStatus}\n` +
+                     `<b>Subscription ID:</b> <code>${escapeHtml(subscriptionId)}</code>`
+                 );
+             } else {
+                 await sendToTelegram(
+                     `📡 <b>SUBSCRIPTION ${escapeHtml(eventLabel[event.event])}</b>\n\n` +
+                     `⚠️ No user in the app has this subscription ID, so nothing was updated.\n` +
+                     `<b>Subscription ID:</b> <code>${escapeHtml(subscriptionId)}</code>`
+                 );
              }
          }
     }

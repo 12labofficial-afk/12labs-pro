@@ -235,16 +235,27 @@ export async function updateUserSubscription(
             // Keep the subscription record with a cancelled status so the
             // user can see that it was cancelled and the scheduler can honor
             // the already-paid current cycle without creating a new one.
+            const beforeDoc = await userRef.get();
+            const beforeData = beforeDoc.data() || {};
+            const prevSub = beforeData.subscription || {};
+
             await userRef.update({
                 'subscription.status': 'cancelled',
                 'subscription.cancelledAt': new Date().toISOString(),
             });
-            
-            if (adminEmail) {
-                const userDoc = await userRef.get();
-                const userEmail = userDoc.data()?.email || userId;
-                await sendToTelegram(`🔴 <b>Consistency Plan Deactivated</b>\n<b>User:</b> ${escapeHtml(userEmail)}\n<b>Admin:</b> ${escapeHtml(adminEmail)}`);
-            }
+
+            // Always logged (it used to be skipped whenever adminEmail was missing).
+            const rzpSubId: string = prevSub.subscriptionId || '';
+            const hasRazorpayMandate = !!rzpSubId && !rzpSubId.startsWith('test_sub_') && !prevSub.manuallyGranted;
+            await sendToTelegram(
+                `🔴 <b>SUBSCRIPTION CANCELLED</b>\n\n` +
+                `<b>By:</b> Admin${adminEmail ? ` (${escapeHtml(adminEmail)})` : ''}\n` +
+                `<b>User:</b> ${escapeHtml(beforeData.name || 'N/A')} (${escapeHtml(beforeData.email || userId)})\n` +
+                `<b>Plan:</b> ${escapeHtml(prevSub.planId || 'N/A')}\n` +
+                `<b>Grants given:</b> ${Number(prevSub.weeklyGrantCount || 0)}\n` +
+                `<b>Subscription ID:</b> <code>${escapeHtml(rzpSubId || 'None')}</code>` +
+                (hasRazorpayMandate ? `\n⚠️ <b>Razorpay mandate NOT cancelled</b> — admin deactivate only stops grants in the app. Cancel it in the Razorpay dashboard or the user keeps getting charged.` : '')
+            ).catch(() => null);
         }
         
         revalidatePath('/admin/users');

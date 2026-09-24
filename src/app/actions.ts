@@ -289,9 +289,13 @@ export async function syncUserSubscriptionInstallments(userId: string): Promise<
     syncCooldownMap.set(userId, nowMs);
 
     const userRef = firestore.collection('users').doc(userId);
+    // Filled by the (last) transaction attempt; pushed to RTDB only after it
+    // commits, so a retried transaction can't duplicate the ledger entries.
+    let committedHistoryEntries: any[] = [];
 
     try {
         const result = await firestore.runTransaction(async (transaction: any) => {
+            committedHistoryEntries = [];
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists) return null;
             
@@ -384,12 +388,8 @@ export async function syncUserSubscriptionInstallments(userId: string): Promise<
                 const historyLogRef = userRef.collection('creditHistory').doc('history_log');
                 transaction.set(historyLogRef, { entries: FieldValue.arrayUnion(...newHistoryEntries) }, { merge: true });
 
-                // 2. Write to Realtime Database for Live Sync
-                if (database) {
-                    for (const entry of newHistoryEntries) {
-                        await (database as any).ref(`creditHistory/${userId}`).push(entry);
-                    }
-                }
+                // 2. Realtime Database copy is written after the commit (below).
+                committedHistoryEntries = newHistoryEntries;
 
                 const notificationRef = userRef.collection('notifications').doc('user_notifications');
                 transaction.set(notificationRef, { entries: FieldValue.arrayUnion(...newNotifications) }, { merge: true });
@@ -410,6 +410,13 @@ export async function syncUserSubscriptionInstallments(userId: string): Promise<
 
             return null;
         });
+
+        if (result && database) {
+            for (const entry of committedHistoryEntries) {
+                await (database as any).ref(`creditHistory/${userId}`).push(entry)
+                    .catch((e: any) => { reportServerError('src/app/actions.ts:installmentHistory', e); return null; });
+            }
+        }
 
         if (result) {
             const isDeactivated = !result.subscription;

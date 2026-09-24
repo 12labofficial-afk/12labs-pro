@@ -10,6 +10,7 @@ import { applyPromoCode } from './promo-actions';
 import { plans } from '@/lib/plans';
 import { reportServerError } from '@/lib/report-error';
 import { handleCreditPurchase } from '@/lib/credit-purchase';
+import { escapeHtml } from '@/lib/utils';
 
 interface RazorpayOrderOutput {
   id: string;
@@ -407,11 +408,33 @@ export async function cancelSubscriptionAction(userId: string): Promise<{ succes
     }
 
     // 2. Update DB status to 'cancelled' so we prevent further billing / sync
+    const cancelledAt = new Date().toISOString();
     await userRef.update({
-        'subscription.status': 'cancelled'
+        'subscription.status': 'cancelled',
+        'subscription.cancelledAt': cancelledAt,
     });
 
-    await sendToTelegram(`❌ <b>SUBSCRIPTION CANCELLED</b>\n<b>User:</b> ${userData?.email || 'N/A'}\n<b>Plan ID:</b> ${sub.planId}\n<b>Subscription ID:</b> ${subscriptionId || 'None'}`);
+    const { database } = initializeFirebase();
+    await database.ref(`creditHistory/${userId}`).push({
+        amount: 0,
+        reason: 'Consistency Plan Cancelled by you',
+        timestamp: cancelledAt,
+        type: 'subscription',
+    }).catch((e: any) => { reportServerError('src/app/buy-credits/actions.ts#cancelHistory', e); return null; });
+
+    const planInfo = plans.find(p => p.id === sub.planId);
+    const grantsDone = Number(sub.weeklyGrantCount || 0);
+    const maxGrants = planInfo?.maxGrants ?? 4;
+    await sendToTelegram(
+        `❌ <b>SUBSCRIPTION CANCELLED</b>\n\n` +
+        `<b>By:</b> User (self-serve)\n` +
+        `<b>User:</b> ${escapeHtml(userData?.name || 'N/A')} (${escapeHtml(userData?.email || 'N/A')})\n` +
+        `<b>Plan:</b> ${escapeHtml(planInfo?.name || sub.planId || 'N/A')}\n` +
+        `<b>Grants given:</b> ${grantsDone}/${maxGrants} (remaining ones of this paid cycle still arrive)\n` +
+        `<b>Started:</b> ${escapeHtml(sub.startDate || 'N/A')}\n` +
+        `<b>Razorpay:</b> ${subscriptionId && !subscriptionId.startsWith('test_sub_') ? 'Mandate cancelled' : 'No Razorpay mandate (local only)'}\n` +
+        `<b>Subscription ID:</b> <code>${escapeHtml(subscriptionId || 'None')}</code>`
+    );
 
     return { success: true };
   } catch (err: any) {
