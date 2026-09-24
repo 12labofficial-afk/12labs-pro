@@ -435,7 +435,7 @@ export default function BuyCreditsPage() {
                             <Coins className="h-full w-full" />
                         </div>
                         <span className="tracking-tight">
-                            {plan.id === 'starter' ? '10,000 + 1,000 Bonus' : `${plan.credits.toLocaleString()} Credits`}
+                            {plan.id === 'pro' ? '30,000 + 1,000 Bonus' : `${plan.credits.toLocaleString()} Credits`}
                         </span>
                     </div>
                     {plan.weeklyCredits && (
@@ -723,15 +723,21 @@ export default function BuyCreditsPage() {
         </div>
 
         <div className="text-center mt-16 text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] opacity-50 leading-relaxed max-w-xl mx-auto space-y-4">
-          <p>All payments are processed through our end-to-end encrypted node.</p>
-          <div className="p-4 bg-muted/20 border border-primary/5 rounded-2xl text-[9px] text-left leading-relaxed space-y-2 text-muted-foreground font-semibold">
-            <p className="font-black text-foreground uppercase tracking-wider text-[10px]">⚖️ PRE-CHECKOUT POLICIES & TERMS</p>
-            <p>&bull; <strong>Instant Cancellation & Deactivation:</strong> Automatic weekly consistency plans can be cancelled instantly at any time. No lock-in period applies. Future automated billing cycles will be stopped immediately when you revoke the payment mandate.</p>
-            <p>&bull; <strong>Remaining Week Grants:</strong> Since each billing cycle is pre-paid, cancelling your automatic mandate will NOT stop your scheduled weekly credit grants for the current cycle. You will continue to receive all remaining weekly installments until the cycle is complete.</p>
-            <p>&bull; <strong>Non-Refundable Policy:</strong> All credit purchases, subscriptions, and automatically granted weekly credits are 100% final, non-refundable, and non-transferable under any circumstances.</p>
-            <p>&bull; <strong>Anti-Abuse Verification:</strong> Free promotional trial credits are strictly limited to one (1) grant per unique device. Attempting to create duplicate accounts on the same device footprint will result in automated credit restriction.</p>
-            <p className="text-center pt-2">By purchasing, you agree to our <Link href="/privacy" prefetch={false} className="text-primary underline">Privacy Policy & Subscription Terms</Link>.</p>
-          </div>
+          <p>Secure, encrypted payments.</p>
+          <details className="group p-4 bg-muted/20 border border-primary/5 rounded-2xl text-[9px] text-left leading-relaxed text-muted-foreground font-semibold normal-case tracking-normal">
+            <summary className="cursor-pointer list-none flex items-center justify-between gap-2 font-black text-foreground uppercase tracking-wider text-[10px]">
+              <span>⚖️ Payment Terms</span>
+              <span className="text-primary normal-case tracking-normal text-[10px] font-bold group-open:hidden">Show</span>
+              <span className="text-primary normal-case tracking-normal text-[10px] font-bold hidden group-open:inline">Hide</span>
+            </summary>
+            <div className="space-y-1.5 mt-3">
+              <p>&bull; <strong>Cancel anytime:</strong> the weekly plan's auto-debit stops right away. No lock-in.</p>
+              <p>&bull; <strong>Current cycle:</strong> after cancelling, you still get the remaining weekly credits of the cycle you already paid for.</p>
+              <p>&bull; <strong>No refunds:</strong> all purchases and granted credits are final and non-transferable.</p>
+              <p>&bull; <strong>One free trial per device:</strong> duplicate accounts on the same device get their credits restricted.</p>
+            </div>
+          </details>
+          <p className="normal-case tracking-normal font-semibold">By purchasing, you agree to our <Link href="/privacy" prefetch={false} className="text-primary underline">Privacy Policy & Subscription Terms</Link>.</p>
           <p className='mt-2'>Custom integration? <Link href="/contact" prefetch={false} className="text-primary underline underline-offset-4">Talk to Engineering</Link>.</p>
         </div>
       </div>

@@ -61,9 +61,8 @@ export const plans: Plan[] = [
         name: 'Starter',
         priceInRupees: 139, 
         priceInUSD: 2.2,
-        credits: 11000, 
+        credits: 10000, 
         features: [
-            '+ 1,000 Bonus Credits! 🎁',
             'Voice editing (Included)',
             'Access to all AI voices',
             'Usage rights',
@@ -79,8 +78,10 @@ export const plans: Plan[] = [
         priceInRupees: 331, 
         priceInUSD: 6,
         originalPriceInUSD: 7,
-        credits: 30000,
+        // 30,000 + 1,000 bonus (the bonus moved here from Starter).
+        credits: 31000,
         features: [
+            '+ 1,000 Bonus Credits! 🎁',
             'Voice editing (Included)',
             'Access to all AI voices',
             'Commercial usage rights',

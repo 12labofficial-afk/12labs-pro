@@ -183,8 +183,8 @@ export function PricingSection() {
                           <Coins className="h-full w-full" />
                         </div>
                         <span className="tracking-tight">
-                          {plan.id === 'starter'
-                            ? '10,000 + 1,000 Bonus'
+                          {plan.id === 'pro'
+                            ? '30,000 + 1,000 Bonus'
                             : `${plan.credits.toLocaleString()} Credits`}
                         </span>
                       </div>
