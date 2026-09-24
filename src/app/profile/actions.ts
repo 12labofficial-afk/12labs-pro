@@ -1,6 +1,7 @@
 'use server';
 
 import { initializeFirebase } from '@/firebase/server';
+import { FieldValue } from 'firebase-admin/firestore';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
@@ -133,11 +134,29 @@ export async function deleteMyAccountAction(
         // its free signup credits, so re-creating the account with the same
         // email — even on another device — doesn't grant them again. Must be
         // written before the email is anonymized below.
+        //
+        // This email can cycle through delete -> re-create -> delete again
+        // any number of times (each re-creation already gets 0 free credits
+        // per the signup-time check, since that check is a plain existence
+        // check on this doc — merge-writing it again on a second deletion
+        // doesn't weaken that at all). What this tracks in ADDITION is a
+        // full audit trail across every cycle: firstDeletedAt is preserved
+        // (not overwritten), timesDeleted counts every cycle, and uids
+        // collects every account uid this email has ever been attached to —
+        // useful for spotting serial delete/re-create abuse from the admin
+        // side, which a single overwritten "last deletion only" record
+        // couldn't show.
         const originalEmail = profile?.email || email;
         if (originalEmail) {
-            await firestore.collection('deletedAccounts').doc(hashEmailForAbuseCheck(originalEmail)).set({
-                deletedAt: new Date().toISOString(),
-                uid,
+            const deletedAccountRef = firestore.collection('deletedAccounts').doc(hashEmailForAbuseCheck(originalEmail));
+            const existingDeletedDoc = await deletedAccountRef.get().catch((e: any) => { reportServerError('src/app/profile/actions.ts:deletedAccountsRead', e); return null; });
+            const nowIso = new Date().toISOString();
+            await deletedAccountRef.set({
+                ...(existingDeletedDoc?.exists ? {} : { firstDeletedAt: nowIso }),
+                lastDeletedAt: nowIso,
+                lastUid: uid,
+                timesDeleted: FieldValue.increment(1),
+                uids: FieldValue.arrayUnion(uid),
             }, { merge: true }).catch((e: any) => { reportServerError('src/app/profile/actions.ts:deletedAccounts', e); return null; });
         }
 
