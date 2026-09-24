@@ -283,7 +283,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           profile = await getUserProfileFromServer(firebaseUser.uid, deviceId);
         } catch (serverErr) {
-        reportClientError('src/context/auth-provider.tsx:265', serverErr);
+        reportClientError('src/context/auth-provider.tsx:getUserProfileFromServer', serverErr);
           console.warn("Server profile sync non-fatal error:", serverErr);
         }
         
