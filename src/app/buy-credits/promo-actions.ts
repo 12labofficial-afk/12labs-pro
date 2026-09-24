@@ -60,14 +60,6 @@ export async function applyPromoCode(
             const creditsToAdd = data.creditAmount;
             if (!confirmed) return { success: true, type: 'credit', value: creditsToAdd, message: `Redeem ${creditsToAdd.toLocaleString()} credits?` };
             
-            if (database) {
-                await database.ref(`creditHistory/${userId}`).push({
-                    amount: creditsToAdd,
-                    reason: `Promo: ${validatedCode}`,
-                    timestamp: new Date().toISOString()
-                });
-            }
-
             await firestore.runTransaction(async (transaction: any) => {
                 const pDoc = await transaction.get(promoRef);
                 if (pDoc.data()?.status !== 'available') throw new Error('Already used.');
@@ -75,6 +67,17 @@ export async function applyPromoCode(
                 transaction.update(promoRef, { status: 'redeemed', redeemedBy: userId, redeemedByEmail: userEmail, redeemedAt: new Date().toISOString() });
                 transaction.update(firestore.collection('users').doc(userId), { credits: FieldValue.increment(creditsToAdd) });
             });
+
+            // Only after the redemption actually committed — writing this
+            // first logged "+credits" even when the code was already used.
+            if (database) {
+                await database.ref(`creditHistory/${userId}`).push({
+                    amount: creditsToAdd,
+                    reason: `Promo: ${validatedCode}`,
+                    timestamp: new Date().toISOString(),
+                    type: 'promo',
+                }).catch((e: any) => { reportServerError('src/app/buy-credits/promo-actions.ts:history', e); return null; });
+            }
 
             await sendToTelegram(`🎁 <b>Promo Redeemed</b>\n<b>User:</b> ${userEmail}\n<b>Code:</b> ${validatedCode}`);
             return { success: true, type: 'credit', value: creditsToAdd, message: 'Credits added!' };

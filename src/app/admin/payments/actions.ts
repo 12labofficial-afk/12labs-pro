@@ -21,6 +21,8 @@ export async function manuallyApprovePayment(
   try {
     const paymentRef = firestore.collection('pendingPayments').doc(paymentId);
     let newCredits = 0;
+    let historyUserId = '';
+    let historyEntry: Record<string, any> | null = null;
 
     await firestore.runTransaction(async (transaction: any) => {
       const paymentDoc = await transaction.get(paymentRef);
@@ -69,8 +71,10 @@ export async function manuallyApprovePayment(
 
       transaction.update(userRef, userUpdates);
 
-      // 3. Add to credit history (RTDB)
-      const historyEntry = {
+      // 3. Credit history entry — written after the transaction commits
+      // (below). Writing it in here pushed a duplicate on every retry.
+      historyUserId = paymentData.userId;
+      historyEntry = {
         amount: creditsToAdd,
         reason: `Purchase - ${paymentData.planName} (Manual Approval)`,
         timestamp: new Date().toISOString(),
@@ -79,9 +83,6 @@ export async function manuallyApprovePayment(
         amountPaid: amountPaidInInr,
         currency: paymentData.currency || 'INR',
       };
-      if (database) {
-        database.ref(`creditHistory/${paymentData.userId}`).push(historyEntry).catch((e: any) => console.error("RTDB history write failed:", e));
-      }
 
       // 4. Send notification to user
       const notificationRef = userRef.collection('notifications').doc('user_notifications');
@@ -94,6 +95,11 @@ export async function manuallyApprovePayment(
       };
       transaction.set(notificationRef, { entries: FieldValue.arrayUnion(notificationEntry) }, { merge: true });
     });
+
+    if (database && historyEntry && historyUserId) {
+      await database.ref(`creditHistory/${historyUserId}`).push(historyEntry)
+        .catch((e: any) => { console.error("RTDB history write failed:", e); return null; });
+    }
 
     // Send Telegram log after successful transaction
     await sendToTelegram(

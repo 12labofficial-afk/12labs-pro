@@ -249,14 +249,6 @@ export async function processCreditOrder(
             // 1. Deduct Credits
             transaction.update(userRef, { credits: updatedBalance });
 
-            if (database) {
-                database.ref(`creditHistory/${user.uid}`).push({
-                    amount: -totalCreditCost,
-                    reason: `Store Purchase: ${cartItems.map(i => i.title).join(', ')}`,
-                    timestamp: createdAt
-                }).catch((err: any) => console.error("RTDB store credit history error:", err));
-            }
-
             // 3. Process each item using Service Key privileges
             for (const item of cartItems) {
                 const orderRef = firestore.collection('storeHistory').doc();
@@ -281,6 +273,17 @@ export async function processCreditOrder(
                 }
             }
         });
+
+        // Written after the transaction commits; inside it, a retried
+        // transaction pushed a duplicate entry.
+        if (database) {
+            await database.ref(`creditHistory/${user.uid}`).push({
+                amount: -totalCreditCost,
+                reason: `Store Purchase: ${cartItems.map(i => i.title).join(', ')}`,
+                timestamp: new Date().toISOString(),
+                type: 'usage',
+            }).catch((err: any) => { reportServerError('src/app/store/checkout/actions.ts:history', err); return null; });
+        }
 
         // Update RTDB for one-time purchases
         for (const item of cartItems) {

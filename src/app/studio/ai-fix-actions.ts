@@ -4,6 +4,7 @@ import { wholeCredits } from '@/lib/utils';
 import { initializeFirebase } from '@/firebase/server';
 import { callOpenRouterText } from '@/ai/engines/openrouter';
 import { reportServerError } from '@/lib/report-error';
+import { refundCreditsWithHistory } from '@/lib/credit-refund';
 import { MIN_DIALOGUE_WORDS, isDialogueTooShort } from '@/lib/dialogue-validation';
 
 const DEFAULT_AI_FIX_COST = 50;
@@ -27,15 +28,17 @@ export async function expandDialogueWithAiAction(
     if (!dialogueText.trim()) return { success: false, error: 'Empty dialogue line.' };
 
     const { firestore, database } = initializeFirebase();
+    let newCredits = 0;
+    let charged = false;
+    let cost = 0;
 
     try {
         const costSnap = await database.ref('settings/app/aiDialogueExpandCost').get();
-        const cost = Math.ceil(costSnap.exists() ? Number(costSnap.val()) : DEFAULT_AI_FIX_COST);
+        cost = Math.ceil(costSnap.exists() ? Number(costSnap.val()) : DEFAULT_AI_FIX_COST);
 
         // Charge first (same order as checkAndDeductCloningCredits) — if the
         // AI call itself fails after this, the credit loss is refunded below.
         const userRef = firestore.collection('users').doc(userId);
-        let newCredits = 0;
         await firestore.runTransaction(async (transaction: any) => {
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists) throw new Error('User profile not found.');
@@ -44,6 +47,7 @@ export async function expandDialogueWithAiAction(
             newCredits = wholeCredits(Math.max(0, currentCredits - cost));
             transaction.update(userRef, { credits: newCredits });
         });
+        charged = true;
 
         await database.ref(`creditHistory/${userId}`).push({
             amount: -cost,
@@ -66,23 +70,26 @@ Rewrite ONLY this one line so it is at least ${MIN_DIALOGUE_WORDS} words and sou
         const result = await callOpenRouterText('google/gemini-2.5-flash-lite', { prompt });
 
         if (result._error || !result.text) {
-            // Refund — the credit was charged but nothing was delivered.
-            await userRef.update({ credits: wholeCredits(newCredits + cost) }).catch((e: any) => { reportServerError('src/app/studio/ai-fix-actions.ts:refund', e); return null; });
             throw new Error(result.message || 'AI engine returned no result.');
         }
 
         const expandedText = result.text.trim().replace(/^["']|["']$/g, '');
 
         if (isDialogueTooShort(expandedText)) {
-            // The model didn't actually fix it — refund rather than charge
-            // for a no-op.
-            await userRef.update({ credits: wholeCredits(newCredits + cost) }).catch((e: any) => { reportServerError('src/app/studio/ai-fix-actions.ts:refundNoop', e); return null; });
+            // The model didn't actually fix it — refunded below rather than
+            // charging for a no-op.
             throw new Error('AI could not expand this line sufficiently. Try editing it manually.');
         }
 
         return { success: true, expandedText, newCredits };
     } catch (error: any) {
         reportServerError('src/app/studio/ai-fix-actions.ts:expandDialogueWithAiAction', error);
+        // Charged but nothing delivered (AI error, exception, or no-op) —
+        // give it back, with a history entry, via an atomic increment.
+        if (charged) {
+            const refunded = await refundCreditsWithHistory(userId, cost, 'Refund: Studio AI Dialogue Fix failed');
+            return { success: false, error: error.message || 'AI-Fix failed.', newCredits: newCredits + refunded };
+        }
         return { success: false, error: error.message || 'AI-Fix failed.' };
     }
 }

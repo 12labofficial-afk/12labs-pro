@@ -32,14 +32,10 @@ export async function checkAndDeductCloningCredits(input: z.infer<typeof CheckCr
     const userRef = firestore.collection('users').doc(userId);
     let newCredits = 0;
 
-    if (database) {
-      await database.ref(`creditHistory/${userId}`).push({
-        amount: -cost,
-        reason: 'AI Voice Cloning',
-        timestamp: new Date().toISOString(),
-      });
-    }
-
+    // The history entry is written once, after the deduction succeeds. It
+    // used to also be written here, before the balance check, which logged
+    // every cloning twice and logged a charge even when there weren't
+    // enough credits and nothing was deducted.
     await firestore.runTransaction(async (transaction: any) => {
       const userDoc = await transaction.get(userRef);
       if (!userDoc.exists) throw new Error("User profile not found.");

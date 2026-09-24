@@ -19,6 +19,7 @@ import crypto from 'crypto';
 import { callHFEditingBridge } from '@/ai/engines/hf-bridge';
 import { reportServerError } from '@/lib/report-error';
 import { getEngineRate } from '@/lib/pricing';
+import { refundCreditsWithHistory } from '@/lib/credit-refund';
 
 async function toWav(
   pcmData: Buffer,
@@ -344,6 +345,7 @@ export async function regenerateLineWithCreditsAction(userId: string, text: stri
     const { firestore, database } = initializeFirebase();
     const userRef = firestore.collection('users').doc(userId);
     const cost = Math.ceil(text.length * await getEngineRate('gemini'));
+    let charged = false;
     
     try {
         if (!R2_BUCKET) throw new Error("R2 Node: Bucket ID missing.");
@@ -360,6 +362,7 @@ export async function regenerateLineWithCreditsAction(userId: string, text: stri
             transaction.update(userRef, { credits: updated, hasMadeFirstPurchase: true });
             return updated;
         });
+        charged = true;
 
         // Write the ledger entry immediately after the successful deduction so
         // failed/slow audio generation cannot make the credit history disappear.
@@ -391,7 +394,12 @@ export async function regenerateLineWithCreditsAction(userId: string, text: stri
 
         return { success: true, audioDataUri: getDisplayUrl(r2PublicUrl), newCredits: newBalance };
     } catch (error: any) {
-    reportServerError('src/app/studio/actions.ts#5', error); return { success: false, error: error.message }; }
+        reportServerError('src/app/studio/actions.ts#5', error);
+        // Credits are taken before generating; if generation or the upload
+        // then fails the user got nothing, so give them back.
+        if (charged) await refundCreditsWithHistory(userId, cost, 'Refund: Voice Edit / Regenerate Line failed');
+        return { success: false, error: error.message };
+    }
 }
 
 export async function createCharacterVoiceReplacementJobAction({
@@ -420,6 +428,9 @@ export async function createCharacterVoiceReplacementJobAction({
 }> {
     const { firestore, database } = initializeFirebase();
     const userRef = firestore.collection('users').doc(userId);
+    let cost = 0;
+    let charged = false;
+    let refunded = 0;
     
     try {
         if (!syncData || !syncData.dialogues || !Array.isArray(syncData.dialogues)) {
@@ -462,7 +473,8 @@ export async function createCharacterVoiceReplacementJobAction({
 
         // Calculate character length & credits
         const totalChars = affectedIndices.reduce((acc, item) => acc + (dialogues[item.idx].line || '').length, 0);
-        const cost = Math.max(1, Math.ceil(totalChars * await getEngineRate('gemini')));
+        const rate = await getEngineRate('gemini');
+        cost = Math.max(1, Math.ceil(totalChars * rate));
 
         // Deduct credits
         const newBalance = await firestore.runTransaction(async (transaction: any) => {
@@ -475,6 +487,7 @@ export async function createCharacterVoiceReplacementJobAction({
             transaction.update(userRef, { credits: updated, hasMadeFirstPurchase: true });
             return updated;
         });
+        charged = true;
 
         // Record credit history
         await database.ref(`creditHistory/${userId}`).push({
@@ -514,6 +527,8 @@ export async function createCharacterVoiceReplacementJobAction({
 
         let processedCount = 0;
         let primaryOverrideUrl = '';
+        let failedLines = 0;
+        let failedChars = 0;
 
         for (const item of affectedIndices) {
             const lineText = dialogues[item.idx].line;
@@ -548,6 +563,9 @@ export async function createCharacterVoiceReplacementJobAction({
                     };
                     if (!primaryOverrideUrl) primaryOverrideUrl = genResult.audioDataUri;
                 }
+            } else {
+                failedLines++;
+                failedChars += (lineText || '').length;
             }
 
             processedCount++;
@@ -556,6 +574,17 @@ export async function createCharacterVoiceReplacementJobAction({
                 progress: currentProgress,
                 updatedAt: new Date().toISOString()
             });
+        }
+
+        // Lines that failed to generate were charged but not delivered —
+        // refund their share (all of it if every line failed).
+        if (failedLines > 0) {
+            const owed = failedLines === affectedIndices.length ? cost : Math.min(cost, Math.floor(failedChars * rate));
+            refunded += await refundCreditsWithHistory(
+                userId, owed,
+                `Refund: Voice Swap — ${failedLines}/${affectedIndices.length} dialogue(s) failed`,
+                { projectId }
+            );
         }
 
         // Update voice assignments map
@@ -632,13 +661,17 @@ export async function createCharacterVoiceReplacementJobAction({
             success: true,
             jobId,
             editedAudioUrl,
-            newCredits: newBalance,
+            newCredits: newBalance + refunded,
             updatedSyncData
         };
 
     } catch (error: any) {
     reportServerError('src/app/studio/actions.ts#7', error);
         console.error("createCharacterVoiceReplacementJobAction failed:", error);
+        // Failed after charging — return whatever hasn't been refunded yet.
+        if (charged && cost > refunded) {
+            await refundCreditsWithHistory(userId, cost - refunded, 'Refund: Voice Swap failed', { projectId });
+        }
         return { success: false, error: error.message || 'Job creation failed' };
     }
 }
