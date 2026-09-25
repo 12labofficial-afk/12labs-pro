@@ -242,6 +242,27 @@
   pointer-events: none;
 }
 
+/* 🔴 FIX: same problem as the status bar above, but at the bottom — the
+   Android gesture-navigation strip (the thin pill at the very bottom of
+   an edge-to-edge screen) had nothing painting behind it, so it fell back
+   to black instead of the app's white. MainBottomNav sits at bottom:0 too,
+   but it's a translucent glass panel (bg-background/70 + backdrop-blur) —
+   without a solid layer behind it, that transparency let the black
+   underneath bleed through. This spacer gives it (and every page where
+   the bottom nav is hidden — login, admin, guests, etc.) a solid white
+   backdrop instead, same z-index tier and painted first so MainBottomNav's
+   glass effect still layers on top of it normally. */
+.bottom-bar-spacer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background-color: var(--status-bar-color);
+  z-index: 100;
+  pointer-events: none;
+}
+
 body {
   padding-top: env(safe-area-inset-top, 0px);
 }

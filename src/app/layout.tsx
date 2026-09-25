@@ -165,6 +165,9 @@ export default function RootLayout({
                 its icons. Sits above everything (z-[100]) and is purely
                 visual — it never intercepts touches. */}
             <div className="status-bar-spacer" aria-hidden="true" />
+            {/* Same idea, bottom edge — the Android gesture-nav strip, see
+                the .bottom-bar-spacer comment in globals.css. */}
+            <div className="bottom-bar-spacer" aria-hidden="true" />
             <Providers>
               <ImpersonationBar />
               {/* 🧭 GLOBAL HEADER: rendered once here so every route gets it
