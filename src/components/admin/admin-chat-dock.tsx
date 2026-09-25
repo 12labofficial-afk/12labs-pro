@@ -260,11 +260,22 @@ function AdminChatReplyDialog({ session, onClose }: { session: LiveChatSession |
                     {!isEditingThis && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover/msg:opacity-100 transition-opacity shrink-0">
+                          {/* 🔴 FIX: this was hover-gated (opacity-0, only
+                              revealed on group-hover) — this dock is used on
+                              phones (touch has no hover state), so the
+                              trigger was invisible and effectively
+                              undiscoverable there. Always visible now. */}
+                          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
                             <MoreHorizontal className="h-3.5 w-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align={message.sender === 'admin' ? 'end' : 'start'} className="rounded-xl shadow-xl p-1.5 border border-border bg-popover z-50">
+                        {/* 🔴 FIX: this dropdown opens INSIDE this component's
+                            own Dialog, whose overlay/content sit at z-[200]
+                            (src/components/ui/dialog.tsx) — the menu's
+                            default z-50 rendered it behind the dialog, so it
+                            technically opened but was invisible and
+                            unclickable ("options don't open"). */}
+                        <DropdownMenuContent align={message.sender === 'admin' ? 'end' : 'start'} className="rounded-xl shadow-xl p-1.5 border border-border bg-popover z-[210]">
                           {message.sender === 'admin' && message.text && (
                             <DropdownMenuItem className="h-8 rounded-lg cursor-pointer font-bold text-xs" onClick={() => setEditingMessage({ id: message.id, text: message.text || '' })}>
                               <Edit className="mr-2 h-3.5 w-3.5 text-primary" /> Edit
