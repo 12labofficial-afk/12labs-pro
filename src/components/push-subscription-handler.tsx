@@ -231,6 +231,13 @@ export function PushSubscriptionHandler() {
     if (!user?.uid || !database || typeof window === 'undefined') return;
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
+    // 🔴 FIX: same as the silent SW-registration effect above — this whole
+    // flow is a background, best-effort re-subscribe (permission was
+    // already granted in an earlier session) with a working fallback
+    // (default VAPID key) at every step. A "Failed to fetch" here is
+    // almost always a network blip or an ad-blocker, not something our
+    // code can fix, and it never blocks the user — so it's not worth
+    // paging to Telegram. console.warn keeps it visible in devtools.
     const registerAndSubscribe = async () => {
       try {
         let vapidPublicKey = getVapidKey();
@@ -238,7 +245,8 @@ export function PushSubscriptionHandler() {
           const serverKey = await getActiveVapidPublicKey();
           if (serverKey) vapidPublicKey = serverKey;
         } catch (e) {
-        reportClientError('src/components/push-subscription-handler.tsx:229', e);}
+          console.warn('[Push] Could not fetch active VAPID key, using fallback:', e);
+        }
 
         try {
           if (Notification.permission !== 'granted') return;
@@ -259,12 +267,10 @@ export function PushSubscriptionHandler() {
             subscribedRef.current = true;
           }
         } catch (swErr) {
-        reportClientError('src/components/push-subscription-handler.tsx:249', swErr);
           console.warn('[Push] Background registration failed (sw.js might be missing):', swErr);
         }
       } catch (err) {
-        reportClientError('src/components/push-subscription-handler.tsx:252', err);
-        console.error('[Push] Registration/Subscription error:', err);
+        console.warn('[Push] Background registration/subscription error:', err);
       }
     };
 
