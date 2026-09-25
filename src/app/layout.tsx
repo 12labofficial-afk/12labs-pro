@@ -14,6 +14,7 @@ import { ImpersonationBar } from '@/components/impersonation-bar';
 import { MainBottomNav } from '@/components/main-bottom-nav';
 import { initializeFirebase } from '@/firebase/server';
 import { Header } from '@/components/header';
+import { AppVersionGate } from '@/components/app-version-gate';
 
 const fontSans = Inter({
   subsets: ['latin'],
@@ -165,6 +166,7 @@ export default function RootLayout({
                 its icons. Sits above everything (z-[100]) and is purely
                 visual — it never intercepts touches. */}
             <div className="status-bar-spacer" aria-hidden="true" />
+            <AppVersionGate />
             <Providers>
               <ImpersonationBar />
               {/* 🧭 GLOBAL HEADER: rendered once here so every route gets it
