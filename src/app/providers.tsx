@@ -16,6 +16,7 @@ import { PushSubscriptionHandler } from '@/components/push-subscription-handler'
 import { AltAccountOfferModal } from '@/components/alt-account-offer-modal';
 import { CookieConsent } from '@/components/cookie-consent';
 import { FirestoreCrashGuard } from '@/components/firestore-crash-guard';
+import { AppVersionGate } from '@/components/app-version-gate';
 
 function ConsoleSanitizer() {
   useEffect(() => {
@@ -63,6 +64,9 @@ export function Providers({ children }: { children: ReactNode }) {
         <DynamicThemeProvider>
           <FirebaseClientProvider>
             <AuthProvider>
+              {/* Rendered outside MaintenanceGuard so a version bump still
+                  reaches everyone, maintenance mode or not. */}
+              <AppVersionGate />
               <CartProvider>
                 <MaintenanceGuard>
                     <PushSubscriptionHandler />

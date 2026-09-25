@@ -8,3 +8,11 @@
 // fresh reload before they ever hit a stale-chunk "Failed to fetch" from
 // a deleted old build file.
 export const APP_VERSION = '2.2.3';
+
+// 📝 Release notes for the version above — rendered as the "What's new"
+// list in the update prompt (see AppVersionGate). Update this alongside
+// APP_VERSION whenever a version is bumped; it is never shown on its own,
+// only as part of that prompt.
+export const APP_UPDATE_NOTES: string[] = [
+  'Solved payment glitch on some devices',
+];
