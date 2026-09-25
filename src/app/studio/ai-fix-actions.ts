@@ -55,7 +55,7 @@ export async function expandDialogueWithAiAction(
             timestamp: new Date().toISOString(),
         }).catch((e: any) => { reportServerError('src/app/studio/ai-fix-actions.ts:creditHistory', e); return null; });
 
-        const prompt = `You are fixing ONE line of dialogue in a voiceover script so it has enough words for an AI voice actor to perform naturally. The line below is too short (under ${MIN_DIALOGUE_WORDS} words) and would sound broken or clipped if synthesized as-is.
+        const buildPrompt = (retry: boolean) => `You are fixing ONE line of dialogue in a voiceover script so it has enough words for an AI voice actor to perform naturally. The line below is too short (under ${MIN_DIALOGUE_WORDS} words) and would sound broken or clipped if synthesized as-is.
 
 Full script for tone/context only:
 """
@@ -64,20 +64,28 @@ ${fullScriptContext.slice(0, 2000)}
 
 Character speaking: ${characterName}
 Line to fix: "${dialogueText}"
-
+${retry ? `\nYour previous attempt was STILL under ${MIN_DIALOGUE_WORDS} words — that is not acceptable. Even a one-word line like "Haan." or "Okay." must become a real ${MIN_DIALOGUE_WORDS}+ word sentence, e.g. add a natural reaction, a short reason, or address who they're speaking to.\n` : ''}
 Rewrite ONLY this one line so it is at least ${MIN_DIALOGUE_WORDS} words and sounds natural for this character. Keep the original meaning and tone. Only expand it slightly — do NOT turn it into a long speech, do NOT add new plot points, do NOT add stage directions or brackets. Reply with ONLY the rewritten line, nothing else — no quotes, no explanation.`;
 
-        const result = await callOpenRouterText('google/gemini-2.5-flash-lite', { prompt });
-
-        if (result._error || !result.text) {
-            throw new Error(result.message || 'AI engine returned no result.');
+        // 🔴 FIX: a single OpenRouter call that came back still-too-short
+        // (common for a near-empty original line, e.g. "Haan." — a lite
+        // model doesn't always take "expand this" seriously enough on its
+        // own) went straight to a refund with no second attempt. One retry,
+        // with an escalated prompt, before actually giving up.
+        let expandedText = '';
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const result = await callOpenRouterText('google/gemini-2.5-flash-lite', { prompt: buildPrompt(attempt === 2) });
+            if (result._error || !result.text) {
+                if (attempt === 2) throw new Error(result.message || 'AI engine returned no result.');
+                continue;
+            }
+            expandedText = result.text.trim().replace(/^["']|["']$/g, '');
+            if (!isDialogueTooShort(expandedText)) break;
         }
 
-        const expandedText = result.text.trim().replace(/^["']|["']$/g, '');
-
         if (isDialogueTooShort(expandedText)) {
-            // The model didn't actually fix it — refunded below rather than
-            // charging for a no-op.
+            // The model didn't actually fix it even after a retry —
+            // refunded below rather than charging for a no-op.
             throw new Error('AI could not expand this line sufficiently. Try editing it manually.');
         }
 
