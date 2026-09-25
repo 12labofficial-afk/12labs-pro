@@ -29,6 +29,7 @@ export function AppVersionGate() {
   const { user } = useAuth();
   const [newVersion, setNewVersion] = useState<string | null>(null);
   const checkingRef = useRef(false);
+  const foundRef = useRef(false);
 
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
@@ -38,13 +39,16 @@ export function AppVersionGate() {
 
   useEffect(() => {
     const checkVersion = async () => {
-      if (checkingRef.current || document.visibilityState !== 'visible') return;
+      // Once an update is already known, there's nothing left to poll for —
+      // stop hitting the endpoint every interval/tab-focus.
+      if (checkingRef.current || foundRef.current || document.visibilityState !== 'visible') return;
       checkingRef.current = true;
       try {
         const res = await fetch(`/api/version?t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (data?.version && data.version !== APP_VERSION) {
+            foundRef.current = true;
             setNewVersion(data.version);
           }
         }
@@ -63,6 +67,19 @@ export function AppVersionGate() {
       document.removeEventListener('visibilitychange', checkVersion);
     };
   }, []);
+
+  // 🔴 FIX: this overlay blocks interaction visually, but nothing stopped
+  // the page BEHIND it from still scrolling (touch/wheel passed straight
+  // through to the body) — a real bug for a modal that's supposed to be
+  // blocking. Locks body scroll only while the prompt is actually shown.
+  useEffect(() => {
+    if (!newVersion) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [newVersion]);
 
   const handleSendFeedback = async () => {
     const text = feedbackText.trim();
@@ -95,36 +112,41 @@ export function AppVersionGate() {
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 p-4"
+      // 🔴 FIX: AlertDialog/Popover/Select are also z-[300] and render into
+      // a portal appended at the END of <body> — since this component is
+      // NOT portaled (it renders inline, early in the tree), any of those
+      // open at the same time would paint OVER this "forced" update prompt
+      // at an equal z-index. z-[400] guarantees this always wins.
+      className="fixed inset-0 z-[400] flex items-center justify-center overflow-y-auto bg-black/80 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="app-version-gate-title"
     >
-      <div className="w-full max-w-sm rounded-2xl border bg-background p-6 text-center shadow-lg">
+      <div className="my-auto w-full max-w-[340px] max-h-full overflow-y-auto rounded-2xl border bg-background p-5 text-center shadow-lg">
         <div className="flex items-baseline justify-center space-x-1">
           <span className="text-2xl font-bold font-logo text-primary">12</span>
           <span className="text-2xl font-bold font-headline">Labs</span>
         </div>
 
-        <div className="mx-auto mt-4 mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-          <RefreshCw className="h-6 w-6 text-primary" />
+        <div className="mx-auto mt-3 mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-primary/10">
+          <RefreshCw className="h-5 w-5 text-primary" />
         </div>
-        <h2 id="app-version-gate-title" className="text-lg font-semibold">
+        <h2 id="app-version-gate-title" className="text-base font-semibold">
           Naya Update Available
         </h2>
 
-        <div className="mt-2 flex items-center justify-center gap-2 text-xs font-mono text-muted-foreground">
+        <div className="mt-1.5 flex items-center justify-center gap-2 text-xs font-mono text-muted-foreground">
           <span>v{APP_VERSION}</span>
           <ArrowRight className="h-3 w-3" />
           <span className="font-semibold text-primary">v{newVersion}</span>
         </div>
 
         {APP_UPDATE_NOTES.length > 0 && (
-          <div className="mt-4 rounded-lg bg-muted/50 p-3 text-left">
+          <div className="mt-3 rounded-lg bg-muted/50 p-2.5 text-left">
             <p className="text-xs font-semibold text-muted-foreground">What's New</p>
             <ul className="mt-1.5 space-y-1">
               {APP_UPDATE_NOTES.map((note, i) => (
-                <li key={i} className="text-xs text-foreground/90 flex gap-1.5">
+                <li key={i} className="text-[11px] leading-snug text-muted-foreground/80 flex gap-1.5">
                   <span className="text-primary">•</span>
                   <span>{note}</span>
                 </li>
@@ -133,11 +155,11 @@ export function AppVersionGate() {
           </div>
         )}
 
-        <Button className="mt-5 w-full" onClick={() => window.location.reload()}>
+        <Button className="mt-4 w-full" onClick={() => window.location.reload()}>
           Update Now
         </Button>
 
-        <div className="mt-4 border-t pt-4">
+        <div className="mt-3 border-t pt-3">
           {!feedbackOpen ? (
             <button
               type="button"
