@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/auth-provider';
 import { sendUserChatMessage } from '@/app/admin/chat/actions';
-import { APP_UPDATE_NOTES, APP_VERSION } from '@/lib/app-version';
+import { APP_UPDATE_NOTES, APP_UPDATE_SIZE, APP_VERSION } from '@/lib/app-version';
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -140,6 +140,9 @@ export function AppVersionGate() {
           <ArrowRight className="h-3 w-3" />
           <span className="font-semibold text-primary">v{newVersion}</span>
         </div>
+        {APP_UPDATE_SIZE && (
+          <p className="mt-0.5 text-[11px] text-muted-foreground/70">{APP_UPDATE_SIZE}</p>
+        )}
 
         {APP_UPDATE_NOTES.length > 0 && (
           <div className="mt-3 rounded-lg bg-muted/50 p-2.5 text-left">

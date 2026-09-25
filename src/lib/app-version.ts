@@ -16,3 +16,9 @@ export const APP_VERSION = '2.2.3';
 export const APP_UPDATE_NOTES: string[] = [
   'Solved payment glitch on some devices',
 ];
+
+// 📦 Cosmetic-only "download size" shown next to the version in the update
+// prompt — this app has no real update payload to measure (it's a website,
+// not an installed binary), so this is just a display string, typed by
+// hand alongside APP_VERSION/APP_UPDATE_NOTES whenever a version is bumped.
+export const APP_UPDATE_SIZE = '414 KB';
