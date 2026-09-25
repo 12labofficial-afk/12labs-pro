@@ -400,7 +400,10 @@ export async function localSaveFile(url: string, fileName: string) {
             return;
         }
     } catch (error) {
-        reportClientError('src/lib/utils.ts:388', error);
+        // Non-fatal by design: the window.location.href fallback right below
+        // still triggers the download (as a browser-native attachment) even
+        // when this fetch fails (e.g. "Failed to fetch" on a flaky
+        // connection), so nothing to act on here.
         console.warn("[LocalSave] Direct download API fetch failed:", error);
     }
 
