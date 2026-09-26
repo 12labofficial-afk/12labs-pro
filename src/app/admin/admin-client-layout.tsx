@@ -20,7 +20,8 @@ import {
   ShoppingBag,
   MicVocal,
   Terminal,
-  Activity
+  Activity,
+  Megaphone
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ const adminNavItems = [
   { href: '/admin/chat', label: 'Live Chat', icon: <MessageCircle className="h-4 w-4" /> },
   { href: '/admin/payments', label: 'Payments', icon: <IndianRupee className="h-4 w-4" /> },
   { href: '/admin/pending', label: 'Processing', icon: <ListTodo className="h-4 w-4" /> },
+  { href: '/admin/ads', label: 'Ads Review', icon: <Megaphone className="h-4 w-4" /> },
   { href: '/admin/clone-studio', label: 'Clone Hub', icon: <MicVocal className="h-4 w-4" /> },
   { href: '/admin/projects', label: 'Moderator', icon: <Package className="h-4 w-4" /> },
   { href: '/admin/sold-products', label: 'Sold Items', icon: <ShoppingBag className="h-4 w-4" /> },

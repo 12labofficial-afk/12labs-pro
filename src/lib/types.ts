@@ -407,3 +407,29 @@ export interface MusicEntry {
     // record (see src/app/admin/music-manager/actions.ts).
     hasMaster?: boolean;
 }
+
+export interface AdCampaign {
+    id: string;
+    advertiserId: string;
+    advertiserName: string;
+    advertiserEmail: string;
+    // 'pending_link' — paid, waiting for the advertiser to submit a video URL.
+    // 'pending_review' — video URL submitted, waiting for admin approval.
+    // 'active' — approved and being shown to viewers.
+    // 'rejected' — admin rejected the submitted video.
+    // 'exhausted' — budget fully paid out to viewers.
+    status: 'pending_link' | 'pending_review' | 'active' | 'rejected' | 'exhausted';
+    videoUrl?: string;
+    budgetInr: number;
+    budgetCredits: number;
+    spentCredits: number;
+    viewCount: number;
+    totalWatchSeconds: number;
+    paymentId: string;
+    orderId: string;
+    createdAt: string;
+    submittedAt?: string;
+    reviewedAt?: string;
+    reviewedBy?: string;
+    rejectionReason?: string;
+}

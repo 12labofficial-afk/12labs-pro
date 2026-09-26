@@ -11,6 +11,7 @@ import { escapeHtml, getISTDateString } from '@/lib/utils';
 import { plans } from '@/lib/plans';
 import { reportServerError } from '@/lib/report-error';
 import { handleAffiliateCommission, handleCreditPurchase } from '@/lib/credit-purchase';
+import { createAdFromRazorpayPayment } from '@/lib/ad-budget-purchase';
 
 /**
  * 🎵🔒 MUSIC TRACK PURCHASE — WEBHOOK HANDLER
@@ -286,6 +287,7 @@ export async function POST(req: NextRequest) {
     } else if (event.event === 'order.paid' || event.event === 'payment.captured') {
         if (notes.type === 'music_track_purchase') await handleMusicTrackPurchase(firestore, database, entity, event.payload?.order?.entity);
         else if (notes.type === 'product_order' || notes.pendingOrderId) await handleProductPurchase(firestore, database, entity, event.payload?.order?.entity);
+        else if (notes.type === 'ad_budget_topup') await createAdFromRazorpayPayment(database, entity, event.payload?.order?.entity);
         else await handleCreditPurchase(firestore, database, entity, event.payload?.order?.entity);
      } else if (event.event === 'subscription.charged') {
         await handleCreditPurchase(firestore, database, entity, undefined, true);
