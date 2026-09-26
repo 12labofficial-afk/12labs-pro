@@ -128,6 +128,14 @@ export default function RootLayout({
   return (
     <html lang="en" translate="no" suppressHydrationWarning>
       <head>
+        {/* Explicit, redundant safety net alongside the `viewport` export's
+            theme-color metadata below — an installed ("Add to Home Screen")
+            PWA's native shell reads the live page's theme-color meta tag to
+            re-sync its system-bar colors on each navigation, separate from
+            the one-time value baked in from the manifest at install time.
+            Having it emitted twice is harmless; missing it even once on some
+            route would leave that shell on whatever color it last had. */}
+        <meta name="theme-color" content="#ffffff" />
         {/* 🔴 STORAGE GUARD — must be the FIRST script to run. Some in-app
             webviews (Instagram / Telegram / Facebook browsers) and strict
             privacy modes block Web Storage so hard that even READING the
