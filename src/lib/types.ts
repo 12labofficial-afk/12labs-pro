@@ -421,6 +421,7 @@ export interface AdCampaign {
     status: 'pending_link' | 'pending_review' | 'active' | 'rejected' | 'exhausted';
     videoUrl?: string;
     budgetInr: number;
+    budgetMinutes: number;
     budgetCredits: number;
     spentCredits: number;
     viewCount: number;

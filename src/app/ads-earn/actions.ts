@@ -20,6 +20,16 @@ import type { AdCampaign } from '@/lib/types';
 const MAX_SINGLE_WATCH_MINUTES = 20;
 
 // ============================================================
+// SHARED — public pricing, read by the budget slider before any payment
+// ============================================================
+
+export async function getAdsEarnPublicSettings(): Promise<{ inrPerMinute: number; ratePerMinute: number }> {
+  const { database } = initializeFirebase();
+  const { inrPerMinute, ratePerMinute } = await getAdsEarnSettings(database);
+  return { inrPerMinute, ratePerMinute };
+}
+
+// ============================================================
 // ADVERTISER — fund a budget, submit a video, see stats
 // ============================================================
 

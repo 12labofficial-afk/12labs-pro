@@ -54,6 +54,7 @@ import {
   saveHqBackendUrlAction, 
   saveEditingHfBackendAction,
   saveAiDialogueExpandCostAction,
+  saveAdsEarnSettingsAction,
   toggleToolLockAction,
   saveMusicWatermarkUrlAction,
   setAnalysisExecutionModeAction,
@@ -487,6 +488,76 @@ function AiDialogueFixSettings() {
     );
 }
 
+// 🔴 Ads & Earn pricing knobs. ₹/min is what an advertiser's budget slider
+// divides by to show funded watch-time ("₹50 -> 10 min" at the default ₹5/
+// min); credits/min is what a viewer actually earns per minute watched.
+// These are deliberately independent — changing one doesn't move the
+// other — see src/lib/ad-budget-purchase.ts for how an ad's credits pool
+// is derived from both.
+function AdsEarnSettingsCard() {
+    const { toast } = useToast();
+    const [isSaving, setIsSaving] = useState(false);
+    const [inrPerMinute, setInrPerMinute] = useState(5);
+    const [ratePerMinute, setRatePerMinute] = useState(10);
+    const [dailyCap, setDailyCap] = useState(150);
+
+    useEffect(() => {
+        const { database: db } = initializeFirebase();
+        if (!db) return;
+        const unsubscribe = onRtdbValue(ref(db, 'settings/app'), (snapshot) => {
+            const v = snapshot.val() || {};
+            if (v.adsInrPerMinute) setInrPerMinute(v.adsInrPerMinute);
+            if (v.adsEarnRatePerMinute) setRatePerMinute(v.adsEarnRatePerMinute);
+            if (v.adsEarnDailyCapPerUser) setDailyCap(v.adsEarnDailyCapPerUser);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            const res = await saveAdsEarnSettingsAction({ inrPerMinute, ratePerMinute, dailyCap });
+            if (res.success) {
+                toast({ title: 'Ads & Earn Settings Updated', description: `₹${inrPerMinute}/min funds ${ratePerMinute} credits/min for viewers.` });
+            } else {
+                toast({ variant: 'destructive', title: 'Update Failed', description: res.error });
+            }
+        } catch (error: any) {
+            reportClientError('src/app/admin/page.tsx:adsEarnSettings', error);
+            toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
+        } finally { setIsSaving(false); }
+    };
+
+    return (
+        <Card className="rounded-3xl border-none shadow-xl bg-card overflow-hidden">
+            <CardHeader className="bg-primary/5 border-b border-primary/10 p-5">
+                <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    Ads &amp; Earn Pricing
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+                <div className="space-y-2">
+                    <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/60 px-1">₹ advertiser pays per minute funded</Label>
+                    <Input type="number" min={0.1} step={0.1} value={inrPerMinute} onChange={(e) => setInrPerMinute(Number(e.target.value) || 0)} className="h-11 rounded-2xl bg-muted/10 border-primary/5 font-mono text-[11px] px-4" />
+                    <p className="text-[7px] font-bold text-muted-foreground uppercase px-1">Drives the budget slider's "≈ X min of watch time" estimate — e.g. ₹5/min means a ₹50 budget funds 10 min.</p>
+                </div>
+                <div className="space-y-2">
+                    <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/60 px-1">Credits a viewer earns per minute watched</Label>
+                    <Input type="number" min={0.1} step={0.5} value={ratePerMinute} onChange={(e) => setRatePerMinute(Number(e.target.value) || 0)} className="h-11 rounded-2xl bg-muted/10 border-primary/5 font-mono text-[11px] px-4" />
+                </div>
+                <div className="space-y-2">
+                    <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/60 px-1">Max credits/day a single viewer can earn from ads</Label>
+                    <Input type="number" min={1} value={dailyCap} onChange={(e) => setDailyCap(Number(e.target.value) || 0)} className="h-11 rounded-2xl bg-muted/10 border-primary/5 font-mono text-[11px] px-4" />
+                </div>
+                <Button onClick={handleSave} disabled={isSaving} className="w-full h-11 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20">
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} SAVE ADS &amp; EARN SETTINGS
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
 function AnalysisExecutionModeSettings() {
     const { toast } = useToast();
     // Default 'server' — matches the app default now that all analysis runs
@@ -769,6 +840,7 @@ export default function AdminPage() {
                 <HqBackendSettings />
                 <EditingHfBackendSettings />
                 <AiDialogueFixSettings />
+                <AdsEarnSettingsCard />
             </div>
         </TabsContent>
 

@@ -99,7 +99,7 @@ function LiveAdCard({ ad }: { ad: AdCampaign }) {
         </div>
         <div className="flex items-center gap-4 text-xs font-bold text-muted-foreground">
           <span className="flex items-center gap-1"><Eye className="h-3.5 w-3.5" /> {ad.viewCount} views</span>
-          <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {Math.round(ad.totalWatchSeconds / 60)} min watched</span>
+          <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {Math.round(ad.totalWatchSeconds / 60)} / {ad.budgetMinutes?.toFixed(1) ?? '—'} min funded</span>
         </div>
         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
           <div className="h-full bg-primary" style={{ width: `${pctSpent}%` }} />
