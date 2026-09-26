@@ -128,6 +128,52 @@ export default function RootLayout({
   return (
     <html lang="en" translate="no" suppressHydrationWarning>
       <head>
+        {/* 🔴 STORAGE GUARD — must be the FIRST script to run. Some in-app
+            webviews (Instagram / Telegram / Facebook browsers) and strict
+            privacy modes block Web Storage so hard that even READING the
+            `window.localStorage` PROPERTY throws SecurityError, not just
+            .getItem(). That crashed the entire React tree ("Access is
+            denied for this document") the instant any code — ours,
+            next-themes, or the Firebase SDK — touched it during render.
+            Per-call try/catch can't fix that (a library's access still
+            throws), so this replaces a blocked localStorage/sessionStorage
+            with an in-memory shim BEFORE any framework code loads: storage
+            just stops persisting across reloads for those users instead of
+            taking the whole site down. Runs before the error handler below,
+            which itself uses sessionStorage. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                function memoryStorage() {
+                  var store = {};
+                  return {
+                    getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+                    setItem: function (k, v) { store[k] = String(v); },
+                    removeItem: function (k) { delete store[k]; },
+                    clear: function () { store = {}; },
+                    key: function (i) { return Object.keys(store)[i] || null; },
+                    get length() { return Object.keys(store).length; }
+                  };
+                }
+                function guard(name) {
+                  try {
+                    var s = window[name];
+                    var t = '__storage_probe__';
+                    s.setItem(t, t);
+                    s.removeItem(t);
+                  } catch (e) {
+                    try {
+                      Object.defineProperty(window, name, { value: memoryStorage(), configurable: true });
+                    } catch (e2) { /* can't redefine — nothing more we can do */ }
+                  }
+                }
+                guard('localStorage');
+                guard('sessionStorage');
+              })();
+            `,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
