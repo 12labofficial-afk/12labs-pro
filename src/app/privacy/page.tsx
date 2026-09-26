@@ -17,7 +17,7 @@ export default function PrivacyPage() {
         <Card>
             <CardHeader>
                 <CardTitle className="text-3xl">Privacy Policy</CardTitle>
-                <CardDescription>Last updated: <strong className="text-foreground">July 30, 2026</strong></CardDescription>
+                <CardDescription>Last updated: <strong className="text-foreground">September 26, 2026</strong></CardDescription>
             </CardHeader>
             <CardContent className="space-y-8 text-muted-foreground prose dark:prose-invert max-w-none">
                 <p>
@@ -36,7 +36,20 @@ export default function PrivacyPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Target className="h-5 w-5 text-primary" />2. How We Use Your Information</h2>
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><UserCheck className="h-5 w-5 text-primary" />2. Use of Google User Data (Sign in with Google)</h2>
+                    <p>
+                        12Labs offers "Sign in with Google" as a convenient way to create and access your account. Our access, use, storage, and sharing of information received from Google APIs adheres to the{' '}
+                        <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">
+                            Google API Services User Data Policy
+                        </a>, including the Limited Use requirements.
+                    </p>
+                    <p><strong>What we request:</strong> When you sign in with Google, we request only your basic profile information — your name, email address, and profile picture. We do not request access to your Gmail, Google Drive, Google Calendar, contacts, or any other Google service.</p>
+                    <p><strong>How we use it:</strong> This information is used solely to create and authenticate your 12Labs account (identify you, display your name/photo in the app, and send you service-related communications). We never use Google user data for advertising, and we never sell it or share it with third parties for their own marketing purposes.</p>
+                    <p><strong>Revoking access:</strong> You can revoke 12Labs's access to your Google account at any time from your Google Account's <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">Security &amp; Sharing settings</a>, or by deleting your 12Labs account from your <Link href="/profile" className="text-primary underline underline-offset-2">Profile</Link> page — which also automatically revokes the Google authorization on our end.</p>
+                </div>
+
+                <div className="space-y-2">
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Target className="h-5 w-5 text-primary" />3. How We Use Your Information</h2>
                     <p>
                         We use the information we collect for various purposes, including to:
                     </p>
@@ -51,7 +64,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Share2 className="h-5 w-5 text-primary" />3. Sharing of Information</h2>
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Share2 className="h-5 w-5 text-primary" />4. Sharing of Information</h2>
                     <p>
                         We do not sell your personal information. We may share information with the following third parties to provide our Service:
                     </p>
@@ -64,7 +77,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Server className="h-5 w-5 text-primary" />4. Data Retention</h2>
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Server className="h-5 w-5 text-primary" />5. Data Retention</h2>
                     <p>
                        We retain your data for as long as your account is active or as needed to provide you with our services.
                     </p>
@@ -77,7 +90,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Lock className="h-5 w-5 text-primary" />5. Promotional Credits & Anti-Abuse Terms</h2>
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Lock className="h-5 w-5 text-primary" />6. Promotional Credits & Anti-Abuse Terms</h2>
                     <p>
                         We offer a discretionary amount of promotional/free credits to new users upon registration. These promotional credits are governed by the following strict anti-abuse rules:
                     </p>
@@ -89,7 +102,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><RefreshCw className="h-5 w-5 text-primary" />6. Cancellation, Refund & Plan Policy</h2>
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><RefreshCw className="h-5 w-5 text-primary" />7. Cancellation, Refund & Plan Policy</h2>
                     <p>
                         All credit packs and automatic weekly subscriptions are subject to the following purchase rules:
                     </p>
@@ -100,29 +113,29 @@ export default function PrivacyPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Lock className="h-5 w-5 text-primary" />7. Data Security</h2>
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Lock className="h-5 w-5 text-primary" />8. Data Security</h2>
                     <p>
                         We implement a variety of security measures to maintain the safety of your personal information. All communication with our Service is encrypted using SSL technology. While we take reasonable measures to protect your information, no security system is impenetrable.
                     </p>
                 </div>
 
                 <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Cookie className="h-5 w-5 text-primary" />8. Local Storage</h2>
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Cookie className="h-5 w-5 text-primary" />9. Local Storage</h2>
                     <p>We use `localStorage` in your browser to save drafts of your work and your login session. This allows you to pick up where you left off. This data remains on your device and is not used for tracking or advertising purposes.</p>
                 </div>
 
                 <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Fingerprint className="h-5 w-5 text-primary" />9. Your Rights</h2>
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Fingerprint className="h-5 w-5 text-primary" />10. Your Rights</h2>
                     <p>You have the right to access, correct, or delete your personal data. You can manage your projects, view your purchase history, and permanently delete your account and personal data at any time from your <Link href="/profile" className="text-primary underline underline-offset-2">Profile</Link> page. For other requests, please contact us.</p>
                 </div>
 
                 <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><RefreshCw className="h-5 w-5 text-primary" />10. Changes to this Privacy Policy</h2>
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><RefreshCw className="h-5 w-5 text-primary" />11. Changes to this Privacy Policy</h2>
                     <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last updated" date.</p>
                 </div>
 
                 <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><UserCheck className="h-5 w-5 text-primary" />11. Grievance Officer</h2>
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><UserCheck className="h-5 w-5 text-primary" />12. Grievance Officer</h2>
                     <p>
                         In accordance with the Information Technology Act, 2000 and the rules made thereunder, including the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021, the details of the Grievance Officer are provided below. If you have any complaints or grievances regarding your personal data or this Service, please reach out:
                     </p>
@@ -136,7 +149,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Mail className="h-5 w-5 text-primary" />12. Contact Us</h2>
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2"><Mail className="h-5 w-5 text-primary" />13. Contact Us</h2>
                     <p>
                         If you have any questions about this Privacy Policy, please contact us via our <Link href="/contact" className="text-primary underline" prefetch={false}>Contact Page</Link> or email us at <strong>12labofficial@gmail.com</strong>.
                     </p>
