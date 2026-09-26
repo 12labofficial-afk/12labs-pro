@@ -7,18 +7,18 @@
 // available" prompt once it sees this NEW value — pushing them onto a
 // fresh reload before they ever hit a stale-chunk "Failed to fetch" from
 // a deleted old build file.
-export const APP_VERSION = '2.2.4';
+export const APP_VERSION = '2.2.5';
 
 // 📝 Release notes for the version above — rendered as the "What's new"
 // list in the update prompt (see AppVersionGate). Update this alongside
 // APP_VERSION whenever a version is bumped; it is never shown on its own,
 // only as part of that prompt.
 export const APP_UPDATE_NOTES: string[] = [
-  'Fixed navigation bar color on some Android devices',
+  'Improved performance',
 ];
 
 // 📦 Cosmetic-only "download size" shown next to the version in the update
 // prompt — this app has no real update payload to measure (it's a website,
 // not an installed binary), so this is just a display string, typed by
 // hand alongside APP_VERSION/APP_UPDATE_NOTES whenever a version is bumped.
-export const APP_UPDATE_SIZE = '212 KB';
+export const APP_UPDATE_SIZE = '341 KB';

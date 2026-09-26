@@ -90,8 +90,11 @@ function PurchaseCard({ order }: { order: Order }) {
                     }
                 }
             } catch (e) {
-        reportClientError('src/components/history/purchase-history.tsx:92', e);
-                console.error("Purchase detail fetch failed:", e);
+                // Best-effort background enrichment — a network blip here just
+                // means this order's extra product details don't show; the
+                // loading state still clears below either way, nothing gets
+                // stuck. Not worth paging to Telegram.
+                console.warn("Purchase detail fetch failed:", e);
             } finally {
                 setIsLoadingProduct(false);
             }
