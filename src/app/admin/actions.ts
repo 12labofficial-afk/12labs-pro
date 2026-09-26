@@ -103,23 +103,6 @@ export async function saveAiDialogueExpandCostAction(cost: number) {
     }
 }
 
-export async function saveAdsEarnSettingsAction(settings: { inrPerMinute: number; ratePerMinute: number; dailyCap: number }) {
-    try {
-        const { database } = initializeFirebase();
-        if (!database) throw new Error("Database service unavailable.");
-
-        await database.ref('settings/app').update({
-            adsInrPerMinute: Math.max(0.1, Number(settings.inrPerMinute) || 5),
-            adsEarnRatePerMinute: Math.max(0.1, Number(settings.ratePerMinute) || 10),
-            adsEarnDailyCapPerUser: Math.max(1, Math.round(Number(settings.dailyCap) || 150)),
-        });
-        return { success: true };
-    } catch (error: any) {
-        reportServerError('src/app/admin/actions.ts#adsEarnSettings', error);
-        return { success: false, error: error.message || 'Failed to update Ads & Earn settings.' };
-    }
-}
-
 export async function toggleToolLockAction(id: string, locked: boolean) {
     try {
         const { database } = initializeFirebase();

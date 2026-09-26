@@ -21,44 +21,30 @@ export const ADS_EARN_MAX_BUDGET_INR = 20000;
 
 const FALLBACK_RATE_PER_MINUTE = 10; // credits a viewer earns per minute watched
 const FALLBACK_DAILY_CAP = 150; // max credits/day a single viewer can earn from ads, total
-const FALLBACK_INR_PER_MINUTE = 5; // ₹ an advertiser pays to fund one minute of viewer watch-time
+const FALLBACK_RUPEE_TO_CREDITS = 50; // credits funded into an ad's pool per ₹1 of budget
 
 export interface AdsEarnSettings {
   ratePerMinute: number;
   dailyCap: number;
-  inrPerMinute: number;
+  rupeeToCreditsRate: number;
 }
 
-/**
- * 🔢 The advertiser's budget is priced in ₹/minute of funded watch-time
- * (adsInrPerMinute — this is what the budget slider divides by to show
- * "₹50 → 10 min"), completely independent from what a viewer actually
- * earns per minute watched (adsEarnRatePerMinute, in credits). The ad's
- * credits pool is derived from BOTH: fundedMinutes * ratePerMinute — so
- * changing either setting in the admin panel immediately changes what a
- * given budget buys, without the two rates needing to move together.
- */
 export async function getAdsEarnSettings(database: any): Promise<AdsEarnSettings> {
   try {
     const snap = await database.ref('settings/app').get();
     const v = snap.val() || {};
     const rate = Number(v.adsEarnRatePerMinute);
     const cap = Number(v.adsEarnDailyCapPerUser);
-    const inrPerMin = Number(v.adsInrPerMinute);
+    const conv = Number(v.adsRupeeToCreditsRate);
     return {
       ratePerMinute: Number.isFinite(rate) && rate > 0 ? rate : FALLBACK_RATE_PER_MINUTE,
       dailyCap: Number.isFinite(cap) && cap > 0 ? cap : FALLBACK_DAILY_CAP,
-      inrPerMinute: Number.isFinite(inrPerMin) && inrPerMin > 0 ? inrPerMin : FALLBACK_INR_PER_MINUTE,
+      rupeeToCreditsRate: Number.isFinite(conv) && conv > 0 ? conv : FALLBACK_RUPEE_TO_CREDITS,
     };
   } catch (e) {
     reportServerError('src/lib/ad-budget-purchase.ts:getAdsEarnSettings', e);
-    return { ratePerMinute: FALLBACK_RATE_PER_MINUTE, dailyCap: FALLBACK_DAILY_CAP, inrPerMinute: FALLBACK_INR_PER_MINUTE };
+    return { ratePerMinute: FALLBACK_RATE_PER_MINUTE, dailyCap: FALLBACK_DAILY_CAP, rupeeToCreditsRate: FALLBACK_RUPEE_TO_CREDITS };
   }
-}
-
-export function computeFundedMinutes(budgetInr: number, inrPerMinute: number): number {
-  if (!Number.isFinite(budgetInr) || !Number.isFinite(inrPerMinute) || inrPerMinute <= 0) return 0;
-  return budgetInr / inrPerMinute;
 }
 
 export async function createAdFromRazorpayPayment(
@@ -82,9 +68,8 @@ export async function createAdFromRazorpayPayment(
   if (existing.exists()) return; // already created by the other path (client confirm vs webhook)
 
   const amountInr = Math.round((payment.amount || order?.amount || 0)) / 100;
-  const { ratePerMinute, inrPerMinute } = await getAdsEarnSettings(database);
-  const budgetMinutes = computeFundedMinutes(amountInr, inrPerMinute);
-  const budgetCredits = Math.floor(budgetMinutes * ratePerMinute);
+  const { rupeeToCreditsRate } = await getAdsEarnSettings(database);
+  const budgetCredits = Math.floor(amountInr * rupeeToCreditsRate);
 
   await adRef.set({
     advertiserId: userId,
@@ -93,7 +78,6 @@ export async function createAdFromRazorpayPayment(
     status: 'pending_link',
     videoUrl: null,
     budgetInr: amountInr,
-    budgetMinutes,
     budgetCredits,
     spentCredits: 0,
     viewCount: 0,
@@ -104,6 +88,6 @@ export async function createAdFromRazorpayPayment(
   });
 
   await sendToTelegram(
-    `📢 <b>New Ad Budget Funded</b>\n<b>Advertiser:</b> ${escapeHtml(notes.userEmail || 'unknown')}\n<b>Budget:</b> ₹${amountInr} (${budgetMinutes.toFixed(1)} min)\n<b>Credits Pool:</b> ${budgetCredits.toLocaleString()}\n<b>Order:</b> <code>${escapeHtml(orderId)}</code>\nWaiting for them to submit a video link.`
+    `📢 <b>New Ad Budget Funded</b>\n<b>Advertiser:</b> ${escapeHtml(notes.userEmail || 'unknown')}\n<b>Budget:</b> ₹${amountInr}\n<b>Credits Pool:</b> ${budgetCredits.toLocaleString()}\n<b>Order:</b> <code>${escapeHtml(orderId)}</code>\nWaiting for them to submit a video link.`
   ).catch((e: any) => { reportServerError('src/lib/ad-budget-purchase.ts:telegram', e); return null; });
 }

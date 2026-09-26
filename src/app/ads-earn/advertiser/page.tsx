@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, IndianRupee, Coins, Eye, Clock, Link as LinkIcon } from 'lucide-react';
-import { createAdBudgetOrder, confirmAdBudgetPayment, submitAdVideoLink, getAdsEarnPublicSettings } from '../actions';
+import { createAdBudgetOrder, confirmAdBudgetPayment, submitAdVideoLink } from '../actions';
 import { initializeFirebase } from '@/firebase';
 import { ref, query, orderByChild, equalTo } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
@@ -44,10 +44,7 @@ function AdStatCard({ ad, onSubmitLink }: { ad: AdCampaign; onSubmitLink: (adId:
     <Card className="rounded-2xl border-primary/10">
       <CardContent className="p-5 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-sm font-bold">
-            <IndianRupee className="h-3.5 w-3.5" /> {ad.budgetInr} budget
-            <span className="text-muted-foreground font-medium">· {ad.budgetMinutes?.toFixed(1) ?? '—'} min funded</span>
-          </span>
+          <span className="flex items-center gap-1.5 text-sm font-bold"><IndianRupee className="h-3.5 w-3.5" /> {ad.budgetInr} budget</span>
           <Badge className={status.className}>{status.label}</Badge>
         </div>
 
@@ -89,11 +86,6 @@ export default function AdsEarnAdvertiserPage() {
   const [budget, setBudget] = useState(500);
   const [isPaying, setIsPaying] = useState(false);
   const [myAds, setMyAds] = useState<AdCampaign[] | null>(null);
-  const [inrPerMinute, setInrPerMinute] = useState(5); // overwritten by the admin-configured rate once loaded
-
-  useEffect(() => {
-    getAdsEarnPublicSettings().then((s) => setInrPerMinute(s.inrPerMinute)).catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!database || !user?.uid) return;
@@ -184,12 +176,8 @@ export default function AdsEarnAdvertiserPage() {
           <CardDescription>₹{MIN_BUDGET} minimum, ₹{MAX_BUDGET.toLocaleString()} maximum.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="text-center space-y-1">
+          <div className="text-center">
             <span className="text-5xl font-black text-primary">₹{budget.toLocaleString()}</span>
-            <p className="text-sm font-bold text-muted-foreground">
-              ≈ {(budget / inrPerMinute).toFixed(1)} min of watch time
-              <span className="opacity-60"> (₹{inrPerMinute}/min)</span>
-            </p>
           </div>
           <Slider
             value={[budget]}
