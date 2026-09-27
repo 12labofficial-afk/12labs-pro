@@ -113,7 +113,7 @@ export function ResolveDialoguesDialog({ open, onOpenChange, onGenerateAnyway, o
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg rounded-2xl">
+            <DialogContent className="w-[calc(100vw-1.5rem)] max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <AlertTriangle className="h-5 w-5 text-destructive" />
