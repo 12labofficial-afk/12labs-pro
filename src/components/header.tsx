@@ -40,8 +40,7 @@ import {
     Lock,
     Terminal,
     Key,
-    UserCircle,
-    Megaphone
+    UserCircle
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -274,7 +273,6 @@ export function Header() {
                         {renderNavItem('/seller', 'seller-hub', StoreIcon, 'Seller Hub', 'text-orange-500', undefined, true)}
                         {renderNavItem('/history', null, HistoryIcon, 'My Projects', 'text-primary/70')}
                         {renderNavItem('/buy-credits', null, CreditCard, 'Buy Credits', 'text-primary/70')}
-                        {renderNavItem('/ads-earn', null, Megaphone, 'Ads & Earn', 'text-primary/70')}
                       </div>
                     </div>
 
