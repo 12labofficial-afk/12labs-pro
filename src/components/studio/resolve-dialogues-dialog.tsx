@@ -125,8 +125,8 @@ export function ResolveDialoguesDialog({ open, onOpenChange, onGenerateAnyway, o
                 </DialogHeader>
 
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex gap-1">
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-wrap gap-1 min-w-0">
                             {trackedIds.map((id) => {
                                 const stillIssue = remainingIssues.some((l) => l.id === id);
                                 const isCurrent = current.id === id;
@@ -142,7 +142,7 @@ export function ResolveDialoguesDialog({ open, onOpenChange, onGenerateAnyway, o
                                 );
                             })}
                         </div>
-                        <Badge variant="outline" className="text-[10px] font-bold">{resolvedCount} / {trackedIds.length} Resolved</Badge>
+                        <Badge variant="outline" className="text-[10px] font-bold shrink-0 whitespace-nowrap">{resolvedCount} / {trackedIds.length} Resolved</Badge>
                     </div>
 
                     <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
