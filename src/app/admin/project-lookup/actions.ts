@@ -63,6 +63,14 @@ export async function findProjectById(projectId: string): Promise<{ success: boo
             status: data.status,
             scriptUrl: data.scriptUrl || '',
             syncData: data.syncData,
+            // 🔴 FIX: this whitelist never included the credit-cost fields at
+            // all, so the lookup card could never show "X Credits" no matter
+            // what was actually stored on the doc — all three names it might
+            // be under (ProjectCard checks cost/creditCost/credits, in that
+            // order) so it always reads whichever one this project used.
+            cost: data.cost,
+            creditCost: data.creditCost,
+            credits: data.credits,
             path: docSnap.ref.path // CRITICAL: Return full path for correct ref mapping
         };
 

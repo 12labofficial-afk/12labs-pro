@@ -101,6 +101,11 @@ export interface Project {
   projectType?: 'fast-gen' | 'hq-submission' | 'voice-clone' | 'script' | 'music-gen' | 'pro-studio' | 'hq-gen' | 'music-studio' | 'music-library' | 'script-ai' | 'seo-kit' | 'pdf-tools' | 'voice-cloning';
   status?: 'completed' | 'processing' | 'in_queue' | 'rejected';
   cost?: number;
+  // Older/alternate field names the same credit-cost value has been stored
+  // under depending on which pipeline wrote the doc — ProjectCard checks
+  // all three (cost, then creditCost, then credits) in that order.
+  creditCost?: number;
+  credits?: number;
   userDeleted?: boolean;
   syncData?: any;
   scriptUrl?: string;
