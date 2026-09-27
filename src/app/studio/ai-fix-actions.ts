@@ -72,11 +72,22 @@ Rewrite ONLY this one line so it is at least ${MIN_DIALOGUE_WORDS} words and sou
         // model doesn't always take "expand this" seriously enough on its
         // own) went straight to a refund with no second attempt. One retry,
         // with an escalated prompt, before actually giving up.
+        //
+        // 🔴 FIX: every attempt used to hardcode "google/gemini-2.5-flash-lite"
+        // — the only place in this app that reaches for that exact model
+        // (everywhere else's OpenRouter fallback uses "google/gemini-2.5-flash",
+        // proven working in production). If the lite variant's slug ever gets
+        // renamed/deprecated/rate-limited on OpenRouter's side, AI-Fix fails
+        // every single time while every other AI feature keeps working fine.
+        // Final attempt now falls back to the plain (non-lite) model, which
+        // costs nothing extra to try and doesn't change what the user pays.
+        const modelsToTry = ['google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash'];
         let expandedText = '';
-        for (let attempt = 1; attempt <= 2; attempt++) {
-            const result = await callOpenRouterText('google/gemini-2.5-flash-lite', { prompt: buildPrompt(attempt === 2) });
+        for (let attempt = 1; attempt <= modelsToTry.length; attempt++) {
+            const isLastAttempt = attempt === modelsToTry.length;
+            const result = await callOpenRouterText(modelsToTry[attempt - 1], { prompt: buildPrompt(attempt >= 2) });
             if (result._error || !result.text) {
-                if (attempt === 2) throw new Error(result.message || 'AI engine returned no result.');
+                if (isLastAttempt) throw new Error(result.message || 'AI engine returned no result.');
                 continue;
             }
             expandedText = result.text.trim().replace(/^["']|["']$/g, '');
