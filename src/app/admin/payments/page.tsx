@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { History, CheckCircle, Hourglass, Loader2, ExternalLink, XCircle, Check, Trash2, IndianRupee, ChevronsUpDown, ShieldAlert, SquareCheck, Square, DollarSign, Package, Coins, ShoppingBag, Plus, Zap, Sparkles, Tag, Gift } from 'lucide-react';
+import { History, CheckCircle, Hourglass, Loader2, ExternalLink, XCircle, Check, Trash2, IndianRupee, ChevronsUpDown, ShieldAlert, SquareCheck, Square, DollarSign, Package, Coins, ShoppingBag, Plus, Zap, Sparkles, Tag, Gift, RefreshCw, AlertTriangle, Satellite } from 'lucide-react';
 import { CreditUsageSummary } from '@/components/admin/credit-usage-summary';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/auth-provider';
@@ -27,7 +27,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { manuallyApprovePayment, deletePendingPayment, bulkDeletePayments } from './actions';
+import { manuallyApprovePayment, deletePendingPayment, bulkDeletePayments, getRecentRazorpayPayments, manualGrantRazorpayPaymentAction } from './actions';
 import { cn } from '@/lib/utils';
 import { reportClientError } from '@/lib/report-client-error';
 
@@ -263,6 +263,132 @@ function TransactionCard({
     )
 }
 
+/**
+ * 🛰️ Ground-truth panel: reads recent Razorpay orders directly from
+ * Razorpay's own API, not our side-effect collections — so it can catch a
+ * payment that's genuinely captured on Razorpay's side but never made it
+ * into our own tracking (client confirm lost + webhook missed/down for
+ * that one delivery). Anything flagged "Not Credited" gets a one-click
+ * recovery button that re-runs the same idempotent grant logic.
+ */
+function RazorpayGroundTruthPanel() {
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const [payments, setPayments] = useState<any[] | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [grantingId, setGrantingId] = useState<string | null>(null);
+
+    const fetchPayments = useCallback(async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            const idToken = await user.getIdToken();
+            const result = await getRecentRazorpayPayments(idToken, 50);
+            if (result.success) {
+                setPayments(result.payments || []);
+            } else {
+                toast({ variant: 'destructive', title: 'Could not load Razorpay payments', description: result.message });
+            }
+        } catch (error: any) {
+            reportClientError('src/app/admin/payments/page.tsx:razorpayGroundTruth', error);
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user, toast]);
+
+    useEffect(() => {
+        fetchPayments();
+    }, [fetchPayments]);
+
+    const handleGrant = async (paymentId: string) => {
+        if (!user) return;
+        setGrantingId(paymentId);
+        try {
+            const idToken = await user.getIdToken();
+            const result = await manualGrantRazorpayPaymentAction(idToken, paymentId);
+            if (result.success) {
+                toast({ title: 'Success', description: result.message });
+                fetchPayments();
+            } else {
+                toast({ variant: 'destructive', title: 'Grant Failed', description: result.message });
+            }
+        } catch (error: any) {
+            reportClientError('src/app/admin/payments/page.tsx:manualGrant', error);
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } finally {
+            setGrantingId(null);
+        }
+    };
+
+    const uncreditedCount = (payments || []).filter(p => !p.credited).length;
+
+    return (
+        <Card className="rounded-[2.5rem] border-none shadow-xl bg-card overflow-hidden">
+            <CardHeader className="bg-primary/5 border-b border-primary/10 pb-6 flex flex-row items-center justify-between gap-4">
+                <div>
+                    <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-3">
+                        <Satellite className="h-5 w-5 text-primary" />
+                        Razorpay Ground Truth
+                        {uncreditedCount > 0 && (
+                            <Badge variant="destructive" className="text-[10px] font-black">{uncreditedCount} NOT CREDITED</Badge>
+                        )}
+                    </CardTitle>
+                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest mt-1">
+                        Last 50 orders, read live from Razorpay — catches a paid order our own tracking missed.
+                    </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchPayments} disabled={isLoading} className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest shrink-0">
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+                {isLoading && !payments ? (
+                    <div className="p-8 space-y-3">
+                        <Skeleton className="h-14 w-full rounded-xl" />
+                        <Skeleton className="h-14 w-full rounded-xl" />
+                    </div>
+                ) : !payments || payments.length === 0 ? (
+                    <p className="p-8 text-sm text-muted-foreground text-center">No recent Razorpay orders found.</p>
+                ) : (
+                    <div className="divide-y divide-border/50">
+                        {payments.map((p) => (
+                            <div key={p.paymentId} className={cn("flex items-center justify-between gap-4 p-4 sm:p-5", !p.credited && "bg-destructive/5")}>
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        {!p.credited && <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+                                        <span className="font-bold text-sm truncate">{p.email || p.userId || 'Unknown user'}</span>
+                                        <Badge variant="outline" className="text-[9px] font-black uppercase shrink-0">{p.status}</Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        ₹{p.amount} {p.planName ? `· ${p.planName}` : ''} · {format(new Date(p.createdAt), 'dd MMM, p')}
+                                    </p>
+                                    <p className="text-[9px] font-mono text-muted-foreground/60 mt-0.5 truncate">{p.paymentId}</p>
+                                </div>
+                                {p.credited ? (
+                                    <Badge className="bg-green-500/10 text-green-600 border-green-500/20 shrink-0 text-[9px] font-black uppercase">
+                                        <Check className="h-3 w-3 mr-1" /> Credited
+                                    </Badge>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest shrink-0"
+                                        onClick={() => handleGrant(p.paymentId)}
+                                        disabled={grantingId === p.paymentId}
+                                    >
+                                        {grantingId === p.paymentId ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Grant Now'}
+                                    </Button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function PaymentsPage() {
     const { user: currentUser } = useAuth();
     const firestore = useFirestore();
@@ -383,11 +509,13 @@ export default function PaymentsPage() {
             
             <CreditUsageSummary />
 
+            <RazorpayGroundTruthPanel />
+
             <Card className="rounded-[2.5rem] border-none shadow-xl bg-card overflow-hidden">
                 <CardHeader className="bg-primary/5 border-b border-primary/10 pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
                         <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-3">
-                            <History className="h-5 w-5 text-primary" /> 
+                            <History className="h-5 w-5 text-primary" />
                             Transaction Log
                         </CardTitle>
                         <CardDescription className="text-[10px] font-bold uppercase tracking-widest mt-1">Unified view of credits and assets.</CardDescription>
