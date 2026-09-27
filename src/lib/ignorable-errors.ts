@@ -37,3 +37,14 @@ export const IGNORED_ERROR_SUBSTRINGS = [
 export function isIgnorableError(message: string): boolean {
   return IGNORED_ERROR_SUBSTRINGS.some((s) => message.includes(s));
 }
+
+// 🔇 Errors thrown from inside a browser extension's own injected script
+// (visible content/coupon/ad-blocker/etc. extensions all inject code into
+// every page) — the stack frame's origin gives it away. Nothing in our
+// code, so nothing here is ever fixable; only the extension author could
+// fix it. Catches any such error regardless of its message.
+const EXTENSION_STACK_PATTERN = /chrome-extension:\/\/|moz-extension:\/\/|safari-extension:\/\/|safari-web-extension:\/\//;
+
+export function isBrowserExtensionError(stack?: string): boolean {
+  return !!stack && EXTENSION_STACK_PATTERN.test(stack);
+}

@@ -6,14 +6,14 @@ import { escapeHtml } from '@/lib/utils';
 import { getCurrentUserEmail } from '@/lib/current-user-email';
 import { reportClientError } from '@/lib/report-client-error';
 import { notifyStaleBuildIfNeeded } from '@/lib/stale-build-guard';
-import { isIgnorableError } from '@/lib/ignorable-errors';
+import { isIgnorableError, isBrowserExtensionError } from '@/lib/ignorable-errors';
 
 // Cooldown so a hot error path doesn't spam the bot (per browser tab).
 const COOLDOWN_MS = 10 * 60 * 1000;
 const lastReported = new Map<string, number>();
 
 function report(context: string, message: string, stack?: string, extra?: Record<string, string>) {
-  if (isIgnorableError(message)) return;
+  if (isIgnorableError(message) || isBrowserExtensionError(stack)) return;
 
   // Same stale-build detection as reportClientError — this path catches
   // whatever slipped past a local try/catch (uncaught errors, unawaited
