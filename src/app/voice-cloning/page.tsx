@@ -375,6 +375,25 @@ export default function VoiceCloningPage() {
         const file = e.target.files?.[0];
         if (!file || !user) return;
 
+        // 🔴 FIX: a video file (e.g. .MOV) also fails decodeAudioData below,
+        // and the catch block used to treat ANY decode failure as "some
+        // unusual audio container the browser can't preview but the server
+        // might" and uploaded it as-is — that fallback exists for real
+        // mobile audio formats (m4a/aac/opus) but had no way to tell those
+        // apart from a video someone picked by mistake, so a .MOV slipped
+        // straight through as a "reference audio". Reject anything that
+        // isn't plausibly audio (by MIME type or extension) up front,
+        // before it ever reaches that fallback.
+        const ALLOWED_AUDIO_EXTENSIONS = ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'oga', 'opus', 'flac', 'wma', 'webm', 'aiff', '3gp'];
+        const ext = file.name.split('.').pop()?.toLowerCase() || '';
+        const isAudioMime = file.type.startsWith('audio/');
+        const isKnownAudioExt = ALLOWED_AUDIO_EXTENSIONS.includes(ext);
+        if (!isAudioMime && !isKnownAudioExt) {
+            toast({ variant: 'destructive', title: 'Unsupported File', description: 'Please upload an audio file (MP3, WAV, AAC, M4A, etc.) — video and other file types are not supported.' });
+            e.target.value = '';
+            return;
+        }
+
         setIsLoading(true);
         const arrayBuffer = await file.arrayBuffer();
 
