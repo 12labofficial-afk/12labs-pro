@@ -34,7 +34,7 @@ export async function getRecentRazorpayPayments(
   const guard = await requireAdmin(idToken);
   if (!guard.ok) return { success: false, message: guard.message };
 
-  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
   if (!keyId || !keySecret) return { success: false, message: 'Razorpay keys are not configured on the server.' };
 
@@ -100,7 +100,7 @@ export async function manualGrantRazorpayPaymentAction(
   const guard = await requireAdmin(idToken);
   if (!guard.ok) return { success: false, message: guard.message };
 
-  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
   if (!keyId || !keySecret) return { success: false, message: 'Razorpay keys are not configured on the server.' };
 
