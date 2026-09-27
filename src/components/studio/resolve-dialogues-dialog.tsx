@@ -14,7 +14,7 @@ import { isDialogueTooShort, MIN_DIALOGUE_WORDS } from '@/lib/dialogue-validatio
 import { EmotionCapsules } from './emotion-capsules';
 import { expandDialogueWithAiAction } from '@/app/studio/ai-fix-actions';
 import { reportClientError } from '@/lib/report-client-error';
-import { AlertTriangle, Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { AlertTriangle, Sparkles, Loader2, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ResolveDialoguesDialogProps {
     open: boolean;
@@ -40,6 +40,12 @@ export function ResolveDialoguesDialog({ open, onOpenChange, onGenerateAnyway, o
     // Captured once when the dialog opens, so the progress count ("2 of 5")
     // stays stable as issues get resolved instead of shrinking under the user.
     const [trackedIds, setTrackedIds] = useState<string[]>([]);
+    // 🔴 FIX: `current` used to always be `remainingIssues[0]` — the flow
+    // could only ever move forward as lines got resolved, with no way to go
+    // back and re-check/edit an earlier one. This indexes into `trackedIds`
+    // directly so Previous/Next can move freely across every flagged line,
+    // resolved or not.
+    const [currentIndex, setCurrentIndex] = useState(0);
     const [text, setText] = useState('');
     const [emotion, setEmotion] = useState('Neutral');
     const [isAiFixing, setIsAiFixing] = useState(false);
@@ -49,12 +55,15 @@ export function ResolveDialoguesDialog({ open, onOpenChange, onGenerateAnyway, o
         [generatedLines, trackedIds]
     );
     const resolvedCount = trackedIds.length - remainingIssues.length;
-    const current = remainingIssues[0];
+    const currentId = trackedIds[currentIndex];
+    const current = generatedLines.find((l) => l.id === currentId);
+    const isCurrentStillShort = current ? isDialogueTooShort(current.dialogue) : false;
 
     useEffect(() => {
         if (!open) return;
         const ids = generatedLines.filter((l) => isDialogueTooShort(l.dialogue)).map((l) => l.id);
         setTrackedIds(ids);
+        setCurrentIndex(0);
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
@@ -73,14 +82,25 @@ export function ResolveDialoguesDialog({ open, onOpenChange, onGenerateAnyway, o
 
     if (!current) return null;
 
+    const goToPrevious = () => setCurrentIndex((i) => Math.max(0, i - 1));
+    const goToNext = () => setCurrentIndex((i) => Math.min(trackedIds.length - 1, i + 1));
+
     const handleSaveAndNext = () => {
         if (isDialogueTooShort(text)) {
             toast({ variant: 'destructive', title: 'Still Too Short', description: `Needs at least ${MIN_DIALOGUE_WORDS} words.` });
             return;
         }
         updateGeneratedLine(current.id, { dialogue: text, emotion });
-        // Advancing happens on its own — `current` re-derives from
-        // remainingIssues once this line drops out of it.
+        // Jump to the next line (after this one) that's still flagged, so
+        // Save & Next keeps skipping past ones already fixed — Previous/Next
+        // below still let the user step through every line one at a time.
+        for (let i = currentIndex + 1; i < trackedIds.length; i++) {
+            const line = generatedLines.find((l) => l.id === trackedIds[i]);
+            if (line && isDialogueTooShort(line.dialogue)) {
+                setCurrentIndex(i);
+                return;
+            }
+        }
     };
 
     const handleAiFix = async () => {
@@ -97,8 +117,24 @@ export function ResolveDialoguesDialog({ open, onOpenChange, onGenerateAnyway, o
         }
         setIsAiFixing(true);
         try {
-            const fullScript = generatedLines.map((l) => `${l.characterName}: ${l.dialogue}`).join('\n');
-            const result = await expandDialogueWithAiAction(activeUid, text, current.characterName, fullScript);
+            // 🔴 FIX: this used to dump the ENTIRE script and let the server
+            // blindly slice(0, 2000) chars off the front — for any line past
+            // roughly the first 2000 characters (i.e. most lines in a script
+            // long enough to have 40+ dialogues), the model never actually
+            // saw that line's real neighbors, so it had no way to match the
+            // ongoing tense/gender/continuity (e.g. "aa gaya" vs "aa gayi")
+            // of the conversation actually happening around it. Send a
+            // window of the ACTUAL surrounding lines instead, with the line
+            // being fixed clearly marked.
+            const lineArrayIndex = generatedLines.findIndex((l) => l.id === current.id);
+            const CONTEXT_WINDOW = 5;
+            const start = Math.max(0, lineArrayIndex - CONTEXT_WINDOW);
+            const end = lineArrayIndex === -1 ? generatedLines.length : lineArrayIndex + CONTEXT_WINDOW + 1;
+            const windowedContext = generatedLines
+                .slice(start, end)
+                .map((l) => (l.id === current.id ? `>>> ${l.characterName}: ${text} <<< (THIS IS THE LINE TO FIX)` : `${l.characterName}: ${l.dialogue}`))
+                .join('\n');
+            const result = await expandDialogueWithAiAction(activeUid, text, current.characterName, windowedContext);
             if (!result.success || !result.expandedText) throw new Error(result.error);
             setText(result.expandedText);
             if (result.newCredits !== undefined) setUser({ ...user, credits: result.newCredits } as any);
@@ -127,16 +163,20 @@ export function ResolveDialoguesDialog({ open, onOpenChange, onGenerateAnyway, o
                 <div className="space-y-4">
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex flex-wrap gap-1 min-w-0">
-                            {trackedIds.map((id) => {
-                                const stillIssue = remainingIssues.some((l) => l.id === id);
-                                const isCurrent = current.id === id;
+                            {trackedIds.map((id, idx) => {
+                                const line = generatedLines.find((l) => l.id === id);
+                                const stillIssue = line ? isDialogueTooShort(line.dialogue) : false;
+                                const isCurrent = currentIndex === idx;
                                 return (
-                                    <div
+                                    <button
                                         key={id}
+                                        type="button"
+                                        onClick={() => setCurrentIndex(idx)}
+                                        title={`Go to line ${idx + 1}`}
                                         className={cn(
-                                            "h-2.5 w-2.5 rounded-full",
+                                            "h-2.5 w-2.5 rounded-full transition-transform hover:scale-125",
                                             stillIssue ? "bg-destructive" : "bg-green-500",
-                                            isCurrent && stillIssue && "ring-2 ring-destructive/30"
+                                            isCurrent && "ring-2 ring-primary/40"
                                         )}
                                     />
                                 );
@@ -145,10 +185,26 @@ export function ResolveDialoguesDialog({ open, onOpenChange, onGenerateAnyway, o
                         <Badge variant="outline" className="text-[10px] font-bold shrink-0 whitespace-nowrap">{resolvedCount} / {trackedIds.length} Resolved</Badge>
                     </div>
 
+                    <div className="flex items-center justify-between gap-2">
+                        <Button variant="outline" size="sm" className="h-8 rounded-lg" onClick={goToPrevious} disabled={currentIndex === 0}>
+                            <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Previous
+                        </Button>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Line {currentIndex + 1} of {trackedIds.length}
+                        </span>
+                        <Button variant="outline" size="sm" className="h-8 rounded-lg" onClick={goToNext} disabled={currentIndex === trackedIds.length - 1}>
+                            Next <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                        </Button>
+                    </div>
+
                     <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
                         <div className="flex items-center justify-between">
                             <Badge className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-none text-[9px] font-black uppercase">{current.characterName}</Badge>
-                            <Badge variant="outline" className="text-[9px] font-bold text-destructive border-destructive/30">Too Short</Badge>
+                            {isCurrentStillShort ? (
+                                <Badge variant="outline" className="text-[9px] font-bold text-destructive border-destructive/30">Too Short</Badge>
+                            ) : (
+                                <Badge variant="outline" className="text-[9px] font-bold text-green-600 border-green-500/30">Resolved</Badge>
+                            )}
                         </div>
 
                         <div className="space-y-2">
