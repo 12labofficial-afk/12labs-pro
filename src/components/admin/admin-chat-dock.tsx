@@ -10,8 +10,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, Send, Loader2, X, MoreHorizontal, Edit, Trash2, Check, CheckCheck } from 'lucide-react';
-import { cn, generateAvatarColor } from '@/lib/utils';
+import { MessageCircle, Send, Loader2, X, MoreHorizontal, Edit, Trash2, Check, CheckCheck, Maximize2 } from 'lucide-react';
+import { cn, generateAvatarColor, getDisplayUrl } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { sendAdminChatReply, deleteSingleChatMessage } from '@/app/admin/chat/actions';
 import {
@@ -139,6 +139,7 @@ function AdminChatReplyDialog({ session, onClose }: { session: LiveChatSession |
   const [reply, setReply] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [editingMessage, setEditingMessage] = useState<{ id: string; text: string } | null>(null);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -226,6 +227,7 @@ function AdminChatReplyDialog({ session, onClose }: { session: LiveChatSession |
   };
 
   return (
+    <>
     <Dialog open={!!session} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md w-[95vw] h-[70vh] flex flex-col p-0 rounded-[2rem] overflow-hidden">
         <DialogHeader className="p-4 border-b flex-row items-center gap-3 space-y-0">
@@ -309,6 +311,21 @@ function AdminChatReplyDialog({ session, onClose }: { session: LiveChatSession |
                         </div>
                       ) : (
                         <>
+                          {message.imageUrl && (
+                            <div
+                              onClick={() => setViewingImage(getDisplayUrl(message.imageUrl!))}
+                              className="block w-full mb-1.5 rounded-xl overflow-hidden cursor-zoom-in relative group"
+                            >
+                              <img
+                                src={getDisplayUrl(message.imageUrl)}
+                                alt="Chat attachment"
+                                className="w-full h-auto object-cover max-h-48 transition-transform duration-500 group-hover:scale-105"
+                              />
+                              <div className="absolute top-1.5 right-1.5 p-1 bg-black/30 backdrop-blur-md rounded-lg opacity-80">
+                                <Maximize2 className="h-3 w-3 text-white" />
+                              </div>
+                            </div>
+                          )}
                           {message.text}
                           <div className={cn('flex items-center justify-end gap-1.5 mt-1 text-[8px] font-black uppercase tracking-widest', message.sender === 'admin' ? 'text-primary-foreground/70' : 'text-muted-foreground/60')}>
                             {message.isEdited && <span>(edited)</span>}
@@ -350,5 +367,23 @@ function AdminChatReplyDialog({ session, onClose }: { session: LiveChatSession |
         </div>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={!!viewingImage} onOpenChange={(open) => !open && setViewingImage(null)}>
+      <DialogContent className="max-w-4xl w-full h-[85vh] p-0 overflow-hidden border-none shadow-3xl bg-black/95">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Image Preview</DialogTitle>
+        </DialogHeader>
+        <div className="relative w-full h-full flex items-center justify-center p-4">
+          {viewingImage && (
+            <img
+              src={viewingImage}
+              alt="Image preview"
+              className="max-w-full max-h-full object-contain rounded-lg animate-in zoom-in-95 duration-300"
+            />
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
