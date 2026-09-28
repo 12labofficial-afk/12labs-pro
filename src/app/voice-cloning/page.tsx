@@ -36,9 +36,10 @@ import {
     Scissors,
     ShieldAlert,
     Copy,
-    CheckCircle2
+    CheckCircle2,
+    Link2
 } from 'lucide-react';
-import { checkAndDeductCloningCredits } from './actions';
+import { checkAndDeductCloningCredits, importVoiceCloneReferenceFromUrlAction } from './actions';
 // NOTE: generateVoiceCloningAction / saveClonedVoiceProjectAction are no longer called from
 // here — generation now runs on the HF Space worker (server-files/voice_cloning.py), which
 // writes the completed project itself. This page just submits a job to RTDB and listens.
@@ -190,6 +191,15 @@ export default function VoiceCloningPage() {
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
+
+    // 🔗 NEW: "Import from URL" — collapsed/hidden by default, expands on
+    // click. Added for users (iPhone especially) who have no easy way to
+    // get a recording onto their device as a locally-picker-visible file
+    // but can get a direct link to it (e.g. a Voice Memos/cloud share
+    // link) instead.
+    const [showUrlImport, setShowUrlImport] = useState(false);
+    const [importUrl, setImportUrl] = useState('');
+    const [isImportingUrl, setIsImportingUrl] = useState(false);
 
     const [playingId, setPlayingId] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -385,11 +395,25 @@ export default function VoiceCloningPage() {
         // isn't plausibly audio (by MIME type or extension) up front,
         // before it ever reaches that fallback.
         const ALLOWED_AUDIO_EXTENSIONS = ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'oga', 'opus', 'flac', 'wma', 'webm', 'aiff', '3gp'];
+        // 🔴 FIX: iPhone users often have no easy way to produce a
+        // standalone audio file at all — the obvious "record myself
+        // talking" path on iOS (Camera app, or a screen recording) always
+        // saves as .MOV. Flatly rejecting video was a dead end for exactly
+        // those users. Videos are now let through here — decodeAudioData
+        // below can't parse a video container (it'll throw, same as any
+        // other unusual format), which routes it into the existing
+        // "upload as-is" fallback; the server (voice_cloning.py) then runs
+        // it through ffmpeg to pull out just the audio track before the
+        // cloning engine ever sees it.
+        const ALLOWED_VIDEO_EXTENSIONS = ['mov', 'mp4', 'm4v', 'avi', '3gpp'];
         const ext = file.name.split('.').pop()?.toLowerCase() || '';
         const isAudioMime = file.type.startsWith('audio/');
         const isKnownAudioExt = ALLOWED_AUDIO_EXTENSIONS.includes(ext);
-        if (!isAudioMime && !isKnownAudioExt) {
-            toast({ variant: 'destructive', title: 'Unsupported File', description: 'Please upload an audio file (MP3, WAV, AAC, M4A, etc.) — video and other file types are not supported.' });
+        const isVideoMime = file.type.startsWith('video/');
+        const isKnownVideoExt = ALLOWED_VIDEO_EXTENSIONS.includes(ext);
+        const isVideo = isVideoMime || isKnownVideoExt;
+        if (!isAudioMime && !isKnownAudioExt && !isVideo) {
+            toast({ variant: 'destructive', title: 'Unsupported File', description: 'Please upload an audio file (MP3, WAV, AAC, M4A, etc.) or a video with a clear voice recording (MOV, MP4) — we\'ll extract the audio automatically.' });
             e.target.value = '';
             return;
         }
@@ -437,12 +461,46 @@ export default function VoiceCloningPage() {
                 setReferenceAudio(uploadedPointer);
                 setReferenceAudioName(file.name);
                 setDetectedDuration(null);
-                toast({ title: 'Reference Uploaded', description: "Couldn't preview this format locally, so it was uploaded as-is — the cloning node will process it directly." });
+                toast({
+                    title: 'Reference Uploaded',
+                    description: isVideo
+                        ? "Couldn't preview a video file locally — the cloning node will extract the audio track from it automatically."
+                        : "Couldn't preview this format locally, so it was uploaded as-is — the cloning node will process it directly."
+                });
             } catch (uploadErr: any) {
                 reportClientError('src/app/voice-cloning/page.tsx:399b', uploadErr);
                 toast({ variant: 'destructive', title: 'Scanner Error', description: 'Could not analyze audio file.' });
             }
             setIsLoading(false);
+        }
+    };
+
+    const handleImportFromUrl = async () => {
+        if (!importUrl.trim() || !user) return;
+        setIsImportingUrl(true);
+        try {
+            const result = await importVoiceCloneReferenceFromUrlAction({
+                userId: user.uid,
+                userEmail: user.email || 'N/A',
+                url: importUrl.trim(),
+            });
+            if (!result.success || !result.pointer) throw new Error(result.error || 'Could not import from that URL.');
+
+            // Same as the "couldn't preview locally" fallback below — this
+            // is already a storage pointer, not a local File, so there's
+            // nothing to decode/trim client-side. handleGeneration reuses
+            // it as-is (it doesn't start with "data:").
+            setReferenceAudio(result.pointer);
+            setReferenceAudioName(result.fileName || 'Imported from URL');
+            setDetectedDuration(null);
+            setImportUrl('');
+            setShowUrlImport(false);
+            toast({ title: 'Voice Imported', description: 'Your reference audio was imported from the URL.' });
+        } catch (e: any) {
+            reportClientError('src/app/voice-cloning/page.tsx:handleImportFromUrl', e);
+            toast({ variant: 'destructive', title: 'Import Failed', description: e.message || 'Could not import from that URL.' });
+        } finally {
+            setIsImportingUrl(false);
         }
     };
 
@@ -768,17 +826,48 @@ export default function VoiceCloningPage() {
                             </div>
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between px-1"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Source Reference Audio</Label><div className="flex items-center gap-3"><Badge variant="secondary" className="h-7 px-4 text-[10px] font-black uppercase bg-muted/50 border-none shadow-sm text-muted-foreground">3 SEC MIN</Badge><Badge variant="secondary" className="h-7 px-4 text-[10px] font-black uppercase bg-muted/50 border-none shadow-sm text-muted-foreground">10 SEC MAX</Badge></div></div>
-                                <input id="audio-upload" type="file" className="hidden" onChange={handleFileChange} accept="audio/*" disabled={isLoading}/>
+                                <input id="audio-upload" type="file" className="hidden" onChange={handleFileChange} accept="audio/*,video/*" disabled={isLoading}/>
                                 {referenceAudio ? (
                                     <div className="p-5 rounded-2xl border-2 border-primary/20 bg-primary/5 flex items-center justify-between group animate-in zoom-in-95 shadow-inner">
                                         <div className="flex items-center gap-4 min-w-0"><div className="p-3 bg-primary text-white rounded-xl shadow-lg"><Music className="h-5 w-5" /></div><div className="min-w-0"><p className="text-xs font-black truncate uppercase tracking-tight">{referenceAudioName}</p><div className="flex items-center gap-2 mt-1"><Badge variant="outline" className="h-6 px-3 text-[9px] font-black uppercase border-primary/30 text-primary">{detectedDuration != null ? `${detectedDuration.toFixed(1)}S CALIBRATED` : 'UPLOADED'}</Badge></div></div></div>
                                         <button className="text-destructive/40 hover:text-destructive transition-colors p-2" onClick={() => { setReferenceAudio(null); setReferenceAudioName(null); setDetectedDuration(null); }} disabled={isLoading}><Trash2 className="h-5 w-5" /></button>
                                     </div>
                                 ) : (
-                                    <Label htmlFor="audio-upload" className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-primary/20 rounded-2xl cursor-pointer hover:bg-primary/5 hover:border-primary/50 transition-all group bg-muted/10 shadow-sm">
-                                        <Upload className="w-10 h-10 mb-2 text-muted-foreground/30 group-hover:text-primary transition-colors" />
-                                        <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">MAP REFERENCE VOICE</p>
-                                    </Label>
+                                    <>
+                                        <Label htmlFor="audio-upload" className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-primary/20 rounded-2xl cursor-pointer hover:bg-primary/5 hover:border-primary/50 transition-all group bg-muted/10 shadow-sm">
+                                            <Upload className="w-10 h-10 mb-2 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+                                            <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">MAP REFERENCE VOICE</p>
+                                        </Label>
+                                        {/* 🔗 NEW: collapsed by default — for users (iPhone especially)
+                                            who can get a direct link to their recording more easily
+                                            than a locally-picker-visible file. */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowUrlImport(!showUrlImport)}
+                                            disabled={isLoading}
+                                            className="w-full flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 hover:text-primary transition-colors py-1"
+                                        >
+                                            <Link2 className="h-3 w-3" /> Or Import From URL {showUrlImport ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                        </button>
+                                        {showUrlImport && (
+                                            <div className="flex gap-2 animate-in slide-in-from-top-2 duration-300">
+                                                <Input
+                                                    value={importUrl}
+                                                    onChange={(e) => setImportUrl(e.target.value)}
+                                                    placeholder="https://... direct link to your audio or video"
+                                                    disabled={isImportingUrl || isLoading}
+                                                    className="h-11 rounded-xl bg-muted/20 border-primary/5 text-xs font-medium shadow-inner"
+                                                />
+                                                <Button
+                                                    onClick={handleImportFromUrl}
+                                                    disabled={!importUrl.trim() || isImportingUrl || isLoading}
+                                                    className="h-11 px-5 rounded-xl font-black text-[10px] uppercase shrink-0"
+                                                >
+                                                    {isImportingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Import'}
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                                 <label htmlFor="cloning-consent-chk" className="flex items-start gap-3 bg-muted/10 border border-primary/5 rounded-2xl p-4 cursor-pointer select-none">
                                     <Checkbox

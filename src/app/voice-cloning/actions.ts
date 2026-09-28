@@ -9,6 +9,9 @@ import { Client, handle_file } from '@gradio/client';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import crypto from 'crypto';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { r2Client, R2_BUCKET } from '@/lib/r2';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml, wholeCredits } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
@@ -116,6 +119,93 @@ export async function saveClonedVoiceProjectAction(input: z.infer<typeof SaveClo
     reportServerError('src/app/voice-cloning/actions.ts#2', dbError);
         console.error(`DB Save FAILED for Voice Clone. User: ${userEmail}, Error: ${dbError.message}`);
         return { success: false, error: 'Audio was generated, but failed to save to your history.' };
+    }
+}
+
+const MAX_URL_IMPORT_BYTES = 50 * 1024 * 1024; // 50MB — same reasonable ceiling as the rest of the app's audio uploads
+const URL_IMPORT_KNOWN_EXTS = ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'oga', 'opus', 'flac', 'wma', 'webm', 'aiff', '3gp', 'mov', 'mp4', 'm4v', 'avi'];
+
+/**
+ * 🔗 IMPORT REFERENCE VOICE FROM A URL
+ * -----------------------------------------------------------
+ * Lets a user paste a direct link to their own audio/video (instead of
+ * uploading a local file) — added specifically because iPhone users often
+ * have no easy way to get a recording ONTO their phone's local storage to
+ * upload in the first place (Voice Memos shares as a link more readily
+ * than it saves as a picker-visible file on iOS). Fetches the URL
+ * server-side (avoids browser CORS entirely) and re-uploads the bytes to
+ * R2, returning the same kind of storage pointer uploadFileDirectly
+ * returns — the caller can treat it identically to a normal upload.
+ */
+export async function importVoiceCloneReferenceFromUrlAction(input: {
+    userId: string;
+    userEmail: string;
+    url: string;
+}): Promise<{ success: boolean; pointer?: string; fileName?: string; error?: string }> {
+    const { userId, url } = input;
+    if (!userId || !url?.trim()) return { success: false, error: 'Missing URL.' };
+
+    let parsed: URL;
+    try {
+        parsed = new URL(url.trim());
+    } catch {
+        return { success: false, error: "That doesn't look like a valid URL." };
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return { success: false, error: 'Only http:// or https:// URLs are supported.' };
+    }
+    // Basic SSRF guard — never let this endpoint be used to probe internal
+    // network addresses from the server's own vantage point.
+    const hostname = parsed.hostname.toLowerCase();
+    const isPrivateHost =
+        hostname === 'localhost' ||
+        hostname === '0.0.0.0' ||
+        hostname === '::1' ||
+        hostname.endsWith('.local') ||
+        /^127\./.test(hostname) ||
+        /^10\./.test(hostname) ||
+        /^192\.168\./.test(hostname) ||
+        /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+    if (isPrivateHost) {
+        return { success: false, error: "That URL points to a private/internal address, which isn't allowed." };
+    }
+
+    try {
+        const res = await fetch(parsed.toString(), { signal: AbortSignal.timeout(30000) });
+        if (!res.ok) return { success: false, error: `Could not fetch that URL (HTTP ${res.status}).` };
+
+        const contentLengthHeader = res.headers.get('content-length');
+        if (contentLengthHeader && Number(contentLengthHeader) > MAX_URL_IMPORT_BYTES) {
+            return { success: false, error: 'File is too large (max 50MB).' };
+        }
+
+        const contentType = res.headers.get('content-type') || '';
+        const urlExt = (parsed.pathname.split('.').pop() || '').toLowerCase();
+        const isAudioOrVideo = contentType.startsWith('audio/') || contentType.startsWith('video/');
+        if (!isAudioOrVideo && !URL_IMPORT_KNOWN_EXTS.includes(urlExt)) {
+            return { success: false, error: "That URL doesn't look like an audio or video file." };
+        }
+
+        const arrayBuffer = await res.arrayBuffer();
+        if (arrayBuffer.byteLength === 0) return { success: false, error: 'That URL returned an empty file.' };
+        if (arrayBuffer.byteLength > MAX_URL_IMPORT_BYTES) return { success: false, error: 'File is too large (max 50MB).' };
+
+        const buffer = Buffer.from(arrayBuffer);
+        const safeExt = URL_IMPORT_KNOWN_EXTS.includes(urlExt) ? urlExt : 'bin';
+        const fileName = `url_import_${Date.now()}_${crypto.randomUUID().split('-')[0]}.${safeExt}`;
+        const objectKey = `public/temp/voice_clone_ref/${userId}/${fileName}`;
+
+        await r2Client.send(new PutObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: objectKey,
+            Body: buffer,
+            ContentType: contentType || 'application/octet-stream',
+        }));
+
+        return { success: true, pointer: `pub://temp/voice_clone_ref/${userId}/${fileName}`, fileName };
+    } catch (e: any) {
+        reportServerError('src/app/voice-cloning/actions.ts#importFromUrl', e);
+        return { success: false, error: e.message || 'Could not import from that URL.' };
     }
 }
 
