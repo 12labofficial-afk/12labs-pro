@@ -7,7 +7,7 @@
 // available" prompt once it sees this NEW value — pushing them onto a
 // fresh reload before they ever hit a stale-chunk "Failed to fetch" from
 // a deleted old build file.
-export const APP_VERSION = '2.2.5';
+export const APP_VERSION = '2.2.6';
 
 // 📝 Release notes for the version above — rendered as the "What's new"
 // list in the update prompt (see AppVersionGate). Update this alongside
@@ -21,4 +21,4 @@ export const APP_UPDATE_NOTES: string[] = [
 // prompt — this app has no real update payload to measure (it's a website,
 // not an installed binary), so this is just a display string, typed by
 // hand alongside APP_VERSION/APP_UPDATE_NOTES whenever a version is bumped.
-export const APP_UPDATE_SIZE = '341 KB';
+export const APP_UPDATE_SIZE = '122 KB';
