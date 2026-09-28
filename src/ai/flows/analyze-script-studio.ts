@@ -58,6 +58,17 @@ async function pollAnalysisResult(userId: string, mappingId: string, timeoutMs: 
 /**
  * ⚡ DIALOGUE NORMALIZATION ENGINE
  */
+// 🔴 FIX: merging used to also require the EXACT SAME emotion tag on both
+// lines — so two consecutive turns from the same character with even a
+// slightly different emotion (e.g. "disappointed" then "sad") stayed as two
+// separate near-empty entries instead of becoming one natural line. Emotion
+// match is no longer required; only the character needs to match, and the
+// combined text must stay under a sane per-line budget (keeps a merged line
+// safely inside the TTS engine's own per-chunk limit — see CHUNK_CHAR_LIMIT
+// in studio.py). The newer line's emotion is kept on the merged entry, since
+// that's how the character's feeling actually lands by the end of the beat.
+const MERGE_SAME_SPEAKER_CHAR_LIMIT = 400;
+
 function normalizeAndChunkLines(rawLines: { character: string; text: string; emotion?: string }[]): { character: string; text: string; emotion: string }[] {
     if (rawLines.length === 0) return [];
     const merged: { character: string; text: string; emotion: string }[] = [];
@@ -69,9 +80,12 @@ function normalizeAndChunkLines(rawLines: { character: string; text: string; emo
         const last = merged[merged.length - 1];
         const currentEmotion = line.emotion || 'Neutral';
         const cleanText = line.text.replace(/\s+/g, ' ').trim();
+        const sameSpeaker = !!last && last.character.toLowerCase() === currentChar.toLowerCase();
+        const combinedLength = sameSpeaker ? last!.text.length + 1 + cleanText.length : Infinity;
 
-        if (last && last.character.toLowerCase() === currentChar.toLowerCase() && last.emotion === currentEmotion) {
-            last.text = (last.text + ' ' + cleanText).trim();
+        if (sameSpeaker && combinedLength <= MERGE_SAME_SPEAKER_CHAR_LIMIT) {
+            last!.text = (last!.text + ' ' + cleanText).trim();
+            last!.emotion = currentEmotion;
         } else {
             merged.push({ character: currentChar, text: cleanText, emotion: currentEmotion });
         }

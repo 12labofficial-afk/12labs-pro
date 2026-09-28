@@ -715,6 +715,30 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
         }
     };
 
+    // 🔴 FIX: every edit surface here only ever wrote `syncData.dialogues`
+    // — the flat `script` string field (what history's "Narrative Log
+    // Source" dialog actually displays, src/app/history/page.tsx) was set
+    // ONCE at project creation and never touched again. So a saved edit was
+    // genuinely durable in `syncData`, but looked like it "reverted after
+    // refresh" because the one place a user goes to re-read the script
+    // kept showing the stale pre-edit snapshot forever. Rebuilds the flat
+    // script from the CURRENT dialogues on every save and writes it
+    // alongside syncData — a full replace of the old text, not a merge —
+    // using the same "Character: [ emotion ] Line" formatting convention
+    // as studio-provider.tsx's formatCleanLine.
+    const rebuildFlatScript = (dialogues: any[]): string => {
+        return (dialogues || [])
+            .map((d) => {
+                const char = (d?.character || '').trim();
+                const emo = (d?.emotion || '').trim();
+                const text = (d?.line || '').trim();
+                if (!char || !text) return null;
+                return emo && emo.toLowerCase() !== 'neutral' ? `${char}: [ ${emo.toLowerCase()} ] ${text}` : `${char}: ${text}`;
+            })
+            .filter(Boolean)
+            .join('\n\n');
+    };
+
     // Shared by saveDialogueEdits (explicit "Save" button, shows a toast)
     // and both swap handlers below (silent — the swap already shows its
     // own "Voice Edit Started" toast, a second one would be noise). Keeps
@@ -724,7 +748,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
         if (!firestore || !user?.uid || !project?.id) return;
         await setDoc(
             firestoreDoc(firestore, 'projects', user.uid, 'userProjects', project.id),
-            { syncData: data },
+            { syncData: data, script: rebuildFlatScript(data?.dialogues) },
             { merge: true }
         );
     };

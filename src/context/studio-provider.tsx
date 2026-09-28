@@ -1239,6 +1239,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         }
 
         const extractedDialogues: { character: string; text: string; emotion?: string }[] = [];
+        // 🔴 FIX: this parser used to push a brand-new entry for EVERY line,
+        // even when the same character spoke again immediately after
+        // themselves (e.g. one short "हाँ।" reaction line followed right
+        // after by that same character's next line) — producing a pile of
+        // near-empty entries instead of one natural line. Consecutive
+        // same-character lines now merge into a single entry as long as the
+        // combined text stays under a sane per-line budget (keeps a merged
+        // line safely inside the TTS engine's own per-chunk limit — see
+        // CHUNK_CHAR_LIMIT in studio.py).
+        const MERGE_SAME_SPEAKER_CHAR_LIMIT = 400;
 
         for (let i = 0; i < splitLines.length; i++) {
           const rawLine = splitLines[i];
@@ -1294,11 +1304,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           }
 
           if (charName && dialogueText) {
-            extractedDialogues.push({
-              character: charName,
-              text: dialogueText,
-              emotion: emotion
-            });
+            const lastEntry = extractedDialogues[extractedDialogues.length - 1];
+            const sameSpeaker = !!lastEntry && lastEntry.character.trim().toLowerCase() === charName.trim().toLowerCase();
+            const combinedLength = sameSpeaker ? lastEntry.text.length + 1 + dialogueText.length : Infinity;
+            if (sameSpeaker && combinedLength <= MERGE_SAME_SPEAKER_CHAR_LIMIT) {
+              lastEntry.text = `${lastEntry.text} ${dialogueText}`.trim();
+              // Carries the newer line's emotion forward — it reflects how
+              // the character's feeling lands by the end of the merged beat.
+              lastEntry.emotion = emotion;
+            } else {
+              extractedDialogues.push({
+                character: charName,
+                text: dialogueText,
+                emotion: emotion
+              });
+            }
           } else if (extractedDialogues.length > 0 && line.length > 0) {
             // Multiline continuation: append line to previous character's dialogue
             extractedDialogues[extractedDialogues.length - 1].text += ' ' + line;
