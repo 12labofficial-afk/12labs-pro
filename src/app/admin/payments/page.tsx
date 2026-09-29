@@ -3,7 +3,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { History, CheckCircle, Hourglass, Loader2, ExternalLink, XCircle, Check, Trash2, IndianRupee, ChevronsUpDown, ShieldAlert, SquareCheck, Square, DollarSign, Package, Coins, ShoppingBag, Plus, Zap, Sparkles, Tag, Gift, RefreshCw, AlertTriangle, Satellite } from 'lucide-react';
+import { History, CheckCircle, Hourglass, Loader2, ExternalLink, XCircle, Check, Trash2, IndianRupee, ChevronsUpDown, ShieldAlert, SquareCheck, Square, DollarSign, Package, Coins, ShoppingBag, Plus, Zap, Sparkles, Tag, Gift, RefreshCw, AlertTriangle, Satellite, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { CreditUsageSummary } from '@/components/admin/credit-usage-summary';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/auth-provider';
@@ -277,13 +278,23 @@ function RazorpayGroundTruthPanel() {
     const [payments, setPayments] = useState<any[] | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [grantingId, setGrantingId] = useState<string | null>(null);
+    // 🔴 NEW: there was no way to look up a SPECIFIC user's/track's stuck
+    // payment here beyond eyeballing the list — an admin chasing one
+    // reported case (e.g. "user X says they bought 3 songs, none
+    // unlocked") had to scroll and pattern-match by eye. Client-side
+    // filter over the already-fetched page — good enough at this list
+    // size, no extra server round-trip needed.
+    const [searchQuery, setSearchQuery] = useState('');
 
     const fetchPayments = useCallback(async () => {
         if (!user) return;
         setIsLoading(true);
         try {
             const idToken = await user.getIdToken();
-            const result = await getRecentRazorpayPayments(idToken, 50);
+            // Bumped from 50 -> 100 (Razorpay's own per-call max) so a
+            // search for an older stuck payment is more likely to still be
+            // on this one page instead of having scrolled off it.
+            const result = await getRecentRazorpayPayments(idToken, 100);
             if (result.success) {
                 setPayments(result.payments || []);
             } else {
@@ -322,6 +333,13 @@ function RazorpayGroundTruthPanel() {
     };
 
     const uncreditedCount = (payments || []).filter(p => !p.credited).length;
+    const filteredPayments = (payments || []).filter((p) => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return true;
+        return [p.email, p.userId, p.planName, p.paymentId, p.orderId]
+            .filter(Boolean)
+            .some((field) => String(field).toLowerCase().includes(q));
+    });
 
     return (
         <Card className="rounded-[2.5rem] border-none shadow-xl bg-card overflow-hidden">
@@ -335,13 +353,26 @@ function RazorpayGroundTruthPanel() {
                         )}
                     </CardTitle>
                     <CardDescription className="text-[10px] font-bold uppercase tracking-widest mt-1">
-                        Last 50 orders, read live from Razorpay — catches a paid order our own tracking missed.
+                        Last 100 orders, read live from Razorpay — catches a paid order our own tracking missed.
                     </CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={fetchPayments} disabled={isLoading} className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest shrink-0">
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 </Button>
             </CardHeader>
+            {payments && payments.length > 0 && (
+                <div className="p-4 sm:p-5 border-b bg-muted/10">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                        <Input
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search by email, payment ID, or track/plan name…"
+                            className="h-10 pl-9 rounded-xl text-sm"
+                        />
+                    </div>
+                </div>
+            )}
             <CardContent className="p-0">
                 {isLoading && !payments ? (
                     <div className="p-8 space-y-3">
@@ -350,9 +381,11 @@ function RazorpayGroundTruthPanel() {
                     </div>
                 ) : !payments || payments.length === 0 ? (
                     <p className="p-8 text-sm text-muted-foreground text-center">No recent Razorpay orders found.</p>
+                ) : filteredPayments.length === 0 ? (
+                    <p className="p-8 text-sm text-muted-foreground text-center">No payments match "{searchQuery}".</p>
                 ) : (
                     <div className="divide-y divide-border/50">
-                        {payments.map((p) => (
+                        {filteredPayments.map((p) => (
                             <div key={p.paymentId} className={cn("flex items-center justify-between gap-4 p-4 sm:p-5", !p.credited && "bg-destructive/5")}>
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-2">
