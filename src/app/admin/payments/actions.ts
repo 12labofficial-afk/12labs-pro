@@ -79,14 +79,30 @@ export async function getRecentRazorpayPayments(
       }
     }
 
-    const checks = await Promise.all(
-      candidates.map((c) => firestore.collection('processedPayments').doc(c.paymentId).get())
-    );
-    const withStatus = candidates.map((c, i) => ({ ...c, credited: checks[i].exists }));
+    const [processedChecks, rejectedChecks] = await Promise.all([
+      Promise.all(candidates.map((c) => firestore.collection('processedPayments').doc(c.paymentId).get())),
+      // 🔴 NEW: some "not credited" entries are genuinely not meant to be
+      // granted (an admin already handled it another way, a test payment,
+      // a since-refunded one) — without a way to say "reviewed, leave
+      // this alone" an admin had to either grant it anyway or stare at
+      // the same red flag on every refresh forever. A separate
+      // collection (not processedPayments — that one means "credited",
+      // and conflating the two would make a dismissed payment show as
+      // wrongly "Credited") tracks these.
+      Promise.all(candidates.map((c) => firestore.collection('rejectedPaymentFlags').doc(c.paymentId).get())),
+    ]);
+    const withStatus = candidates.map((c, i) => ({
+      ...c,
+      credited: processedChecks[i].exists,
+      dismissed: rejectedChecks[i].exists,
+    }));
 
-    // Uncredited ones surface first — that's what an admin actually needs to act on.
+    // Needs-action ones (uncredited, not dismissed) surface first; dismissed
+    // ones last, since there's nothing left to do about them either way.
     withStatus.sort((a, b) => {
-      if (a.credited !== b.credited) return a.credited ? 1 : -1;
+      const priority = (p: any) => (p.credited ? 2 : p.dismissed ? 1 : 0);
+      const pa = priority(a), pb = priority(b);
+      if (pa !== pb) return pa - pb;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
@@ -151,6 +167,41 @@ export async function manualGrantRazorpayPaymentAction(
   } catch (error: any) {
     reportServerError('src/app/admin/payments/actions.ts:manualGrantRazorpayPaymentAction', error, { paymentId });
     return { success: false, message: error?.error?.description || error.message || 'Could not grant this payment.' };
+  }
+}
+
+/**
+ * 🚫 Dismiss a "not credited" Razorpay Ground Truth entry that shouldn't
+ * actually be granted (already handled another way, a test payment, a
+ * since-refunded one, etc.) — marks it reviewed so it stops showing as a
+ * red flag needing action, without touching credits/unlocks at all. Only
+ * meaningful for a payment that ISN'T credited yet; dismissing an
+ * already-credited one is a harmless no-op (nothing reads the flag for
+ * those).
+ */
+export async function rejectRazorpayPaymentFlagAction(
+  idToken: string,
+  paymentId: string
+): Promise<{ success: boolean; message: string }> {
+  const guard = await requireAdmin(idToken);
+  if (!guard.ok) return { success: false, message: guard.message };
+
+  try {
+    const { firestore } = initializeFirebase();
+    await firestore.collection('rejectedPaymentFlags').doc(paymentId).set({
+      paymentId,
+      dismissedBy: guard.email || guard.uid,
+      dismissedAt: new Date().toISOString(),
+    });
+
+    await sendToTelegram(
+      `🚫 <b>Payment Flag Dismissed</b>\n<b>Admin:</b> ${escapeHtml(guard.email || guard.uid)}\n<b>Payment:</b> <code>${escapeHtml(paymentId)}</code>\nMarked as reviewed on the Razorpay Ground Truth panel — not granted, won't show as a flag again.`
+    ).catch(() => null);
+
+    return { success: true, message: 'Dismissed — this payment will no longer show as needing action.' };
+  } catch (error: any) {
+    reportServerError('src/app/admin/payments/actions.ts:rejectRazorpayPaymentFlagAction', error, { paymentId });
+    return { success: false, message: error.message || 'Could not dismiss this flag.' };
   }
 }
 

@@ -28,7 +28,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { manuallyApprovePayment, deletePendingPayment, bulkDeletePayments, getRecentRazorpayPayments, manualGrantRazorpayPaymentAction } from './actions';
+import { manuallyApprovePayment, deletePendingPayment, bulkDeletePayments, getRecentRazorpayPayments, manualGrantRazorpayPaymentAction, rejectRazorpayPaymentFlagAction } from './actions';
 import { cn } from '@/lib/utils';
 import { reportClientError } from '@/lib/report-client-error';
 
@@ -278,6 +278,7 @@ function RazorpayGroundTruthPanel() {
     const [payments, setPayments] = useState<any[] | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [grantingId, setGrantingId] = useState<string | null>(null);
+    const [rejectingId, setRejectingId] = useState<string | null>(null);
     // 🔴 NEW: there was no way to look up a SPECIFIC user's/track's stuck
     // payment here beyond eyeballing the list — an admin chasing one
     // reported case (e.g. "user X says they bought 3 songs, none
@@ -332,7 +333,28 @@ function RazorpayGroundTruthPanel() {
         }
     };
 
-    const uncreditedCount = (payments || []).filter(p => !p.credited).length;
+    const handleReject = async (paymentId: string) => {
+        if (!user) return;
+        if (!window.confirm('Dismiss this flag? It will stop showing as needing action, and nothing gets granted.')) return;
+        setRejectingId(paymentId);
+        try {
+            const idToken = await user.getIdToken();
+            const result = await rejectRazorpayPaymentFlagAction(idToken, paymentId);
+            if (result.success) {
+                toast({ title: 'Dismissed', description: result.message });
+                fetchPayments();
+            } else {
+                toast({ variant: 'destructive', title: 'Could Not Dismiss', description: result.message });
+            }
+        } catch (error: any) {
+            reportClientError('src/app/admin/payments/page.tsx:reject', error);
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } finally {
+            setRejectingId(null);
+        }
+    };
+
+    const uncreditedCount = (payments || []).filter(p => !p.credited && !p.dismissed).length;
     const filteredPayments = (payments || []).filter((p) => {
         const q = searchQuery.trim().toLowerCase();
         if (!q) return true;
@@ -386,10 +408,10 @@ function RazorpayGroundTruthPanel() {
                 ) : (
                     <div className="divide-y divide-border/50">
                         {filteredPayments.map((p) => (
-                            <div key={p.paymentId} className={cn("flex items-center justify-between gap-4 p-4 sm:p-5", !p.credited && "bg-destructive/5")}>
+                            <div key={p.paymentId} className={cn("flex items-center justify-between gap-4 p-4 sm:p-5", !p.credited && !p.dismissed && "bg-destructive/5")}>
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-2">
-                                        {!p.credited && <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+                                        {!p.credited && !p.dismissed && <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />}
                                         <span className="font-bold text-sm truncate">{p.email || p.userId || 'Unknown user'}</span>
                                         <Badge variant="outline" className="text-[9px] font-black uppercase shrink-0">{p.status}</Badge>
                                     </div>
@@ -402,16 +424,31 @@ function RazorpayGroundTruthPanel() {
                                     <Badge className="bg-green-500/10 text-green-600 border-green-500/20 shrink-0 text-[9px] font-black uppercase">
                                         <Check className="h-3 w-3 mr-1" /> Credited
                                     </Badge>
+                                ) : p.dismissed ? (
+                                    <Badge variant="outline" className="text-muted-foreground shrink-0 text-[9px] font-black uppercase">
+                                        Dismissed
+                                    </Badge>
                                 ) : (
-                                    <Button
-                                        size="sm"
-                                        variant="destructive"
-                                        className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest shrink-0"
-                                        onClick={() => handleGrant(p.paymentId)}
-                                        disabled={grantingId === p.paymentId}
-                                    >
-                                        {grantingId === p.paymentId ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Grant Now'}
-                                    </Button>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-destructive"
+                                            onClick={() => handleReject(p.paymentId)}
+                                            disabled={rejectingId === p.paymentId || grantingId === p.paymentId}
+                                        >
+                                            {rejectingId === p.paymentId ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reject'}
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                                            onClick={() => handleGrant(p.paymentId)}
+                                            disabled={grantingId === p.paymentId || rejectingId === p.paymentId}
+                                        >
+                                            {grantingId === p.paymentId ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Grant Now'}
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
                         ))}
@@ -426,6 +463,13 @@ export default function PaymentsPage() {
     const { user: currentUser } = useAuth();
     const firestore = useFirestore();
     const { toast } = useToast();
+
+    // 🔴 NEW: Razorpay Ground Truth used to sit permanently inline above the
+    // Transaction Log, always fetching/rendering even for an admin who just
+    // wants the normal payments view — a toggle (same visual pattern as
+    // VoiceEngineToggle in studio/voice-engine.tsx) switches between the
+    // two instead, so only one section's content is out at a time.
+    const [paymentsView, setPaymentsView] = useState<'normal' | 'ground_truth'>('normal');
 
     const [transactions, setTransactions] = useState<UnifiedTransaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -542,8 +586,48 @@ export default function PaymentsPage() {
             
             <CreditUsageSummary />
 
-            <RazorpayGroundTruthPanel />
+            <div className="grid grid-cols-2 gap-2">
+                <button
+                    type="button"
+                    onClick={() => setPaymentsView('normal')}
+                    className={cn(
+                        'rounded-xl border p-3 text-left transition-colors',
+                        paymentsView === 'normal'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/40 hover:bg-muted/40'
+                    )}
+                >
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold flex items-center gap-2"><History className="h-4 w-4" /> Normal Payments</span>
+                        {paymentsView === 'normal' && (
+                            <Badge className="h-5 px-1.5 text-[9px] font-black text-white shrink-0 bg-primary hover:bg-primary">ON</Badge>
+                        )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Transaction log — credits &amp; store assets</p>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setPaymentsView('ground_truth')}
+                    className={cn(
+                        'rounded-xl border p-3 text-left transition-colors',
+                        paymentsView === 'ground_truth'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/40 hover:bg-muted/40'
+                    )}
+                >
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold flex items-center gap-2"><Satellite className="h-4 w-4" /> Razorpay Ground Truth</span>
+                        {paymentsView === 'ground_truth' && (
+                            <Badge className="h-5 px-1.5 text-[9px] font-black text-white shrink-0 bg-primary hover:bg-primary">ON</Badge>
+                        )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Live from Razorpay — recovers a missed payment</p>
+                </button>
+            </div>
 
+            {paymentsView === 'ground_truth' && <RazorpayGroundTruthPanel />}
+
+            {paymentsView === 'normal' && (
             <Card className="rounded-[2.5rem] border-none shadow-xl bg-card overflow-hidden">
                 <CardHeader className="bg-primary/5 border-b border-primary/10 pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
@@ -643,6 +727,7 @@ export default function PaymentsPage() {
                     )}
                 </CardContent>
             </Card>
+            )}
         </div>
     );
 }
