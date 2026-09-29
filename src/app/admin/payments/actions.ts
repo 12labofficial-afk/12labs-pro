@@ -11,6 +11,7 @@ import { revalidatePath } from 'next/cache';
 import { reportServerError } from '@/lib/report-error';
 import { requireAdmin } from '@/lib/auth-guard';
 import { handleCreditPurchase } from '@/lib/credit-purchase';
+import { handleMusicTrackPurchase } from '@/lib/music-purchase';
 
 /**
  * 🛰️ RAZORPAY GROUND TRUTH — recent orders pulled directly from Razorpay's
@@ -46,13 +47,21 @@ export async function getRecentRazorpayPayments(
     const candidates: any[] = [];
     for (const order of result.items || []) {
       const notes = order.notes || {};
-      // Not credit purchases — these are tracked/handled elsewhere, skip them here.
-      if (notes.type === 'music_track_purchase' || notes.type === 'product_order' || notes.type === 'ad_budget_topup' || notes.pendingOrderId) continue;
+      // Store product orders and ad-budget top-ups are tracked/handled
+      // elsewhere — skip those here. 🔴 FIX: music track purchases used to
+      // be excluded too, on the same "handled elsewhere" assumption — but
+      // unlike credits and store products, music purchases had NO
+      // client-side confirm fallback at all (only the webhook), so a
+      // missed webhook left a paid-but-unlocked track completely
+      // invisible to any recovery path, admin included. Now included,
+      // tagged so the panel/manual-grant can tell them apart.
+      if (notes.type === 'product_order' || notes.type === 'ad_budget_topup' || notes.pendingOrderId) continue;
 
       const paymentItems = (order as any).payments?.items || [];
       for (const payment of paymentItems) {
         if (payment.status !== 'captured' && payment.status !== 'authorized') continue;
         const paymentNotes = { ...notes, ...(payment.notes || {}) };
+        const isMusicPurchase = paymentNotes.type === 'music_track_purchase';
         candidates.push({
           paymentId: payment.id,
           orderId: order.id,
@@ -61,7 +70,10 @@ export async function getRecentRazorpayPayments(
           currency: payment.currency || order.currency,
           email: payment.email || paymentNotes.userEmail || '',
           userId: paymentNotes.userId || null,
-          planName: paymentNotes.planName || paymentNotes.productId || (paymentNotes.type === 'subscription_payment' ? 'Subscription' : null),
+          planName: isMusicPurchase
+            ? `Music: ${paymentNotes.trackTitle || 'Untitled Track'}`
+            : (paymentNotes.planName || paymentNotes.productId || (paymentNotes.type === 'subscription_payment' ? 'Subscription' : null)),
+          purchaseType: isMusicPurchase ? 'music_track_purchase' : 'credit_purchase',
           createdAt: new Date((payment.created_at || order.created_at || 0) * 1000).toISOString(),
         });
       }
@@ -86,12 +98,17 @@ export async function getRecentRazorpayPayments(
 }
 
 /**
- * One-click recovery: re-runs the exact same capture+credit flow
- * (confirmRazorpayCreditPayment in buy-credits/actions.ts) for a payment
- * that Razorpay shows as paid but which never got credited on our side —
- * regardless of WHY it was missed (client tab lost, webhook down, etc).
- * Idempotent via handleCreditPurchase's own processedPayments check, so
- * clicking this on an already-credited payment is a safe no-op.
+ * One-click recovery for a payment that Razorpay shows as paid but which
+ * never got credited/unlocked on our side — regardless of WHY it was
+ * missed (client tab lost, webhook down, etc). Branches on the order's
+ * own notes to re-run the correct grant flow: handleCreditPurchase for a
+ * normal credit purchase, or handleMusicTrackPurchase for a music track
+ * unlock (🔴 FIX: this used to only ever handle credits — music
+ * purchases were excluded from this whole panel, see
+ * getRecentRazorpayPayments above, so there was previously no recovery
+ * path for a stuck music unlock at all). Both grant functions are
+ * idempotent via their own processedPayments check, so clicking this on
+ * an already-granted payment is a safe no-op either way.
  */
 export async function manualGrantRazorpayPaymentAction(
   idToken: string,
@@ -112,21 +129,28 @@ export async function manualGrantRazorpayPaymentAction(
       payment = await razorpay.payments.capture(paymentId, payment.amount, payment.currency);
     }
     if (payment.status !== 'captured') {
-      return { success: false, message: `Payment is ${payment.status}, not captured — cannot grant credits.` };
+      return { success: false, message: `Payment is ${payment.status}, not captured — cannot grant.` };
     }
 
     const order: any = await razorpay.orders.fetch(payment.order_id);
+    const notes = { ...(order?.notes || {}), ...(payment?.notes || {}) };
+    const isMusicPurchase = notes.type === 'music_track_purchase';
+
     const { firestore, database } = initializeFirebase();
-    await handleCreditPurchase(firestore, database, payment, order);
+    if (isMusicPurchase) {
+      await handleMusicTrackPurchase(firestore, database, payment, order);
+    } else {
+      await handleCreditPurchase(firestore, database, payment, order);
+    }
 
     await sendToTelegram(
-      `🛠️ <b>Manual Payment Recovery</b>\n<b>Admin:</b> ${escapeHtml(guard.email || guard.uid)}\n<b>Payment:</b> <code>${escapeHtml(paymentId)}</code>\nGranted via Admin → Payments (Razorpay was showing this as paid but it had not been credited).`
+      `🛠️ <b>Manual Payment Recovery</b>\n<b>Admin:</b> ${escapeHtml(guard.email || guard.uid)}\n<b>Type:</b> ${isMusicPurchase ? 'Music Track Unlock' : 'Credits'}\n<b>Payment:</b> <code>${escapeHtml(paymentId)}</code>\nGranted via Admin → Payments (Razorpay was showing this as paid but it had not been ${isMusicPurchase ? 'unlocked' : 'credited'}).`
     ).catch(() => null);
 
-    return { success: true, message: 'Credits granted (or already had been — safe either way).' };
+    return { success: true, message: isMusicPurchase ? 'Track unlocked (or already was — safe either way).' : 'Credits granted (or already had been — safe either way).' };
   } catch (error: any) {
     reportServerError('src/app/admin/payments/actions.ts:manualGrantRazorpayPaymentAction', error, { paymentId });
-    return { success: false, message: error?.error?.description || error.message || 'Could not grant credits for this payment.' };
+    return { success: false, message: error?.error?.description || error.message || 'Could not grant this payment.' };
   }
 }
 

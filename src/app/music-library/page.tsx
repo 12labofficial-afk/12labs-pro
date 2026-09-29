@@ -57,7 +57,7 @@ import {
     HelpCircle
 } from 'lucide-react';
 import { reportClientError } from '@/lib/report-client-error';
-import { createOrderForMusicTrack } from './actions';
+import { createOrderForMusicTrack, confirmMusicTrackPurchaseAction } from './actions';
 import { getSecureDownloadUrl } from '@/app/admin/music-manager/actions';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -358,12 +358,37 @@ export default function MusicLibraryPage() {
                 currency: order.currency,
                 name: '12Labs Music Repository',
                 description: `Unlock: ${track.prompt}`,
-                handler: function () {
+                // 🔴 FIX: this used to just show a toast and rely ENTIRELY
+                // on the Razorpay webhook to unlock the track — every other
+                // purchase flow in this app has a fast client-side confirm
+                // as a redundant path alongside the webhook, but this one
+                // didn't. If the webhook delivery got missed (most common
+                // cause: the mobile tab getting backgrounded while the user
+                // is off in their UPI app), the track never unlocked at
+                // all — no error, no retry, nothing. Confirming here too is
+                // safe even if the webhook ALSO fires for the same payment
+                // (confirmMusicTrackPurchaseAction is idempotent).
+                handler: async function (response: any) {
                     toast({
                         title: 'Payment Secured!',
                         description: 'Unlocking this track — this can take a few moments.'
                     });
                     setPurchasingTrackId(null);
+                    try {
+                        const confirmResult = await confirmMusicTrackPurchaseAction({
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_signature: response.razorpay_signature,
+                        });
+                        if (!confirmResult.success) throw new Error(confirmResult.error);
+                    } catch (confirmErr: any) {
+                        // Not fatal — the webhook is still the reliable
+                        // async backup and the RTDB listener will pick up
+                        // the unlock whenever it lands. Just log it so a
+                        // genuine double-miss (this AND the webhook both
+                        // failing) is visible instead of silent.
+                        reportClientError('src/app/music-library/page.tsx:handlePurchaseTrack:confirm', confirmErr);
+                    }
                 },
                 prefill: { name: user.name, email: user.email },
                 theme: { color: '#2563eb' },

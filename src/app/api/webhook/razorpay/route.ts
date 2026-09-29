@@ -11,76 +11,7 @@ import { escapeHtml, getISTDateString } from '@/lib/utils';
 import { plans } from '@/lib/plans';
 import { reportServerError } from '@/lib/report-error';
 import { handleAffiliateCommission, handleCreditPurchase } from '@/lib/credit-purchase';
-
-/**
- * 🎵🔒 MUSIC TRACK PURCHASE — WEBHOOK HANDLER
- * ---------------------------------------------
- * Unlocks track's paid preview by writing musicPurchases/{userId}/{trackId}
- * in RTDB (the same store publicMusicLibrary itself lives in — see
- * src/app/music-library/actions.ts). Idempotent via processedPayments,
- * same as every other purchase type in this file.
- */
-async function handleMusicTrackPurchase(
-    firestore: admin.firestore.Firestore,
-    database: admin.database.Database,
-    paymentEntity: any,
-    orderEntity?: any
-) {
-    const notes = { ...(orderEntity?.notes || {}), ...(paymentEntity?.notes || {}) };
-    const userId = notes.userId;
-    const trackId = notes.trackId;
-    const paymentId = paymentEntity?.id || orderEntity?.id || `pay_${Date.now()}`;
-    const amountInInr = (paymentEntity?.amount || orderEntity?.amount || 0) / 100;
-    const userEmail = notes.userEmail || paymentEntity?.email || '';
-    const trackTitle = notes.trackTitle || 'Untitled Track';
-
-    if (!userId || !trackId) {
-        throw new Error("Missing userId/trackId in music track purchase metadata.");
-    }
-
-    // 🔴 FIX: this used to be a plain read-then-later-write check
-    // (`get()` now, `set()` after other async work) — not atomic. Razorpay
-    // sends BOTH an `order.paid` and a `payment.captured` event for the
-    // same successful payment, and the dispatcher below routes both to
-    // this same handler. If those two webhook deliveries land close
-    // together, both could pass the `.exists` check before either
-    // finished writing the marker — a classic TOCTOU race — and the
-    // track purchase (and this Telegram message) fired twice for one
-    // real payment. `.create()` is atomic: Firestore rejects it outright
-    // if the document already exists, so only ONE of two concurrent
-    // deliveries can ever win it, no matter how close together they land.
-    const processedRef = firestore.collection('processedPayments').doc(paymentId);
-    try {
-        await processedRef.create({
-            type: 'music_track_purchase',
-            userId,
-            trackId,
-            amount: amountInInr,
-            processedAt: new Date().toISOString(),
-        });
-    } catch (e: any) {
-        reportServerError('src/app/api/webhook/razorpay/route.ts:58', e);
-        // ALREADY_EXISTS (Firestore error code 6) — the other event for
-        // this same payment got here first. Nothing left to do.
-        if (e?.code === 6 || /already exists/i.test(e?.message || '')) return;
-        throw e;
-    }
-
-    await database.ref(`musicPurchases/${userId}/${trackId}`).set({
-        trackId,
-        purchasedAt: new Date().toISOString(),
-        amount: amountInInr,
-        paymentId,
-    });
-
-    await sendToTelegram(
-        `<b>💎 MUSIC TRACK PURCHASED</b>\n\n` +
-        `<b>Track:</b> ${escapeHtml(trackTitle)}\n` +
-        `<b>User:</b> ${escapeHtml(userEmail || userId)}\n` +
-        `<b>Amount:</b> ₹${amountInInr}\n` +
-        `<b>Payment ID:</b> <code>${escapeHtml(paymentId)}</code>`
-    );
-}
+import { handleMusicTrackPurchase } from '@/lib/music-purchase';
 
 async function handleProductPurchase(
     firestore: admin.firestore.Firestore,
