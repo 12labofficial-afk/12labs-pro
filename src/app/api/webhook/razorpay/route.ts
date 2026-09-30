@@ -170,7 +170,14 @@ export async function POST(req: NextRequest) {
     // credit with nothing showing up anywhere — so they alert now.
     if (!secret) {
       console.error('[Razorpay Webhook Error] Neither RAZORPAY_WEBHOOK_SECRET nor RAZORPAY_KEY_SECRET is set.');
-      await sendToTelegram(`🚨 <b>RAZORPAY WEBHOOK REJECTED</b>\nNo webhook secret is configured on the server — paid purchases are NOT being credited.`).catch(() => null);
+      // 🔴 FIX: was `await`ed — held the 400 response hostage to Telegram's
+      // own round-trip for no reason (this alert doesn't change the
+      // response). A slow/degraded Telegram API call here adds pure dead
+      // time to every single rejected delivery, which is exactly the kind
+      // of thing that pushes a response past Razorpay's own webhook
+      // timeout and counts as a failed delivery — repeated failures over
+      // 24h are what gets a webhook auto-disabled. Fire-and-forget instead.
+      sendToTelegram(`🚨 <b>RAZORPAY WEBHOOK REJECTED</b>\nNo webhook secret is configured on the server — paid purchases are NOT being credited.`).catch(() => null);
       return NextResponse.json({ status: 'error', message: 'Webhook secret not configured on server' }, { status: 400 });
     }
 
@@ -187,7 +194,8 @@ export async function POST(req: NextRequest) {
       console.error('[Razorpay Webhook Error] Signature verification failed. Ensure RAZORPAY_WEBHOOK_SECRET in environment matches Razorpay dashboard webhook secret.');
       let eventName = 'unknown';
       try { eventName = JSON.parse(text)?.event || 'unknown'; } catch { /* body isn't JSON */ }
-      await sendToTelegram(`🚨 <b>RAZORPAY WEBHOOK REJECTED — BAD SIGNATURE</b>\n<b>Event:</b> ${escapeHtml(eventName)}\nRAZORPAY_WEBHOOK_SECRET on the server doesn't match the Razorpay dashboard webhook secret — paid purchases are NOT being credited.`).catch(() => null);
+      // Same fire-and-forget fix as above.
+      sendToTelegram(`🚨 <b>RAZORPAY WEBHOOK REJECTED — BAD SIGNATURE</b>\n<b>Event:</b> ${escapeHtml(eventName)}\nRAZORPAY_WEBHOOK_SECRET on the server doesn't match the Razorpay dashboard webhook secret — paid purchases are NOT being credited.`).catch(() => null);
       return NextResponse.json({ status: 'error', message: 'Invalid signature' }, { status: 400 });
     }
     
