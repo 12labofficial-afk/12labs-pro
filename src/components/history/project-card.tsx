@@ -228,12 +228,18 @@ export function ProjectCard({
         const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
         const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
         const zip = new JSZip();
-        
+
         const { timeline, dialogues, characterSettings } = project.syncData;
         if (!Array.isArray(dialogues) || !Array.isArray(timeline)) {
             throw new Error("Invalid sync format");
         }
-        
+
+        // 🔴 FIX: an explicit per-file `date`, 2s apart in dialogue order
+        // (ZIP's DOS date field only has 2-second resolution), so the
+        // order survives a file manager that sorts by date instead of by
+        // the zero-padded name — see voice-editor-dialog.tsx for the full
+        // reasoning, same fix applied here for consistency.
+        const zipBaseDate = new Date();
         for (let i = 0; i < dialogues.length; i++) {
             const d = dialogues[i]; 
             const s = timeline[i];
@@ -256,7 +262,7 @@ export function ProjectCard({
             src.start(0, s.startTime, s.duration);
             
             const renderedBuffer = await offlineCtx.startRendering();
-            zip.file(`${String(i + 1).padStart(3, '0')}-${d.character}.wav`, audioBufferToWav(renderedBuffer));
+            zip.file(`${String(i + 1).padStart(3, '0')}-${d.character}.wav`, audioBufferToWav(renderedBuffer), { date: new Date(zipBaseDate.getTime() + i * 2000) });
         }
 
         const zipBlob = await zip.generateAsync({ type: 'blob' });

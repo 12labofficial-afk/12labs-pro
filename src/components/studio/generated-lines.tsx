@@ -237,6 +237,16 @@ function DownloadOptions() {
 
         let timelineAcc = 0;
 
+        // 🔴 FIX: an explicit per-file `date`, 2s apart in dialogue order
+        // (ZIP's DOS date field only has 2-second resolution), so the
+        // order survives a file manager that sorts by date instead of by
+        // the zero-padded name — lines below are packaged in parallel
+        // (Promise.all), so without this every entry could land on
+        // whatever "now" happens to be when its own fetch/trim finishes,
+        // not dialogue order. See voice-editor-dialog.tsx for the full
+        // reasoning, same fix applied here for consistency.
+        const zipBaseDate = new Date();
+
         await Promise.all(
             validLines.map(async (line, index) => {
                 const response = await fetch(line.audioDataUri);
@@ -253,7 +263,7 @@ function DownloadOptions() {
                 const cleanCharName = (line.characterName || 'Character').replace(/[^a-zA-Z0-9_-]/g, '_');
                 const fileName = `${String(index + 1).padStart(3, '0')}_${cleanCharName}_${startFormatted}-${endFormatted}.wav`;
 
-                zip.file(fileName, trimmedBlob);
+                zip.file(fileName, trimmedBlob, { date: new Date(zipBaseDate.getTime() + index * 2000) });
 
                 jsonManifestData.dialogues.push({
                     index: index + 1,

@@ -1113,6 +1113,17 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
             reportClientError('src/components/history/voice-editor-dialog.tsx:951', e);}
                 }
             }));
+            // 🔴 FIX: the zero-padded filename above fixes sort-by-name, but
+            // some file managers default to sort-by-date instead — and
+            // without an explicit `date` here, JSZip stamps every entry with
+            // "now" (all rendered within the same tight loop, often the same
+            // second), so a date-sort ties them and falls back to whatever
+            // order the OS returns, scrambling it again. Giving each file
+            // its own timestamp, in dialogue order, 2 seconds apart (ZIP's
+            // DOS date field only has 2-second resolution, so a 1s gap can
+            // still round two entries down to the same stored second) makes
+            // the order survive BOTH sort-by-name and sort-by-date.
+            const zipBaseDate = new Date();
             for (let i = 0; i < syncData.dialogues.length; i++) {
                 const dialogue = syncData.dialogues[i];
                 const useOverride = dialogue.audioOverridden && dialogue.useOverride !== false;
@@ -1146,7 +1157,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                 // Same 3-digit padStart already used by every other zip
                 // export in this app (generated-lines.tsx, project-card.tsx).
                 const fileName = `${String(i + 1).padStart(3, '0')}-${cleanChar}.wav`;
-                zip.file(fileName, wavBlob);
+                zip.file(fileName, wavBlob, { date: new Date(zipBaseDate.getTime() + i * 2000) });
             }
             const content = await zip.generateAsync({ type: 'blob' });
             const safeName = project.projectName?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || '12labs_audio';
