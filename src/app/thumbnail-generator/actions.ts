@@ -3,9 +3,8 @@
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import { logSummaryEvent } from '@/lib/summary-logger';
-import { getISTDateString, escapeHtml, formatCredits, wholeCredits } from '@/lib/utils';
+import { getISTDateString, escapeHtml } from '@/lib/utils';
 import { sendToTelegram } from '@/lib/telegram-logger';
-import type { UserProfile } from '@/lib/types';
 import { reportServerError } from '@/lib/report-error';
 
 const SubmitThumbnailRequestSchema = z.object({
@@ -70,51 +69,16 @@ export async function submitThumbnailRequestAction(
       return { success: false, error: 'User profile not found.' };
     }
 
-    const userData = userDoc.data() as UserProfile;
-
-    // Fetch dynamic pricing config from RTDB settings/pricing
-    let pricingData: any = {};
-    if (database) {
-      try {
-        const pricingSnap = await database.ref('settings/pricing').get();
-        if (pricingSnap.exists()) {
-          pricingData = pricingSnap.val();
-        }
-      } catch (e) {
-    reportServerError('src/app/thumbnail-generator/actions.ts#1', e);
-        console.warn('Failed to fetch pricing for thumbnail, using default fallback', e);
-      }
-    }
-
-    // Default cost is 1500 credits (or discounted / free for sponsors)
-    const thumbnailNormalCost = pricingData.thumbnailNormal !== undefined ? Number(pricingData.thumbnailNormal) : 1500;
-    const thumbnailDiscountedCost = pricingData.thumbnailDiscounted !== undefined ? Number(pricingData.thumbnailDiscounted) : 1200;
-
-    let cost = 0;
-    if (userData.isSponsor === true) {
-      cost = 0;
-    } else if (userData.hasMadeFirstPurchase) {
-      cost = thumbnailDiscountedCost;
-    } else {
-      cost = thumbnailNormalCost;
-    }
-
-    // Atomic transaction for credit deduction
-    const updatedCredits = await firestore.runTransaction(async (transaction: any) => {
-      const freshUserDoc = await transaction.get(userRef);
-      const currentCredits = freshUserDoc.data()?.credits || 0;
-
-      if (currentCredits < cost) {
-        throw new Error(`Insufficient credits. Required: ${cost}, Available: ${formatCredits(currentCredits)}. Please top up your balance.`);
-      }
-
-      const updatedBalance = wholeCredits(Math.max(0, currentCredits - cost));
-      transaction.update(userRef, {
-        credits: updatedBalance,
-      });
-
-      return updatedBalance;
-    });
+    // 🔴 FIX: this used to also fetch pricing, compute the isSponsor/
+    // hasMadeFirstPurchase tier, and run the transaction that ACTUALLY
+    // deducted credits — all removed. Not safe for a future native app
+    // submitting straight to Firebase (Firestore rules can only pin
+    // ownership fields, not a cost field the app also wrote). The charge
+    // is now computed (get_thumbnail_cost, same settings/pricing
+    // thumbnailNormal/thumbnailDiscounted + tiering as before) and
+    // deducted once, server-side, on HF (deduct_thumbnail_credits_atomic
+    // in server-files/thumbnail_generation.py) the moment it picks the
+    // job up. This function is pure submission now.
 
     // 1. Save Request to Realtime Database for Live Node Processing & Live Polling
     if (database) {
@@ -135,24 +99,10 @@ export async function submitThumbnailRequestAction(
         style,
         width,
         height,
-        cost,
-        creditCost: cost,
         type: 'thumbnail_generation',
         createdAt: createdAtIso,
         timestamp: numericTimestamp,
       });
-
-      // Also record credit history in RTDB ledger
-      if (cost >= 0) {
-        await database.ref(`creditHistory/${userId}`).push({
-          amount: -cost,
-          creditCost: cost,
-          reason: `Thumbnail Studio: ${title.slice(0, 30)}`,
-          timestamp: createdAtIso,
-          projectId: mappingId,
-          type: 'deduction'
-        }).catch((e: any) => { reportServerError('src/app/thumbnail-generator/actions.ts:154', e); return null; });
-      }
     }
 
     // 2. Save Request to Firestore (`thumbnailProjects` & `thumbnail_projects`)
@@ -176,8 +126,6 @@ export async function submitThumbnailRequestAction(
       status: 'pending',
       type: 'thumbnail_generation',
       projectType: 'thumbnail',
-      cost,
-      creditCost: cost,
       createdAt: createdAtIso,
       updatedAt: createdAtIso,
       timestamp: numericTimestamp,
@@ -213,26 +161,23 @@ export async function submitThumbnailRequestAction(
       .set(thumbnailPayload)
       .catch((e: any) => console.error('Firestore thumbnail_projects root error:', e));
 
-    // Summary logger & cashback
-    if (cost > 0) {
-      await logSummaryEvent('creditsSpent', cost).catch((e: any) => { reportServerError('src/app/thumbnail-generator/actions.ts:218', e); return null; });
-    }
+    // 📝 Credit history + the dailySummaries 'creditsSpent' counter are
+    // now both written by HF's deduct_thumbnail_credits_atomic
+    // (server-files/thumbnail_generation.py) once it actually deducts on
+    // pickup — not here, since nothing was charged by this function.
 
-    // Telegram Notification
+    // Telegram Notification — cost omitted, not known until HF charges it.
     const tgMsg = `🎨 <b>Thumbnail Generation Request Submitted</b>
 <b>User:</b> ${escapeHtml(userEmail)}
 <b>Title:</b> ${escapeHtml(title)}
 <b>Style:</b> ${escapeHtml(style)} (${aspectRatio})
 <b>Prompt:</b> <code>${escapeHtml(prompt.slice(0, 150))}...</code>
-${referenceImageUrl ? `<b>Extracted YT / Reference Image:</b> ${referenceImageUrl}` : ''}
-<b>Cost:</b> <code>-${cost} Credits</code>`;
+${referenceImageUrl ? `<b>Extracted YT / Reference Image:</b> ${referenceImageUrl}` : ''}`;
 
     await sendToTelegram(tgMsg, referenceImageUrl || undefined).catch((e: any) => { reportServerError('src/app/thumbnail-generator/actions.ts:230', e); return null; });
 
     return {
       success: true,
-      cost,
-      newCredits: updatedCredits,
       mappingId,
     };
   } catch (error: any) {

@@ -594,9 +594,15 @@ export default function ThumbnailGeneratorPage() {
 
       if (res.mappingId) {
         setActiveJobId(res.mappingId);
+        // 🔴 FIX: res.cost no longer comes back — the real charge (which
+        // can be less than pricingNormal for a sponsor/returning
+        // customer) is now computed once, server-side, when HF picks the
+        // job up. pricingNormal is this component's existing best-effort
+        // estimate (same live settings/pricing read used elsewhere on
+        // this page), close enough for a submission toast.
         toast({
           title: '🚀 Synthesis Started!',
-          description: `Generating high-CTR thumbnail (-${res.cost} credits)...`,
+          description: `Generating high-CTR thumbnail (up to -${pricingNormal} credits)...`,
         });
       }
     } catch (error: any) {
