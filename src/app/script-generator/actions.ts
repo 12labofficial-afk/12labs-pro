@@ -3,18 +3,34 @@
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import { logSummaryEvent } from '@/lib/summary-logger';
-import { getISTDateString, escapeHtml, checkIsPaidUser, formatCredits, wholeCredits } from '@/lib/utils';
-import { FieldValue } from 'firebase-admin/firestore';
+import { getISTDateString, escapeHtml } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
 import { sendToTelegram } from '@/lib/telegram-logger';
-import type { UserProfile } from '@/lib/types';
 import { reportServerError } from '@/lib/report-error';
 
 /**
- * 💰 SCRIPT CREDIT ENGINE & HUB INITIALIZER
+ * 💰 SCRIPT HUB INITIALIZER (pure submission)
+ *
+ * 🔴 FIX: this used to also fetch pricing, compute the isSponsor/daily-
+ * count tier, and run the transaction that ACTUALLY deducted credits —
+ * all removed. Not safe for a future native app submitting straight to
+ * Firebase (Firestore rules can only pin ownership fields, not a cost
+ * field the app also wrote). The charge is now computed
+ * (get_script_cost, same settings/pricing script10/20/30 Normal/
+ * Discounted keys + tiering as before) and deducted once, server-side,
+ * on HF (deduct_script_credits_atomic in server-files/script_generation.py)
+ * the moment it picks the job up — including the per-user daily
+ * generation count that decides the tier, which moved there too.
+ *
+ * The SITE-WIDE daily free-generation cap below stays here on purpose:
+ * it's a queue-admission gate (should this job even be allowed to be
+ * submitted at all, independent of any one user's balance), not a
+ * billing amount — same reasoning insufficient-credits handling doesn't
+ * need to be, since a bypass here just means slightly more load, never
+ * a wrong charge.
  */
 export async function deductScriptCreditsAction(
-    userId: string, 
+    userId: string,
     userEmail: string,
     targetLength: number,
     projectName: string,
@@ -32,20 +48,13 @@ export async function deductScriptCreditsAction(
     }
 ): Promise<{ success: boolean; cost?: number; newCredits?: number; mappingId?: string; error?: string }> {
     const { firestore, database } = initializeFirebase();
-    const userRef = firestore.collection('users').doc(userId);
     const today = getISTDateString();
-    const usageRef = database.ref(`userScriptGenerationLimits/${userId}/${today}`);
-    
+
     const mappingId = `STORY_${Date.now()}_${Math.random().toString(36).substring(7).toUpperCase()}`;
     const createdAtIso = clientTimestamp || new Date().toISOString();
     const numericTimestamp = Date.now();
 
     try {
-        const userDoc = await userRef.get();
-        if (!userDoc.exists) throw new Error("User profile missing.");
-        
-        const userData = userDoc.data() as UserProfile;
-        
         // 🚨 CHECK DAILY LIMIT FOR ALL USERS (FREE & PAID)
         if (database) {
             const limitSnap = await database.ref('settings/app/dailyFreeScriptLimit').get();
@@ -55,84 +64,18 @@ export async function deductScriptCreditsAction(
             const dailyFreeCount = dailyFreeCountSnap.exists() ? Number(dailyFreeCountSnap.val()) : 0;
 
             if (dailyFreeCount >= dailyFreeLimit) {
-                return { 
-                    success: false, 
-                    error: "You can't create more scripts daily script generation limit exceeded come back tomorrow when quota refreshed" 
+                return {
+                    success: false,
+                    error: "You can't create more scripts daily script generation limit exceeded come back tomorrow when quota refreshed"
                 };
             }
         }
 
-        const usageSnap = await usageRef.get();
-        const count = usageSnap.val() || 0;
-
-        // Fetch dynamic pricing config from RTDB settings/pricing
-        let pricingData: any = {};
-        if (database) {
-            try {
-                const pricingSnap = await database.ref('settings/pricing').get();
-                if (pricingSnap.exists()) {
-                    pricingData = pricingSnap.val();
-                }
-            } catch (e) {
-    reportServerError('src/app/script-generator/actions.ts#1', e);
-                console.warn("Failed to fetch dynamic pricing in deductScriptCreditsAction, using fallback", e);
-            }
-        }
-
-        const script10Normal = Number(pricingData.script10Normal) || 1000;
-        const script10Discounted = Number(pricingData.script10Discounted) || 500;
-        const script20Normal = Number(pricingData.script20Normal) || 2000;
-        const script20Discounted = Number(pricingData.script20Discounted) || 700;
-        const script30Normal = Number(pricingData.script30Normal) || 3000;
-        const script30Discounted = Number(pricingData.script30Discounted) || 1000;
-        
-        // TIERED PRICING MATRIX
-        let cost = 0;
-        if (userData.isSponsor === true) {
-            cost = 0;
-        } else if (count === 0) {
-            if (targetLength <= 8000) cost = script10Discounted;
-            else if (targetLength <= 17000) cost = script20Discounted;
-            else cost = script30Discounted;
-        } else {
-            if (targetLength <= 8000) cost = script10Normal;
-            else if (targetLength <= 17000) cost = script20Normal;
-            else cost = script30Normal;
-        }
-
-        const result = await firestore.runTransaction(async (transaction: any) => {
-            const freshUserDoc = await transaction.get(userRef);
-            const currentCredits = freshUserDoc.data()?.credits || 0;
-            
-            if (currentCredits < cost) throw new Error(`Insufficient credits. Required: ${cost}, Available: ${formatCredits(currentCredits)}.`);
-            
-            const updatedBalance = wholeCredits(Math.max(0, currentCredits - cost));
-            transaction.update(userRef, { 
-                credits: updatedBalance,
-                hasMadeFirstPurchase: true 
-            });
-
-            return updatedBalance;
-        });
-
-        if (database) {
-            await database.ref(`creditHistory/${userId}`).push({
-                amount: -cost,
-                creditCost: cost,
-                reason: `Script Studio: ${projectName} (${targetLength / 1000}k chars)`,
-                timestamp: createdAtIso,
-                clientTimestamp: createdAtIso,
-                numericTimestamp: numericTimestamp
-            });
-        }
-
         // Initialize Hub Node in RTDB
         await database.ref(`tempScriptGenerations/${userId}/${mappingId}`).set({
-            status: 'processing',
+            status: 'pending',
             projectName,
             language,
-            cost,
-            creditCost: cost,
             createdAt: createdAtIso,
             clientTimestamp: createdAtIso,
             timestamp: numericTimestamp,
@@ -166,8 +109,6 @@ export async function deductScriptCreditsAction(
             status: 'pending',
             projectType: 'script',
             isScript: true,
-            cost,
-            creditCost: cost,
             createdAt: createdAtIso,
             clientTimestamp: createdAtIso,
             updatedAt: createdAtIso,
@@ -201,27 +142,27 @@ export async function deductScriptCreditsAction(
             .set(scriptProjectPayload)
             .catch((e: any) => console.error("Firestore script_projects root error:", e));
 
-        await usageRef.set(count + 1);
+        // Site-wide counter only — the per-user daily count that decides
+        // the Discounted-vs-Normal tier now lives entirely on HF (see
+        // deduct_script_credits_atomic), since it has to be read/bumped
+        // atomically alongside the charge itself.
         if (database) {
             await database.ref(`dailyFreeScriptGenerations/${today}/count`).transaction((curr: any) => (curr || 0) + 1);
         }
-        await logSummaryEvent('creditsSpent', cost);
 
-        await sendToTelegram(`💰 <b>Script Hub Initialized</b>\n<b>User:</b> ${escapeHtml(userEmail)}\n<b>Project:</b> ${escapeHtml(projectName)}\n<b>Sync:</b> <code>-${cost}</code>`);
-        
-        return { success: true, cost, newCredits: result, mappingId };
+        // 📝 Credit history + the dailySummaries 'creditsSpent' counter are
+        // now both written by HF's deduct_script_credits_atomic once it
+        // actually deducts on pickup — not here, since nothing was
+        // charged by this function.
+
+        await sendToTelegram(`💰 <b>Script Hub Initialized</b>\n<b>User:</b> ${escapeHtml(userEmail)}\n<b>Project:</b> ${escapeHtml(projectName)}`);
+
+        return { success: true, mappingId };
 
     } catch (error: any) {
-        // "Insufficient credits" is expected user-facing validation, not a bug —
-        // it fires whenever a user tries to generate without enough balance.
-        // Reporting it as a Server Error spams the admin channel with routine,
-        // actionless noise. Only report genuine failures (DB errors, etc).
-        const isInsufficientCredits = typeof error?.message === 'string' && error.message.startsWith('Insufficient credits');
-        if (!isInsufficientCredits) {
-            reportServerError('src/app/script-generator/actions.ts#2', error);
-        }
-        console.error("[Credit Sync Failed]:", error.message);
-        return { success: false, error: error.message }; 
+        reportServerError('src/app/script-generator/actions.ts#2', error);
+        console.error("[Script Submission Failed]:", error.message);
+        return { success: false, error: error.message };
     }
 }
 

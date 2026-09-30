@@ -1027,9 +1027,11 @@ export default function ScriptGeneratorPage() {
 
         // 🚀 Generation now happens server-side (HQ Cluster's script_generation.py,
         // direct Gemini keys) instead of a client-side call. deductScriptCreditsAction
-        // already wrote the pending job to Firestore `script_projects` (root doc +
-        // userProjects) and initialized RTDB `tempScriptGenerations/{uid}/{mappingId}`
-        // with status 'processing'. From here we just wait — the "RTDB SYNC FOR LIVE
+        // is pure submission now — it writes the pending job to Firestore
+        // `script_projects` (root doc + userProjects) and initializes RTDB
+        // `tempScriptGenerations/{uid}/{mappingId}` with status 'pending'; HF flips
+        // it to 'processing' once it picks the job up (and deducts credits then,
+        // not here). From here we just wait — the "RTDB SYNC FOR LIVE
         // GENERATIONS" effect below polls that same node and takes over: it updates
         // the progress bar, opens the reader, saves local history, and finalizes the
         // Projects record once the worker reports status 'ok' (or shows an error if
