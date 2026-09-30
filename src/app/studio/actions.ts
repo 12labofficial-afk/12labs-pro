@@ -231,8 +231,11 @@ export async function processHighQualityGenerationAndDeductCredits(
   characters: Omit<Character, 'id'>[], 
   totalInvestment: number, 
   totalChars: number,
-  syncData?: any, 
+  syncData?: any,
   providedProjectId?: string,
+  // 🔴 NEW: no longer read — cost computation moved entirely to HF (see
+  // below). Kept in the signature only so existing positional call sites
+  // (studio-provider.tsx, api/v1/generate/route.ts) don't need to change.
   customCost?: number,
   // Which engine renders the audio. 'gemini' keeps the existing path
   // untouched (pending_projects -> studio.py). 'elevenlabs' routes the
@@ -242,21 +245,15 @@ export async function processHighQualityGenerationAndDeductCredits(
   voiceEngine: 'gemini' | 'elevenlabs' = 'gemini'
 ): Promise<{ success: boolean; newCredits?: number; projectId?: string; error?: string }> {
     // 🔴 FIX: a submission with an empty (or missing) dialogues array used
-    // to sail straight through — credits deducted, a Firestore project doc
-    // created, and a job queued with total_dialogues: 0. Nothing exists for
-    // the worker to synthesize, so the job never advances: the frontend
-    // shows "…/… Signals" and sits at 0% forever, with no way to tell it
-    // was ever charged for. Rejected here, before the credit transaction.
+    // to sail straight through — a Firestore project doc created and a job
+    // queued with total_dialogues: 0. Nothing exists for the worker to
+    // synthesize, so the job never advances: the frontend shows "…/…
+    // Signals" and sits at 0% forever. Rejected here, before queuing.
     if (!Array.isArray(syncData?.dialogues) || syncData.dialogues.length === 0) {
-        return { success: false, error: 'No dialogue lines to generate. Nothing was charged.' };
+        return { success: false, error: 'No dialogue lines to generate. Nothing was submitted.' };
     }
 
     const { firestore, database } = initializeFirebase();
-    const userRef = firestore.collection('users').doc(userId);
-
-    const rate = await getEngineRate(voiceEngine);
-    const serverCost = Math.ceil(totalChars * rate);
-    const cost = typeof customCost === 'number' && customCost > serverCost ? Math.ceil(customCost) : serverCost;
     // 🔴 FIX: providedProjectId (the client's hqSubmissionId) is minted once
     // per script ANALYSIS, not per generation — if the same analysis gets
     // generated with both engines (e.g. a quick engine switch before the
@@ -278,40 +275,32 @@ export async function processHighQualityGenerationAndDeductCredits(
     const projectRef = firestore.collection('projects').doc(userId).collection('userProjects').doc(projectId);
 
     try {
-        // 🔴 FIX: this used to be the transaction that ACTUALLY deducted
-        // credits — but that's only safe as long as every submission path
-        // goes through this Server Action (untamperable from the browser).
-        // A future native app submitting straight to Firebase would
-        // bypass this file entirely, and Realtime Database rules can only
-        // pin the `userId` field on pending_projects/11_projects to the
-        // caller's own auth.uid (confirmed in database.rules.json) — they
-        // can't validate that a `cost`/`creditCost` field the app also
-        // wrote is truthful. So the actual charge now happens once,
-        // server-side, on HF (deduct_credits_atomic in studio.py/11.py),
-        // computed from the dialogues actually queued — the same
-        // authority for both the website and the app. This is now just a
-        // READ-ONLY precheck for instant UX feedback ("not enough
-        // credits" before even submitting); the project doc is written
-        // without touching the user's balance at all.
-        const userDoc = await userRef.get();
-        if (!userDoc.exists) throw new Error("User profile missing.");
-        const currentCredits = userDoc.data()?.credits || 0;
-        if (currentCredits < cost) {
-            throw new Error(`Insufficient credits. Required: ${cost.toLocaleString()}, Available: ${currentCredits.toLocaleString()}.`);
-        }
+        // 🔴 FIX: this used to also read the user's balance for a precheck
+        // and compute a cost/creditCost estimate to write here — both
+        // removed. This function is now pure submission: NO billing logic
+        // runs on Vercel at all, not even a read-only check. The charge is
+        // computed and deducted exactly once, server-side, on HF
+        // (deduct_credits_atomic in studio.py/11.py) the moment it picks
+        // the job up — from the dialogues actually queued, never from a
+        // client-supplied number — making HF the single billing authority
+        // for both the website and the future app (which will submit
+        // straight to Firebase, bypassing this file entirely). HF writes
+        // the real cost/creditCost into both the RTDB queue node and this
+        // Firestore doc as soon as it starts processing, so History/
+        // progress UI always shows the true charged amount, not an
+        // estimate. If the user's balance turns out to be insufficient,
+        // HF rejects the job there (status: 'error') instead of here.
         await projectRef.set({
-            id: projectId, userId, projectName, script, characters, cost, creditCost: cost,
+            id: projectId, userId, projectName, script, characters,
             status: 'in_queue', projectType: 'hq-submission', voiceEngine,
             createdAt: createdAt, clientTimestamp: createdAt, timestamp: Date.now(), audioUrl: '', syncData: syncData || null
         });
-        const newBalanceAfterDeduction = currentCredits;
 
         // 🔴 FIX: this is the write that actually hands the job to the
         // worker (studio.py/11.py listen on this RTDB node, not on the
-        // Firestore doc). Caught separately from the precheck above so a
-        // failure here — nothing charged yet, since HF does the actual
-        // deduction on pickup — just marks the doc errored instead of
-        // needing a refund path at all.
+        // Firestore doc). Caught separately so a failure here just marks
+        // the doc errored — nothing was ever charged by this function, so
+        // there's no refund path needed.
         try {
             await database.ref(`${rtdbNode}/${projectId}`).set({
                 status: 'in_queue',
@@ -333,8 +322,6 @@ export async function processHighQualityGenerationAndDeductCredits(
                 id: projectId,
                 userName,
                 script,
-                cost,
-                creditCost: cost,
                 createdAt,
                 clientTimestamp: createdAt,
                 projectType: 'hq-submission',
@@ -347,18 +334,13 @@ export async function processHighQualityGenerationAndDeductCredits(
             reportServerError('src/app/studio/actions.ts#queueFailed', queueErr, { userId, projectId });
             await projectRef.set({ status: 'error', error: 'Failed to queue for the production worker.' }, { merge: true }).catch(() => null);
             await sendToTelegram(`🚨 <b>HQ JOB FAILED TO QUEUE</b>\n<b>User:</b> ${escapeHtml(userEmail || userId)}\n<b>Project:</b> ${escapeHtml(projectName || 'Untitled')}\n<b>Error:</b> ${escapeHtml(queueErr.message)}`).catch(() => null);
-            return { success: false, error: 'Could not start generation. Please try again.', newCredits: newBalanceAfterDeduction };
+            return { success: false, error: 'Could not start generation. Please try again.' };
         }
 
-        // 📝 Credit history + the dailySummaries 'creditsSpent' counter are
-        // now both written by HF's deduct_credits_atomic (studio.py/11.py)
-        // once it actually deducts on pickup — not here, since nothing was
-        // charged by this precheck.
-
-        return { success: true, newCredits: newBalanceAfterDeduction, projectId: projectId };
+        return { success: true, projectId: projectId };
     } catch (error: any) {
-    reportServerError('src/app/studio/actions.ts#4', error); 
-        return { success: false, error: error.message }; 
+    reportServerError('src/app/studio/actions.ts#4', error);
+        return { success: false, error: error.message };
     }
 }
 

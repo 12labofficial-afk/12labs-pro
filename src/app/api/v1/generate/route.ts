@@ -22,11 +22,15 @@ import { withCors, corsPreflight } from '@/lib/cors';
  *      autoAssignGeminiVoice / autoAssignElevenLabsVoice below.
  *   3. Submits to the EXACT SAME async pipeline the website uses
  *      (processHighQualityGenerationAndDeductCredits — the same function,
- *      same credit-deduction transaction, same pending_projects/
- *      11_projects RTDB queue, same studio.py/11.py workers). Nothing
- *      about the generation itself is different for an API call.
+ *      same pending_projects/11_projects RTDB queue, same studio.py/11.py
+ *      workers). Nothing about the generation itself is different for an
+ *      API call. That function is pure submission now — it charges
+ *      nothing; the actual credit check + deduction happens once, on HF,
+ *      the moment the job is picked up (see deduct_credits_atomic in
+ *      studio.py/11.py), computed from the dialogues actually queued.
  *
- * PRICING: charged via getEngineRate (src/lib/pricing.ts) — the exact same
+ * PRICING: estimatedCost below (used only for the developer usage log,
+ * not for billing) is computed via getEngineRate (src/lib/pricing.ts) —
  * per-character rate read from the exact same settings/pricing RTDB path
  * the website's admin pricing dashboard controls. There is no separate
  * API price; changing a rate on the website changes it here too.
