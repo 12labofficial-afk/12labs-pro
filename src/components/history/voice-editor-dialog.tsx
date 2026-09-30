@@ -61,9 +61,8 @@ import { doc as firestoreDoc, setDoc } from 'firebase/firestore';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import { ElevenLabsVoiceSource } from '@/components/studio/voice-engine';
 import { reportClientError } from '@/lib/report-client-error';
-import { 
-    regenerateLineWithCreditsAction,
-    deductFastGenCreditsAction
+import {
+    regenerateLineWithCreditsAction
 } from '@/app/studio/actions';
 import { useAuth } from '@/context/auth-provider';
 import { Textarea } from '@/components/ui/textarea';
@@ -832,17 +831,22 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
         setSwapProgress(5);
 
         try {
-            const billing = await deductFastGenCreditsAction(
-                user.uid,
-                syncData.dialogues
-                    .filter((d: any) => d.character?.toLowerCase().trim() === charName.toLowerCase().trim())
-                    .reduce((n: number, d: any) => n + (d.line || '').length, 0),
-                project.projectName || 'Voice Edit',
-                project.id,
-                cost,
-                'Voice Edit: ' + charName
-            );
-            if (!billing.success) throw new Error(billing.error || 'Credit deduction failed.');
+            // 🔴 FIX: this used to call deductFastGenCreditsAction, a
+            // Server Action that deducted credits on Vercel before this
+            // RTDB job was even written. Not safe for a future native app
+            // submitting straight to Firebase, and this specific call site
+            // also only ever checked the Gemini voice_replacement node for
+            // an in-flight duplicate regardless of which engine the swap
+            // was actually going to — fixed as part of the same move. The
+            // charge is now computed and deducted once, server-side, on
+            // HF (deduct_replacement_credits_atomic in
+            // server-files/voice_replacement.py, or its 11Labs
+            // counterpart in 11_replace.py) the moment it picks the job
+            // up, from the dialogue lines actually being re-synthesized —
+            // never from any cost/creditCost field written here. The
+            // `user.credits < cost` check above is unchanged: a pure
+            // client-side UX courtesy against the live-synced balance,
+            // not a security boundary.
             // 🔴 Persist current on-screen dialogue text to Firestore FIRST —
             // the swap worker reads dialogues straight from Firestore, so
             // any unsaved edit here would otherwise get re-synthesized with
@@ -871,10 +875,8 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                 originalAudioUrl: getDisplayUrl(project.audioUrl),
                 status: 'pending',
                 timestamp: Math.floor(Date.now() / 1000),
-                creditsCharged: cost
             });
 
-            if (billing.newCredits !== undefined) setUser({ ...user, credits: billing.newCredits });
             toast({ title: 'Voice Edit Started', description: 'Your voice worker has received the editing request.' });
         } catch (e: any) {
             reportClientError('src/components/history/voice-editor-dialog.tsx:734', e);
@@ -908,15 +910,10 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
         setIsProcessingSwap(true); 
         setSwapProgress(5);
         try {
-            const billing = await deductFastGenCreditsAction(
-                user.uid,
-                swapCostData.totalChars,
-                project.projectName || 'Voice Edit',
-                project.id,
-                swapCostData.cost,
-                'Voice Edit: ' + validReplacements.map(r => r.charName).join(', ')
-            );
-            if (!billing.success) throw new Error(billing.error || 'Credit deduction failed.');
+            // 🔴 FIX: same move as handleSwapSingleCharacterVoice above —
+            // deductFastGenCreditsAction removed from this call site; HF
+            // computes and deducts the real charge once it picks the job
+            // up. See that function's comment for the full reasoning.
             // 🔴 Same pre-swap persist as the single-character swap above.
             try {
                 await persistSyncDataToFirestore(syncData);
@@ -938,11 +935,9 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                 originalAudioUrl: getDisplayUrl(project.audioUrl),
                 status: 'pending',
                 timestamp: Math.floor(Date.now() / 1000),
-                creditsCharged: swapCostData.cost
             });
-            if (billing.newCredits !== undefined) setUser({ ...user, credits: billing.newCredits });
 
-            setReplacements([]); 
+            setReplacements([]);
             toast({ title: 'Voice Edit Started', description: 'Your voice worker has received the editing request.' });
         } catch (e: any) {
             reportClientError('src/components/history/voice-editor-dialog.tsx:793', e); 
