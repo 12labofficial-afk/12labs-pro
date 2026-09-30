@@ -865,8 +865,33 @@ export function StudioProvider({ children }: { children: ReactNode }) {
                     return;
                 }
             }
+            // 🔴 NEW: the actual credit check + deduction now happens once,
+            // server-side, on HF (see processHighQualityGenerationAnd-
+            // DeductCredits's own comment) — but the user should still see
+            // the exact same "Not Enough Credits" block at the Start button
+            // as before, instantly, without a server round-trip. This uses
+            // the SAME live `pricing` (settings/pricing, already synced to
+            // the client) and the SAME formula (chars × rate) HF uses, so
+            // what's shown here always matches what actually gets charged.
+            // Purely a UX courtesy — HF still rejects the job independently
+            // if the balance somehow doesn't cover it by the time it picks
+            // the job up (a promo/refund landing in between, etc.).
+            const isSponsorOrAdminHq = (user as any)?.isSponsor === true || (user as any)?.role === 'admin';
+            const liveCredits = Number((user as any)?.credits ?? (activeUser as any)?.credits ?? 0);
+            const estimatedHqCost = Math.ceil(scriptAnalysis.characterCount * rateForEngine(submittedEngine));
+            if (!isSponsorOrAdminHq && liveCredits < estimatedHqCost) {
+                setIsGenerating(false);
+                setHqProjectId(null);
+                submissionLock.current = false;
+                toast({
+                    variant: 'destructive',
+                    title: 'Not Enough Credits',
+                    description: `This generation needs ${estimatedHqCost.toLocaleString()} credits, but you only have ${liveCredits.toLocaleString()} credits.`
+                });
+                return;
+            }
             const res = await processHighQualityGenerationAndDeductCredits(
-              activeUid, 
+              activeUid,
               activeUser.name || 'User', 
               activeUser.email || '', 
               projectName, 

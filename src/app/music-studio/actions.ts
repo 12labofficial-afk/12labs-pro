@@ -2,9 +2,7 @@
 
 import { initializeFirebase } from '@/firebase/server';
 import { sendToTelegram } from '@/lib/telegram-logger';
-import { logSummaryEvent } from '@/lib/summary-logger';
-import { escapeHtml, formatCredits, wholeCredits } from '@/lib/utils';
-import type { UserProfile } from '@/lib/types';
+import { escapeHtml } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
 import { reportServerError } from '@/lib/report-error';
@@ -44,31 +42,26 @@ export async function submitMusicProjectRequestAction(input: {
     }
 
     const { firestore, database } = initializeFirebase();
-    const cost = 2000;
     const projectId = `MUS_${Date.now()}_${crypto.randomUUID().split('-')[0].toUpperCase()}`;
     const createdAtIso = clientTimestamp || new Date().toISOString();
     const timestampNow = Date.now();
 
     try {
-        const userRef = firestore.collection('users').doc(userId);
+        // 🔴 FIX: this used to be the transaction that ACTUALLY deducted a
+        // hardcoded `cost = 2000` credits — removed entirely, same
+        // reasoning as processHighQualityGenerationAndDeductCredits (see
+        // src/app/studio/actions.ts): a future native app submitting
+        // straight to Firebase would bypass this file, and Firestore
+        // rules can only pin ownership, not validate a cost field the app
+        // also wrote. The charge is now computed (get_music_cost, same
+        // settings/pricing musicNormal/musicDiscounted + isSponsor tier as
+        // getMusicCost in src/lib/pricing.ts) and deducted once,
+        // server-side, on HF (deduct_music_credits_atomic in
+        // server-files/music_generation.py) the moment it picks the job
+        // up. This function is pure submission — no billing logic runs
+        // here, not even a read-only check.
 
-        // 1. Transaction to check and deduct user credits
-        const currentBalanceAfterDeduction = await firestore.runTransaction(async (transaction: any) => {
-            const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists) throw new Error("User profile missing.");
-
-            const userData = userDoc.data() as UserProfile;
-            const currentCredits = userData.credits || 0;
-            if (currentCredits < cost) {
-                throw new Error(`Insufficient credits (${formatCredits(currentCredits)}/${cost.toLocaleString()}).`);
-            }
-
-            const updatedBalance = wholeCredits(Math.max(0, currentCredits - cost));
-            transaction.update(userRef, { credits: updatedBalance, hasMadeFirstPurchase: true });
-            return updatedBalance;
-        });
-
-        // 2. Format and enhance prompt with selected duration if not already present
+        // 1. Format and enhance prompt with selected duration if not already present
         let enhancedPrompt = prompt ? prompt.trim() : '';
         if (duration && enhancedPrompt) {
             const minMatch = duration.match(/^(\d+):00$/);
@@ -102,8 +95,6 @@ export async function submitMusicProjectRequestAction(input: {
             status: 'pending',
             projectType: 'music-gen',
             isMusic: true,
-            cost,
-            creditCost: cost,
             createdAt: createdAtIso,
             clientTimestamp: createdAtIso,
             updatedAt: createdAtIso,
@@ -125,20 +116,12 @@ export async function submitMusicProjectRequestAction(input: {
             .doc(projectId)
             .set(projectPayload);
 
-        // 4. Record credit deduction history in RTDB and Firestore
-        const historyReason = `MUSIC REQUEST: ${(enhancedPrompt || 'Music track').slice(0, 35).toUpperCase()}...`;
+        // 📝 Credit history + the dailySummaries 'creditsSpent' counter are
+        // now both written by HF's deduct_music_credits_atomic
+        // (server-files/music_generation.py) once it actually deducts on
+        // pickup — not here, since nothing was charged by this function.
 
-        await database.ref(`creditHistory/${userId}`).push({
-            amount: -cost,
-            reason: historyReason,
-            timestamp: createdAtIso,
-            id: projectId,
-            type: 'deduction'
-        }).catch((e: any) => { reportServerError('src/app/music-studio/actions.ts:137', e); return null; });
-
-        logSummaryEvent('creditsSpent', cost).catch((e: any) => { reportServerError('src/app/music-studio/actions.ts:139', e); return null; });
-
-        // 5. Send Telegram log notification
+        // 4. Send Telegram log notification
         await sendToTelegram(
             `🎵 <b>New Music Request Submitted</b>\n` +
             `<b>User:</b> ${escapeHtml(userEmail || userId)}\n` +
@@ -158,8 +141,7 @@ export async function submitMusicProjectRequestAction(input: {
 
         return {
             success: true,
-            projectId,
-            newCredits: currentBalanceAfterDeduction
+            projectId
         };
 
     } catch (error: any) {

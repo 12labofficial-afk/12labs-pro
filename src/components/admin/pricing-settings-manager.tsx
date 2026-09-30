@@ -11,17 +11,18 @@ import { onRtdbValue } from '@/lib/rtdb-listener';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
-  Coins, 
-  Save, 
-  Loader2, 
-  MicVocal, 
-  Sparkles, 
-  FileText, 
+  Coins,
+  Save,
+  Loader2,
+  MicVocal,
+  Sparkles,
+  FileText,
   Percent,
   CheckCircle2,
   Clock,
   Store,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Music
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { reportClientError } from '@/lib/report-client-error';
@@ -43,6 +44,10 @@ interface PricingConfig {
   verifiedSellerGlobalDiscount: number;
   thumbnailNormal: number;
   thumbnailDiscounted: number;
+  // Music Studio — flat fee per generation (server-files/music_generation.py's
+  // deduct_music_credits_atomic reads this same settings/pricing node).
+  musicNormal: number;
+  musicDiscounted: number;
 }
 
 const DEFAULT_PRICING: PricingConfig = {
@@ -59,7 +64,9 @@ const DEFAULT_PRICING: PricingConfig = {
   charsPerMinute: 800,
   verifiedSellerGlobalDiscount: 0,
   thumbnailNormal: 1500,
-  thumbnailDiscounted: 1200
+  thumbnailDiscounted: 1200,
+  musicNormal: 2000,
+  musicDiscounted: 1600
 };
 
 export function PricingSettingsManager() {
@@ -95,6 +102,8 @@ export function PricingSettingsManager() {
           verifiedSellerGlobalDiscount: Number(data.verifiedSellerGlobalDiscount ?? DEFAULT_PRICING.verifiedSellerGlobalDiscount),
           thumbnailNormal: Number(data.thumbnailNormal ?? DEFAULT_PRICING.thumbnailNormal),
           thumbnailDiscounted: Number(data.thumbnailDiscounted ?? DEFAULT_PRICING.thumbnailDiscounted),
+          musicNormal: Number(data.musicNormal ?? DEFAULT_PRICING.musicNormal),
+          musicDiscounted: Number(data.musicDiscounted ?? DEFAULT_PRICING.musicDiscounted),
         });
       }
       setIsLoading(false);
@@ -125,6 +134,8 @@ export function PricingSettingsManager() {
         next.script30Discounted = numVal > 0 ? Math.round(numVal * 0.8) : 0;
       } else if (key === 'thumbnailNormal') {
         next.thumbnailDiscounted = numVal > 0 ? Math.round(numVal * 0.8) : 0;
+      } else if (key === 'musicNormal') {
+        next.musicDiscounted = numVal > 0 ? Math.round(numVal * 0.8) : 0;
       }
 
       return next;
@@ -429,6 +440,42 @@ export function PricingSettingsManager() {
                   value={pricing.thumbnailDiscounted || ''} 
                   onChange={(e) => handleInputChange('thumbnailDiscounted', e.target.value)}
                   className="h-11 rounded-2xl bg-muted/10 border-primary/5 font-mono text-sm px-4"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Music Studio */}
+        <Card className="rounded-3xl border-none shadow-xl bg-card overflow-hidden">
+          <CardHeader className="bg-violet-500/5 border-b border-violet-500/10 p-5 flex flex-row items-center justify-between">
+            <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+              <Music className="h-5 w-5 text-violet-500" />
+              Music Studio
+            </CardTitle>
+            {renderDiscountBadge(pricing.musicNormal, pricing.musicDiscounted)}
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Flat Cost (Credits) per track</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[9px] font-black uppercase tracking-wider text-muted-foreground px-1">Normal (Credits)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={pricing.musicNormal || ''}
+                  onChange={(e) => handleInputChange('musicNormal', e.target.value)}
+                  className="h-11 rounded-2xl bg-muted/10 border-violet-500/10 font-mono text-sm px-4"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[9px] font-black uppercase tracking-wider text-muted-foreground px-1">Discounted (Credits)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={pricing.musicDiscounted || ''}
+                  onChange={(e) => handleInputChange('musicDiscounted', e.target.value)}
+                  className="h-11 rounded-2xl bg-muted/10 border-violet-500/10 font-mono text-sm px-4"
                 />
               </div>
             </div>

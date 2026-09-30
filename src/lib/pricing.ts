@@ -30,3 +30,29 @@ export async function getEngineRate(
     return FALLBACK[engine];
   }
 }
+
+/**
+ * 💳 MUSIC GENERATION — flat fee, same settings/pricing RTDB node
+ * (musicNormal/musicDiscounted keys), same isSponsor discount tier
+ * src/app/thumbnail-generator/actions.ts already uses for its own flat
+ * fee. Kept here (not billed from this Server Action — see
+ * src/app/music-studio/actions.ts, now pure submission) purely for the
+ * client-side "Not Enough Credits" estimate; server-files/
+ * music_generation.py's Python get_music_cost() is the actual charge.
+ */
+export async function getMusicCost(isSponsor: boolean): Promise<number> {
+  const FALLBACK = { normal: 2000, discounted: 1600 } as const;
+  try {
+    const { database } = initializeFirebase();
+    const snap = await database.ref('settings/pricing').get();
+    const v = snap.val() || {};
+    const normal = Number(v.musicNormal);
+    const discounted = Number(v.musicDiscounted);
+    const validNormal = Number.isFinite(normal) && normal > 0 ? normal : FALLBACK.normal;
+    const validDiscounted = Number.isFinite(discounted) && discounted > 0 ? discounted : FALLBACK.discounted;
+    return isSponsor ? validDiscounted : validNormal;
+  } catch (e) {
+        reportServerError('src/lib/pricing.ts:getMusicCost', e);
+    return isSponsor ? FALLBACK.discounted : FALLBACK.normal;
+  }
+}

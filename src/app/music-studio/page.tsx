@@ -20,12 +20,14 @@ import Link from 'next/link';
 import { cn, getDisplayUrl } from '@/lib/utils';
 import { initializeFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { ref as rtdbRef } from 'firebase/database';
+import { onRtdbValue } from '@/lib/rtdb-listener';
 import { reportClientError } from '@/lib/report-client-error';
 
 export default function MusicStudioPage() {
     const { user, setUser, loading: authLoading } = useAuth();
     const { toast } = useToast();
-    const { firestore } = initializeFirebase();
+    const { firestore, database } = initializeFirebase();
     const router = useRouter();
 
     // 🔒 AUTH GUARD: redirect unauthenticated visitors to /login instead of
@@ -88,7 +90,29 @@ export default function MusicStudioPage() {
         }
     }, [myMusicRequests, activeJobId, toast]);
 
-    const cost = 2000;
+    // 💳 Live settings/pricing (musicNormal/musicDiscounted) — the ACTUAL
+    // charge now happens server-side on HF (deduct_music_credits_atomic in
+    // server-files/music_generation.py, see submitMusicProjectRequestAction's
+    // own comment), computed from this same RTDB node + the user's isSponsor
+    // tier. This is purely the client-side estimate so "Not Enough Credits"
+    // still blocks the button instantly, exactly as before — no server
+    // round-trip needed since the balance is already live-synced here.
+    const [musicPricing, setMusicPricing] = useState({ normal: 2000, discounted: 1600 });
+    useEffect(() => {
+        if (!database) return;
+        const pricingRef = rtdbRef(database, 'settings/pricing');
+        const unsubscribe = onRtdbValue(pricingRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                setMusicPricing({
+                    normal: Number(data.musicNormal ?? 2000) || 2000,
+                    discounted: Number(data.musicDiscounted ?? 1600) || 1600,
+                });
+            }
+        }, 'music-studio:pricing');
+        return () => unsubscribe();
+    }, [database]);
+    const cost = (user as any)?.isSponsor === true ? musicPricing.discounted : musicPricing.normal;
     const insufficientCredits = !user || (user.credits < cost);
 
     // Handle Music Generation Submit
