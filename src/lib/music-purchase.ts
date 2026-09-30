@@ -73,7 +73,11 @@ export async function handleMusicTrackPurchase(
         paymentId,
     });
 
-    await sendToTelegram(
+    // 🔴 FIX: was awaited (with a .catch, so it wouldn't throw, but still
+    // blocked on the full round-trip) — the unlock is already fully
+    // committed by this point, so there's no reason to hold the webhook's
+    // response hostage to Telegram's latency. Fire-and-forget instead.
+    sendToTelegram(
         `<b>💎 MUSIC TRACK PURCHASED</b>\n\n` +
         `<b>Track:</b> ${escapeHtml(trackTitle)}\n` +
         `<b>User:</b> ${escapeHtml(userEmail || userId)}\n` +

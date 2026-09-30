@@ -130,32 +130,51 @@ async function handleProductPurchase(
 
         const itemDetails = items.map((item: any) => `📦 <b>${escapeHtml(item.title)}</b>`).join('\n');
 
-        for (const item of items) {
+        // 🔴 FIX: was a sequential for-loop — one get() then one update()
+        // per item, one item at a time. For a multi-item cart this is N
+        // round trips stacked in series for no reason (each item's RTDB
+        // sync is independent of every other item's), which is exactly
+        // the kind of avoidable latency that pushes the webhook's response
+        // toward Razorpay's own delivery timeout. Running them in parallel
+        // makes this scale with the SLOWEST single item instead of the SUM
+        // of all of them.
+        await Promise.all(items.map(async (item: any) => {
             const productSnap = await database.ref(`storeProducts/${item.productId}`).get().catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:249', e); return null; });
             if (productSnap && productSnap.exists() && productSnap.val()?.title) {
                 await database.ref(`storeProducts/${item.productId}`).update({ status: 'sold', isSold: true, buyerUid: userId }).catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:251', e); return null; });
             }
-        }
+        }));
 
-        await database.ref(`carts/${userId}`).remove().catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:255', e); return null; });
+        // Cart cleanup is a pure side-effect of a completed purchase —
+        // nothing reads its result, so it doesn't need to block either.
+        database.ref(`carts/${userId}`).remove().catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:255', e); return null; });
+
+        // 🔴 FIX: the revenue transaction and the Telegram alert it fed
+        // were both awaited in series — an RTDB transaction on a SHARED
+        // counter node (every store sale that day writes the same
+        // dailySummaries/{today}/revenue node) internally retries on write
+        // conflicts, so this can get genuinely slow under concurrent
+        // traffic. Neither step gates the actual sale (already fully
+        // committed above), so chained via .then() instead of awaited —
+        // the webhook's response no longer waits for any of it.
         const todayStr = getISTDateString();
         const revenueRef = database.ref(`dailySummaries/${todayStr}/revenue`);
-        let previousRevenue = 0;
-        await revenueRef.transaction((currentValue) => {
-            previousRevenue = currentValue || 0;
-            return previousRevenue + amountInInr;
-        });
-        const todayEarningsText = `🤑 <b>Today:</b> ₹${Math.round(previousRevenue).toLocaleString('en-IN')} + ₹${Math.round(amountInInr).toLocaleString('en-IN')} = ₹${Math.round(previousRevenue + amountInInr).toLocaleString('en-IN')}`;
-
-        const storeTotalInvestFormatted = tr.totalInvestment !== undefined 
-            ? `₹${Math.round(tr.totalInvestment).toLocaleString('en-IN')}` 
+        const storeTotalInvestFormatted = tr.totalInvestment !== undefined
+            ? `₹${Math.round(tr.totalInvestment).toLocaleString('en-IN')}`
             : `₹${amountInInr}`;
-        await sendToTelegram(`🛍️ <b>STORE ASSET PURCHASED</b>\n\n<b>User:</b> ${paymentEmail}\n<b>Amount:</b> ₹${amountInInr}\n<b>Total Investment:</b> ${storeTotalInvestFormatted}\n\n${itemDetails}\n\n<b>Status:</b> UNLOCKED\n\n${todayEarningsText}`);
+        revenueRef.transaction((currentValue) => (currentValue || 0) + amountInInr)
+            .then((result) => {
+                const newRevenue = result.snapshot.val() || amountInInr;
+                const previousRevenue = newRevenue - amountInInr;
+                const todayEarningsText = `🤑 <b>Today:</b> ₹${Math.round(previousRevenue).toLocaleString('en-IN')} + ₹${Math.round(amountInInr).toLocaleString('en-IN')} = ₹${Math.round(newRevenue).toLocaleString('en-IN')}`;
+                return sendToTelegram(`🛍️ <b>STORE ASSET PURCHASED</b>\n\n<b>User:</b> ${paymentEmail}\n<b>Amount:</b> ₹${amountInInr}\n<b>Total Investment:</b> ${storeTotalInvestFormatted}\n\n${itemDetails}\n\n<b>Status:</b> UNLOCKED\n\n${todayEarningsText}`);
+            })
+            .catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:telegram1', e); return null; });
 
     } catch (e: any) {
         reportServerError('src/app/api/webhook/razorpay/route.ts:267', e);
         console.error("Store purchase sync failed:", e.message);
-        await sendToTelegram(`🚨 <b>STORE SYNC FAILED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Error:</b> ${e.message}`);
+        sendToTelegram(`🚨 <b>STORE SYNC FAILED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Error:</b> ${e.message}`).catch((e2: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:telegram2', e2); return null; });
     }
 }
 
@@ -247,7 +266,7 @@ export async function POST(req: NextRequest) {
                  const userDoc = matchingUsers.docs[0];
                  const u = userDoc.data() || {};
                  await userDoc.ref.update({ 'subscription.status': nextStatus, 'subscription.statusUpdatedAt': new Date().toISOString() });
-                 await sendToTelegram(
+                 sendToTelegram(
                      `📡 <b>SUBSCRIPTION ${escapeHtml(eventLabel[event.event])}</b>\n\n` +
                      `<b>By:</b> Razorpay\n` +
                      `<b>User:</b> ${escapeHtml(u.name || 'N/A')} (${escapeHtml(u.email || 'N/A')})\n` +
@@ -255,13 +274,13 @@ export async function POST(req: NextRequest) {
                      `<b>Grants given:</b> ${Number(u.subscription?.weeklyGrantCount || 0)}\n` +
                      `<b>App status now:</b> ${nextStatus}\n` +
                      `<b>Subscription ID:</b> <code>${escapeHtml(subscriptionId)}</code>`
-                 );
+                 ).catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:telegram3', e); return null; });
              } else {
-                 await sendToTelegram(
+                 sendToTelegram(
                      `📡 <b>SUBSCRIPTION ${escapeHtml(eventLabel[event.event])}</b>\n\n` +
                      `⚠️ No user in the app has this subscription ID, so nothing was updated.\n` +
                      `<b>Subscription ID:</b> <code>${escapeHtml(subscriptionId)}</code>`
-                 );
+                 ).catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:telegram4', e); return null; });
              }
          }
     }

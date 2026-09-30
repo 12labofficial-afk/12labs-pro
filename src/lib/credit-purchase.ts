@@ -55,7 +55,12 @@ export async function handleAffiliateCommission(
             paymentId
         });
 
-        await sendToTelegram(`💸 <b>Affiliate Commission Logged</b>\n<b>Creator:</b> ${data.code}\n<b>Buyer:</b> ${buyerEmail}\n<b>Earned:</b> ₹${commission}`);
+        // 🔴 FIX: was awaited — pure notification, nothing downstream
+        // depends on it. Blocking the webhook's response on Telegram's own
+        // round-trip is exactly the kind of latency that pushes a delivery
+        // past Razorpay's timeout, which Razorpay counts as a failure —
+        // repeated failures over 24h get the webhook auto-disabled.
+        sendToTelegram(`💸 <b>Affiliate Commission Logged</b>\n<b>Creator:</b> ${data.code}\n<b>Buyer:</b> ${buyerEmail}\n<b>Earned:</b> ₹${commission}`).catch((e: any) => { reportServerError('src/lib/credit-purchase.ts:telegram1', e); return null; });
 
     } catch (e: any) {
         reportServerError('src/app/api/webhook/razorpay/route.ts:123', e);
@@ -299,34 +304,54 @@ export async function handleCreditPurchase(
         await handleAffiliateCommission(database, notes.promoCode, tr.userEmail, paymentInInr, paymentId);
     }
 
-    await logSummaryEvent('creditsPurchased', tr.creditsToAdd);
+    // 🔴 FIX: logSummaryEvent and the revenue transaction below were both
+    // awaited, sequentially, before the webhook could respond — an RTDB
+    // transaction on a SHARED counter node (every payment that day writes
+    // the same dailySummaries/{today}/revenue node) internally retries on
+    // write conflicts, so under concurrent traffic this specific step can
+    // get genuinely slow. None of it gates the actual grant (already fully
+    // committed above), so none of it needs to block the response — Razorpay
+    // times a slow delivery out and counts it as failed regardless of
+    // whether our server eventually finishes; repeated failures over 24h
+    // are what gets a webhook auto-disabled. Chained via .then() instead so
+    // the Telegram summary still carries today's real revenue total
+    // without making the webhook wait for any of this.
+    logSummaryEvent('creditsPurchased', tr.creditsToAdd).catch((e: any) => { reportServerError('src/lib/credit-purchase.ts:summary', e); return null; });
 
     const todayStr = getISTDateString();
     const revenueRef = database.ref(`dailySummaries/${todayStr}/revenue`);
-    let previousRevenue = 0;
-    await revenueRef.transaction((currentValue) => {
-        previousRevenue = currentValue || 0;
-        return previousRevenue + paymentInInr;
-    });
-    const todayEarningsText = `🤑 <b>Today:</b> ₹${Math.round(previousRevenue).toLocaleString('en-IN')} + ₹${Math.round(paymentInInr).toLocaleString('en-IN')} = ₹${Math.round(previousRevenue + paymentInInr).toLocaleString('en-IN')}`;
-
-    const creditTotalInvestFormatted = tr.totalInvestment !== undefined 
-        ? `₹${Math.round(tr.totalInvestment).toLocaleString('en-IN')}` 
+    const creditTotalInvestFormatted = tr.totalInvestment !== undefined
+        ? `₹${Math.round(tr.totalInvestment).toLocaleString('en-IN')}`
         : `${currencySymbol}${amountInOriginalCurrency}`;
-     const recurringGrantText = tr.isRecurring
-         ? `\n<b>Consistent Plan:</b> Week ${tr.grantCycle} credit grant`
-         : '';
-     await sendToTelegram(`<b>💎 CREDIT PURCHASE SUCCESSFUL</b>\n\n<b>User:</b> ${tr.userEmail}\n<b>Amount:</b> ${currencySymbol}${amountInOriginalCurrency}\n<b>Credit Grant:</b> +${tr.creditsToAdd.toLocaleString()}${recurringGrantText}\n<b>Total Investment:</b> ${creditTotalInvestFormatted}\n\n${todayEarningsText}`);
+    const recurringGrantText = tr.isRecurring
+        ? `\n<b>Consistent Plan:</b> Week ${tr.grantCycle} credit grant`
+        : '';
+    revenueRef.transaction((currentValue) => (currentValue || 0) + paymentInInr)
+        .then((result) => {
+            const newRevenue = result.snapshot.val() || paymentInInr;
+            const previousRevenue = newRevenue - paymentInInr;
+            const todayEarningsText = `🤑 <b>Today:</b> ₹${Math.round(previousRevenue).toLocaleString('en-IN')} + ₹${Math.round(paymentInInr).toLocaleString('en-IN')} = ₹${Math.round(newRevenue).toLocaleString('en-IN')}`;
+            return sendToTelegram(`<b>💎 CREDIT PURCHASE SUCCESSFUL</b>\n\n<b>User:</b> ${tr.userEmail}\n<b>Amount:</b> ${currencySymbol}${amountInOriginalCurrency}\n<b>Credit Grant:</b> +${tr.creditsToAdd.toLocaleString()}${recurringGrantText}\n<b>Total Investment:</b> ${creditTotalInvestFormatted}\n\n${todayEarningsText}`);
+        })
+        .catch((e: any) => { reportServerError('src/lib/credit-purchase.ts:telegram2', e); return null; });
   } catch (e: any) {
         reportServerError('src/app/api/webhook/razorpay/route.ts:501', e);
       if (!grantSettled) {
           // Credits were NOT added. Re-throw so POST answers 500 and Razorpay
           // redelivers the webhook; processedPayments keeps the retry from
           // double-crediting once it does go through.
-          await sendToTelegram(`🚨 <b>PAYMENT SYNC FAILED — CREDITS NOT ADDED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Email:</b> ${escapeHtml(paymentEmail || 'N/A')}\n<b>Error:</b> ${escapeHtml(e.message)}\n\nRazorpay will retry automatically. If it keeps failing, approve it from Admin → Payments.`);
+          //
+          // Deliberately still AWAITED, unlike every other Telegram send in
+          // this file: this is the one alert that MUST reach the admin
+          // before the function exits via the throw right below it — a
+          // fire-and-forget call here could get cut off by the platform
+          // once the throw unwinds, silently losing the one message that
+          // says money was taken but credits were NOT granted.
+          await sendToTelegram(`🚨 <b>PAYMENT SYNC FAILED — CREDITS NOT ADDED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Email:</b> ${escapeHtml(paymentEmail || 'N/A')}\n<b>Error:</b> ${escapeHtml(e.message)}\n\nRazorpay will retry automatically. If it keeps failing, approve it from Admin → Payments.`).catch((e2: any) => { reportServerError('src/lib/credit-purchase.ts:telegram3', e2); return null; });
           throw e;
       }
       // Credits already added — only a post-grant step (affiliate/revenue log/Telegram) failed.
-      await sendToTelegram(`⚠️ <b>Payment credited, post-step failed</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Error:</b> ${escapeHtml(e.message)}`);
+      // Fire-and-forget — credits are already safely granted regardless.
+      sendToTelegram(`⚠️ <b>Payment credited, post-step failed</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Error:</b> ${escapeHtml(e.message)}`).catch((e2: any) => { reportServerError('src/lib/credit-purchase.ts:telegram4', e2); return null; });
   }
 }
