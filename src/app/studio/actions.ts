@@ -278,35 +278,40 @@ export async function processHighQualityGenerationAndDeductCredits(
     const projectRef = firestore.collection('projects').doc(userId).collection('userProjects').doc(projectId);
 
     try {
-        const newBalanceAfterDeduction = await firestore.runTransaction(async (transaction: any) => {
-            const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists) throw new Error("User profile missing.");
-
-            const currentCredits = userDoc.data()?.credits || 0;
-            if (currentCredits < cost) {
-                throw new Error(`Insufficient credits. Required: ${cost.toLocaleString()}, Available: ${currentCredits.toLocaleString()}.`);
-            }
-            
-            const updated = wholeCredits(Math.max(0, currentCredits - cost));
-            transaction.set(projectRef, { 
-                id: projectId, userId, projectName, script, characters, cost, creditCost: cost,
-                status: 'in_queue', projectType: 'hq-submission', voiceEngine,
-                createdAt: createdAt, clientTimestamp: createdAt, timestamp: Date.now(), audioUrl: '', syncData: syncData || null 
-            });
-            transaction.update(userRef, { credits: updated, hasMadeFirstPurchase: true });
-            return updated;
+        // 🔴 FIX: this used to be the transaction that ACTUALLY deducted
+        // credits — but that's only safe as long as every submission path
+        // goes through this Server Action (untamperable from the browser).
+        // A future native app submitting straight to Firebase would
+        // bypass this file entirely, and Realtime Database rules can only
+        // pin the `userId` field on pending_projects/11_projects to the
+        // caller's own auth.uid (confirmed in database.rules.json) — they
+        // can't validate that a `cost`/`creditCost` field the app also
+        // wrote is truthful. So the actual charge now happens once,
+        // server-side, on HF (deduct_credits_atomic in studio.py/11.py),
+        // computed from the dialogues actually queued — the same
+        // authority for both the website and the app. This is now just a
+        // READ-ONLY precheck for instant UX feedback ("not enough
+        // credits" before even submitting); the project doc is written
+        // without touching the user's balance at all.
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) throw new Error("User profile missing.");
+        const currentCredits = userDoc.data()?.credits || 0;
+        if (currentCredits < cost) {
+            throw new Error(`Insufficient credits. Required: ${cost.toLocaleString()}, Available: ${currentCredits.toLocaleString()}.`);
+        }
+        await projectRef.set({
+            id: projectId, userId, projectName, script, characters, cost, creditCost: cost,
+            status: 'in_queue', projectType: 'hq-submission', voiceEngine,
+            createdAt: createdAt, clientTimestamp: createdAt, timestamp: Date.now(), audioUrl: '', syncData: syncData || null
         });
+        const newBalanceAfterDeduction = currentCredits;
 
         // 🔴 FIX: this is the write that actually hands the job to the
         // worker (studio.py/11.py listen on this RTDB node, not on the
-        // Firestore doc). It used to share the outer try/catch with
-        // everything else — if it failed after the transaction above had
-        // already committed (credits deducted, Firestore doc created), the
-        // function still just returned {success:false}: credits gone, a
-        // Firestore doc sitting at 'in_queue' forever, and no job ever
-        // queued anywhere for the worker to pick up. Caught separately so a
-        // failure here refunds the charge and marks the doc as errored
-        // instead of leaving a paid-for phantom job behind.
+        // Firestore doc). Caught separately from the precheck above so a
+        // failure here — nothing charged yet, since HF does the actual
+        // deduction on pickup — just marks the doc errored instead of
+        // needing a refund path at all.
         try {
             await database.ref(`${rtdbNode}/${projectId}`).set({
                 status: 'in_queue',
@@ -341,26 +346,14 @@ export async function processHighQualityGenerationAndDeductCredits(
         } catch (queueErr: any) {
             reportServerError('src/app/studio/actions.ts#queueFailed', queueErr, { userId, projectId });
             await projectRef.set({ status: 'error', error: 'Failed to queue for the production worker.' }, { merge: true }).catch(() => null);
-            const refunded = await refundCreditsWithHistory(userId, cost, `Refund: HQ Studio job failed to queue (${projectName || 'Untitled'})`, { projectId });
-            await sendToTelegram(`🚨 <b>HQ JOB FAILED TO QUEUE — REFUNDED</b>\n<b>User:</b> ${escapeHtml(userEmail || userId)}\n<b>Project:</b> ${escapeHtml(projectName || 'Untitled')}\n<b>Refunded:</b> ${refunded}\n<b>Error:</b> ${escapeHtml(queueErr.message)}`).catch(() => null);
-            return { success: false, error: 'Could not start generation. Your credits have been refunded — please try again.', newCredits: newBalanceAfterDeduction + refunded };
+            await sendToTelegram(`🚨 <b>HQ JOB FAILED TO QUEUE</b>\n<b>User:</b> ${escapeHtml(userEmail || userId)}\n<b>Project:</b> ${escapeHtml(projectName || 'Untitled')}\n<b>Error:</b> ${escapeHtml(queueErr.message)}`).catch(() => null);
+            return { success: false, error: 'Could not start generation. Please try again.', newCredits: newBalanceAfterDeduction };
         }
 
-        // 📝 Record Deduction to History Ledger
-        if (database) {
-            await database.ref(`creditHistory/${userId}`).push({
-                amount: -cost,
-                reason: `HQ Studio (${voiceEngine === 'elevenlabs' ? '11Labs' : 'Gemini'}): ${projectName || 'Untitled'}`,
-                engine: voiceEngine,
-                rate,
-                totalChars,
-                type: 'deduction',
-                timestamp: new Date().toISOString(),
-                projectId
-            });
-        }
-
-        await logSummaryEvent('creditsSpent', cost); 
+        // 📝 Credit history + the dailySummaries 'creditsSpent' counter are
+        // now both written by HF's deduct_credits_atomic (studio.py/11.py)
+        // once it actually deducts on pickup — not here, since nothing was
+        // charged by this precheck.
 
         return { success: true, newCredits: newBalanceAfterDeduction, projectId: projectId };
     } catch (error: any) {
