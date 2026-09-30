@@ -1139,7 +1139,13 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                 const rendered = await offlineCtx.startRendering();
                 const wavBlob = audioBufferToWav(rendered);
                 const cleanChar = dialogue.character.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_');
-                const fileName = `${i + 1}-${cleanChar}.wav`;
+                // 🔴 FIX: was `${i + 1}-...` with no zero-padding — file
+                // managers/zip extractors sort names alphabetically, not
+                // numerically, so "10-", "11-" etc. sorted right after "1-"
+                // and before "2-", scrambling the dialogue order on extract.
+                // Same 3-digit padStart already used by every other zip
+                // export in this app (generated-lines.tsx, project-card.tsx).
+                const fileName = `${String(i + 1).padStart(3, '0')}-${cleanChar}.wav`;
                 zip.file(fileName, wavBlob);
             }
             const content = await zip.generateAsync({ type: 'blob' });
