@@ -39,7 +39,7 @@ import {
     CheckCircle2,
     Link2
 } from 'lucide-react';
-import { checkAndDeductCloningCredits, importVoiceCloneReferenceFromUrlAction } from './actions';
+import { importVoiceCloneReferenceFromUrlAction } from './actions';
 // NOTE: generateVoiceCloningAction / saveClonedVoiceProjectAction are no longer called from
 // here — generation now runs on the HF Space worker (server-files/voice_cloning.py), which
 // writes the completed project itself. This page just submits a job to RTDB and listens.
@@ -166,6 +166,25 @@ export default function VoiceCloningPage() {
             router.push('/login');
         }
     }, [authLoading, user, router, toast]);
+
+    // 💳 Live settings/pricing (cloningNormal) — the ACTUAL charge now
+    // happens server-side on HF (deduct_cloning_credits_atomic in
+    // server-files/voice_cloning.py). This is purely the client-side
+    // estimate so "Not Enough Credits" still blocks the button instantly,
+    // same as before — no server round-trip needed since the balance is
+    // already live-synced here.
+    const [cloningRate, setCloningRate] = useState(1.2);
+    useEffect(() => {
+        if (!database) return;
+        const pricingRef = ref(database, 'settings/pricing');
+        const unsubscribe = onRtdbValue(pricingRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                setCloningRate(Number(data.cloningNormal ?? 1.2) || 1.2);
+            }
+        }, 'voice-cloning:pricing');
+        return () => unsubscribe();
+    }, [database]);
 
     const [text, setText] = useState('Write your script here to clone your voice. The 12Labs neural engine will process your voice with complete accuracy.');
     const [language, setLanguage] = useState('Auto');
@@ -597,20 +616,28 @@ export default function VoiceCloningPage() {
             reportClientError('src/app/voice-cloning/page.tsx:349', e); toast({ variant: 'destructive', title: 'Playback Failed' }); }
     };
 
-    const cost = Math.ceil(text.length * 1.2);
-    
+    const cost = Math.ceil(text.length * cloningRate);
+
     const handleGeneration = async () => {
         if (!user || !user.email || !referenceAudio || !database) return;
         if (!hasCloningConsent) {
             toast({ variant: 'destructive', title: 'Consent Required', description: 'Please confirm you own or have permission to clone this voice before continuing.' });
             return;
         }
+        // 🔴 FIX: this used to call checkAndDeductCloningCredits, a Server
+        // Action that trusted this `cost` number outright and deducted it
+        // — removed entirely (see that file's own comment on why). The
+        // actual charge is now computed and deducted once, server-side,
+        // on HF the moment it picks the job up. This is now just the
+        // same instant "Not Enough Credits" UX check every other engine
+        // has — live balance vs. the live-synced rate above, no server
+        // round-trip, not a security boundary.
+        if (user.credits < cost) {
+            toast({ variant: 'destructive', title: 'Insufficient Credits', description: `You need ${cost.toLocaleString()} credits, but you only have ${user.credits.toLocaleString()}.` });
+            return;
+        }
         setIsLoading(true);
         try {
-            const creditResult = await checkAndDeductCloningCredits({ userId: user.uid, cost });
-            if (!creditResult.success) throw new Error(creditResult.error);
-            if (creditResult.newCredits !== undefined) setUser({ ...user, credits: creditResult.newCredits } as any);
-
             // 🚀 Upload the reference clip to R2 first — the RTDB job carries a
             // URL, never the raw base64 (a multi-MB string sitting in a realtime
             // node gets re-downloaded on every listener event; see

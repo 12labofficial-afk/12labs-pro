@@ -22,7 +22,8 @@ import {
   Clock,
   Store,
   Image as ImageIcon,
-  Music
+  Music,
+  Fingerprint
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { reportClientError } from '@/lib/report-client-error';
@@ -49,6 +50,11 @@ interface PricingConfig {
   // never had one either). server-files/music_generation.py's
   // deduct_music_credits_atomic reads this same settings/pricing key.
   musicNormal: number;
+  // Voice Cloning — cost per character multiplier, same for every user
+  // (matches the original hardcoded `1.2` in voice-cloning/page.tsx,
+  // which had no discount tier either). server-files/voice_cloning.py's
+  // deduct_cloning_credits_atomic reads this same settings/pricing key.
+  cloningNormal: number;
 }
 
 const DEFAULT_PRICING: PricingConfig = {
@@ -66,7 +72,8 @@ const DEFAULT_PRICING: PricingConfig = {
   verifiedSellerGlobalDiscount: 0,
   thumbnailNormal: 1500,
   thumbnailDiscounted: 1200,
-  musicNormal: 2000
+  musicNormal: 2000,
+  cloningNormal: 1.2
 };
 
 export function PricingSettingsManager() {
@@ -103,6 +110,7 @@ export function PricingSettingsManager() {
           thumbnailNormal: Number(data.thumbnailNormal ?? DEFAULT_PRICING.thumbnailNormal),
           thumbnailDiscounted: Number(data.thumbnailDiscounted ?? DEFAULT_PRICING.thumbnailDiscounted),
           musicNormal: Number(data.musicNormal ?? DEFAULT_PRICING.musicNormal),
+          cloningNormal: Number(data.cloningNormal ?? DEFAULT_PRICING.cloningNormal),
         });
       }
       setIsLoading(false);
@@ -464,6 +472,32 @@ export function PricingSettingsManager() {
                 onChange={(e) => handleInputChange('musicNormal', e.target.value)}
                 className="h-11 rounded-2xl bg-muted/10 border-violet-500/10 font-mono text-sm px-4"
                 placeholder="2000"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Voice Cloning — per-character multiplier, same for every user
+            (no discount tier — the original hardcoded 1.2 never had one
+            either). */}
+        <Card className="rounded-3xl border-none shadow-xl bg-card overflow-hidden">
+          <CardHeader className="bg-violet-500/5 border-b border-violet-500/10 p-5 flex flex-row items-center justify-between">
+            <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+              <Fingerprint className="h-5 w-5 text-violet-500" />
+              Voice Cloning
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-3">
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cost per character multiplier — same for every user</p>
+            <div className="space-y-2">
+              <Label className="text-[9px] font-black uppercase tracking-wider text-muted-foreground px-1">Normal (multiplier)</Label>
+              <Input
+                type="number"
+                step="0.1"
+                min="0"
+                value={pricing.cloningNormal || ''}
+                onChange={(e) => handleInputChange('cloningNormal', e.target.value)}
+                className="h-11 rounded-2xl bg-muted/10 border-violet-500/10 font-mono text-sm px-4"
               />
             </div>
           </CardContent>

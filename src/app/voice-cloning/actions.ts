@@ -3,8 +3,6 @@
 
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
-import { Transaction } from 'firebase-admin/firestore';
-import { logSummaryEvent } from '@/lib/summary-logger';
 import { Client, handle_file } from '@gradio/client';
 import path from 'path';
 import fs from 'fs';
@@ -13,65 +11,23 @@ import crypto from 'crypto';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { r2Client, R2_BUCKET } from '@/lib/r2';
 import { sendToTelegram } from '@/lib/telegram-logger';
-import { escapeHtml, wholeCredits } from '@/lib/utils';
+import { escapeHtml } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
 
-const CheckCreditsInputSchema = z.object({
-  userId: z.string(),
-  cost: z.number(),
-});
-
-export async function checkAndDeductCloningCredits(input: z.infer<typeof CheckCreditsInputSchema>): Promise<{ success: boolean; error?: string; newCredits?: number; }> {
-  const validation = CheckCreditsInputSchema.safeParse(input);
-  if (!validation.success) {
-    return { success: false, error: validation.error.flatten().formErrors.join(', ') };
-  }
-
-  const { userId, cost } = validation.data;
-  const { firestore, database } = initializeFirebase();
-  const admin = require('firebase-admin');
-
-  try {
-    const userRef = firestore.collection('users').doc(userId);
-    let newCredits = 0;
-
-    // The history entry is written once, after the deduction succeeds. It
-    // used to also be written here, before the balance check, which logged
-    // every cloning twice and logged a charge even when there weren't
-    // enough credits and nothing was deducted.
-    await firestore.runTransaction(async (transaction: any) => {
-      const userDoc = await transaction.get(userRef);
-      if (!userDoc.exists) throw new Error("User profile not found.");
-      
-      const currentCredits = userDoc.data()?.credits || 0;
-      if (currentCredits < cost) {
-        throw new Error(`Insufficient credits. You need ${cost.toLocaleString()} credits.`);
-      }
-      
-      newCredits = wholeCredits(Math.max(0, currentCredits - cost));
-      
-      transaction.update(userRef, { credits: newCredits });
-    });
-
-    if (database) {
-        await database.ref(`creditHistory/${userId}`).push({
-            amount: -cost,
-            reason: 'Voice Cloning Generation',
-            timestamp: new Date().toISOString(),
-        });
-    }
-
-    await logSummaryEvent('creditsSpent', cost);
-    await logSummaryEvent('voiceCloningGenerations');
-    
-    return { success: true, newCredits };
-
-  } catch (error: any) {
-    reportServerError('src/app/voice-cloning/actions.ts#1', error);
-    console.error("Voice cloning credit deduction failed:", error);
-    return { success: false, error: error.message || 'An unknown error occurred.' };
-  }
-}
+// 🔴 FIX: checkAndDeductCloningCredits used to live here — removed
+// entirely, not just moved. It trusted a `cost` number computed and
+// sent BY THE CLIENT outright, with no server-side recomputation at
+// all: worse than every other engine's version of this gap (which at
+// least computed the charge server-side, just on the wrong side of the
+// queue). Any caller could have sent any number, including a negative
+// one (`Math.max(0, currentCredits - cost)` would have turned that into
+// a balance INCREASE). The charge is now computed and deducted once,
+// server-side, on HF (deduct_cloning_credits_atomic in
+// server-files/voice_cloning.py) the moment it picks the job up — from
+// the actual text being cloned, never from any cost/creditCost field
+// the submitter wrote. voice-cloning/page.tsx now writes straight to
+// the RTDB voice_cloning/{jobId} queue node with no Vercel call in
+// between at all.
 
 /**
  * ⚠️ SUPERSEDED — kept for reference only, no longer called from
