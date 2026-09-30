@@ -44,10 +44,11 @@ interface PricingConfig {
   verifiedSellerGlobalDiscount: number;
   thumbnailNormal: number;
   thumbnailDiscounted: number;
-  // Music Studio — flat fee per generation (server-files/music_generation.py's
-  // deduct_music_credits_atomic reads this same settings/pricing node).
+  // Music Studio — flat fee per generation, same for every user (no
+  // discount tier — matches the original hardcoded `cost = 2000`, which
+  // never had one either). server-files/music_generation.py's
+  // deduct_music_credits_atomic reads this same settings/pricing key.
   musicNormal: number;
-  musicDiscounted: number;
 }
 
 const DEFAULT_PRICING: PricingConfig = {
@@ -65,8 +66,7 @@ const DEFAULT_PRICING: PricingConfig = {
   verifiedSellerGlobalDiscount: 0,
   thumbnailNormal: 1500,
   thumbnailDiscounted: 1200,
-  musicNormal: 2000,
-  musicDiscounted: 1600
+  musicNormal: 2000
 };
 
 export function PricingSettingsManager() {
@@ -103,7 +103,6 @@ export function PricingSettingsManager() {
           thumbnailNormal: Number(data.thumbnailNormal ?? DEFAULT_PRICING.thumbnailNormal),
           thumbnailDiscounted: Number(data.thumbnailDiscounted ?? DEFAULT_PRICING.thumbnailDiscounted),
           musicNormal: Number(data.musicNormal ?? DEFAULT_PRICING.musicNormal),
-          musicDiscounted: Number(data.musicDiscounted ?? DEFAULT_PRICING.musicDiscounted),
         });
       }
       setIsLoading(false);
@@ -134,8 +133,6 @@ export function PricingSettingsManager() {
         next.script30Discounted = numVal > 0 ? Math.round(numVal * 0.8) : 0;
       } else if (key === 'thumbnailNormal') {
         next.thumbnailDiscounted = numVal > 0 ? Math.round(numVal * 0.8) : 0;
-      } else if (key === 'musicNormal') {
-        next.musicDiscounted = numVal > 0 ? Math.round(numVal * 0.8) : 0;
       }
 
       return next;
@@ -446,38 +443,28 @@ export function PricingSettingsManager() {
           </CardContent>
         </Card>
 
-        {/* Music Studio */}
+        {/* Music Studio — flat fee, same for every user (no discount tier —
+            the original hardcoded cost never had one either). */}
         <Card className="rounded-3xl border-none shadow-xl bg-card overflow-hidden">
           <CardHeader className="bg-violet-500/5 border-b border-violet-500/10 p-5 flex flex-row items-center justify-between">
             <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
               <Music className="h-5 w-5 text-violet-500" />
               Music Studio
             </CardTitle>
-            {renderDiscountBadge(pricing.musicNormal, pricing.musicDiscounted)}
+            <Badge variant="outline" className="border-violet-500/20 text-violet-600 font-black text-[9px] uppercase">FLAT FEE</Badge>
           </CardHeader>
-          <CardContent className="p-6 space-y-4">
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Flat Cost (Credits) per track</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-[9px] font-black uppercase tracking-wider text-muted-foreground px-1">Normal (Credits)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={pricing.musicNormal || ''}
-                  onChange={(e) => handleInputChange('musicNormal', e.target.value)}
-                  className="h-11 rounded-2xl bg-muted/10 border-violet-500/10 font-mono text-sm px-4"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[9px] font-black uppercase tracking-wider text-muted-foreground px-1">Discounted (Credits)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={pricing.musicDiscounted || ''}
-                  onChange={(e) => handleInputChange('musicDiscounted', e.target.value)}
-                  className="h-11 rounded-2xl bg-muted/10 border-violet-500/10 font-mono text-sm px-4"
-                />
-              </div>
+          <CardContent className="p-6 space-y-3">
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cost per track (Credits) — same for every user</p>
+            <div className="space-y-2">
+              <Label className="text-[9px] font-black uppercase tracking-wider text-muted-foreground px-1">Cost (Credits)</Label>
+              <Input
+                type="number"
+                min="0"
+                value={pricing.musicNormal || ''}
+                onChange={(e) => handleInputChange('musicNormal', e.target.value)}
+                className="h-11 rounded-2xl bg-muted/10 border-violet-500/10 font-mono text-sm px-4"
+                placeholder="2000"
+              />
             </div>
           </CardContent>
         </Card>

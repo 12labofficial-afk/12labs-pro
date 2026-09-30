@@ -33,26 +33,25 @@ export async function getEngineRate(
 
 /**
  * 💳 MUSIC GENERATION — flat fee, same settings/pricing RTDB node
- * (musicNormal/musicDiscounted keys), same isSponsor discount tier
- * src/app/thumbnail-generator/actions.ts already uses for its own flat
- * fee. Kept here (not billed from this Server Action — see
- * src/app/music-studio/actions.ts, now pure submission) purely for the
- * client-side "Not Enough Credits" estimate; server-files/
- * music_generation.py's Python get_music_cost() is the actual charge.
+ * (musicNormal key). Flat for every user, matching the original
+ * hardcoded `cost = 2000` in submitMusicProjectRequestAction exactly —
+ * only the number moved (now admin-configurable) and where it's
+ * charged (server-files/music_generation.py's get_music_cost() is the
+ * actual charge; music-studio/page.tsx reads the RTDB node directly for
+ * its own "Not Enough Credits" estimate rather than calling this from
+ * the client, but it's exported here as the server-side equivalent for
+ * any future caller that needs it, e.g. an admin tool or the public API).
  */
-export async function getMusicCost(isSponsor: boolean): Promise<number> {
-  const FALLBACK = { normal: 2000, discounted: 1600 } as const;
+export async function getMusicCost(): Promise<number> {
+  const FALLBACK = 2000;
   try {
     const { database } = initializeFirebase();
     const snap = await database.ref('settings/pricing').get();
     const v = snap.val() || {};
     const normal = Number(v.musicNormal);
-    const discounted = Number(v.musicDiscounted);
-    const validNormal = Number.isFinite(normal) && normal > 0 ? normal : FALLBACK.normal;
-    const validDiscounted = Number.isFinite(discounted) && discounted > 0 ? discounted : FALLBACK.discounted;
-    return isSponsor ? validDiscounted : validNormal;
+    return Number.isFinite(normal) && normal > 0 ? normal : FALLBACK;
   } catch (e) {
         reportServerError('src/lib/pricing.ts:getMusicCost', e);
-    return isSponsor ? FALLBACK.discounted : FALLBACK.normal;
+    return FALLBACK;
   }
 }

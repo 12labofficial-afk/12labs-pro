@@ -90,29 +90,28 @@ export default function MusicStudioPage() {
         }
     }, [myMusicRequests, activeJobId, toast]);
 
-    // 💳 Live settings/pricing (musicNormal/musicDiscounted) — the ACTUAL
-    // charge now happens server-side on HF (deduct_music_credits_atomic in
+    // 💳 Live settings/pricing (musicNormal) — the ACTUAL charge now
+    // happens server-side on HF (deduct_music_credits_atomic in
     // server-files/music_generation.py, see submitMusicProjectRequestAction's
-    // own comment), computed from this same RTDB node + the user's isSponsor
-    // tier. This is purely the client-side estimate so "Not Enough Credits"
-    // still blocks the button instantly, exactly as before — no server
-    // round-trip needed since the balance is already live-synced here.
-    const [musicPricing, setMusicPricing] = useState({ normal: 2000, discounted: 1600 });
+    // own comment), computed from this same RTDB node. Flat fee for
+    // everyone, matching the original hardcoded `cost = 2000` exactly —
+    // only the number moved (now admin-configurable). This is purely the
+    // client-side estimate so "Not Enough Credits" still blocks the
+    // button instantly, exactly as before — no server round-trip needed
+    // since the balance is already live-synced here.
+    const [musicCost, setMusicCost] = useState(2000);
     useEffect(() => {
         if (!database) return;
         const pricingRef = rtdbRef(database, 'settings/pricing');
         const unsubscribe = onRtdbValue(pricingRef, (snapshot) => {
             if (snapshot.exists()) {
                 const data = snapshot.val();
-                setMusicPricing({
-                    normal: Number(data.musicNormal ?? 2000) || 2000,
-                    discounted: Number(data.musicDiscounted ?? 1600) || 1600,
-                });
+                setMusicCost(Number(data.musicNormal ?? 2000) || 2000);
             }
         }, 'music-studio:pricing');
         return () => unsubscribe();
     }, [database]);
-    const cost = (user as any)?.isSponsor === true ? musicPricing.discounted : musicPricing.normal;
+    const cost = musicCost;
     const insufficientCredits = !user || (user.credits < cost);
 
     // Handle Music Generation Submit

@@ -54,8 +54,9 @@ export async function submitMusicProjectRequestAction(input: {
         // straight to Firebase would bypass this file, and Firestore
         // rules can only pin ownership, not validate a cost field the app
         // also wrote. The charge is now computed (get_music_cost, same
-        // settings/pricing musicNormal/musicDiscounted + isSponsor tier as
-        // getMusicCost in src/lib/pricing.ts) and deducted once,
+        // settings/pricing musicNormal key as getMusicCost in
+        // src/lib/pricing.ts — a flat fee for everyone, matching the
+        // original hardcoded value exactly) and deducted once,
         // server-side, on HF (deduct_music_credits_atomic in
         // server-files/music_generation.py) the moment it picks the job
         // up. This function is pure submission — no billing logic runs
