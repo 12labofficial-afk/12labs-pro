@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { initializeFirebase } from '@/firebase/server';
@@ -146,8 +146,12 @@ async function handleProductPurchase(
         }));
 
         // Cart cleanup is a pure side-effect of a completed purchase —
-        // nothing reads its result, so it doesn't need to block either.
-        database.ref(`carts/${userId}`).remove().catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:255', e); return null; });
+        // nothing reads its result, so it doesn't need to block the
+        // response. Scheduled via after() (not naked fire-and-forget) so
+        // Vercel keeps the function alive until it actually finishes,
+        // instead of risking it getting cut off the instant the response
+        // is sent.
+        after(() => database.ref(`carts/${userId}`).remove().catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:255', e); return null; }));
 
         // 🔴 FIX: the revenue transaction and the Telegram alert it fed
         // were both awaited in series — an RTDB transaction on a SHARED
@@ -155,26 +159,31 @@ async function handleProductPurchase(
         // dailySummaries/{today}/revenue node) internally retries on write
         // conflicts, so this can get genuinely slow under concurrent
         // traffic. Neither step gates the actual sale (already fully
-        // committed above), so chained via .then() instead of awaited —
-        // the webhook's response no longer waits for any of it.
-        const todayStr = getISTDateString();
-        const revenueRef = database.ref(`dailySummaries/${todayStr}/revenue`);
-        const storeTotalInvestFormatted = tr.totalInvestment !== undefined
-            ? `₹${Math.round(tr.totalInvestment).toLocaleString('en-IN')}`
-            : `₹${amountInInr}`;
-        revenueRef.transaction((currentValue) => (currentValue || 0) + amountInInr)
-            .then((result) => {
+        // committed above). Moved into after(): the webhook's response no
+        // longer waits for it, but — unlike a bare un-awaited promise —
+        // Vercel guarantees this still runs to completion, so the
+        // Telegram alert is never silently dropped.
+        after(async () => {
+            const todayStr = getISTDateString();
+            const revenueRef = database.ref(`dailySummaries/${todayStr}/revenue`);
+            const storeTotalInvestFormatted = tr.totalInvestment !== undefined
+                ? `₹${Math.round(tr.totalInvestment).toLocaleString('en-IN')}`
+                : `₹${amountInInr}`;
+            try {
+                const result = await revenueRef.transaction((currentValue) => (currentValue || 0) + amountInInr);
                 const newRevenue = result.snapshot.val() || amountInInr;
                 const previousRevenue = newRevenue - amountInInr;
                 const todayEarningsText = `🤑 <b>Today:</b> ₹${Math.round(previousRevenue).toLocaleString('en-IN')} + ₹${Math.round(amountInInr).toLocaleString('en-IN')} = ₹${Math.round(newRevenue).toLocaleString('en-IN')}`;
-                return sendToTelegram(`🛍️ <b>STORE ASSET PURCHASED</b>\n\n<b>User:</b> ${paymentEmail}\n<b>Amount:</b> ₹${amountInInr}\n<b>Total Investment:</b> ${storeTotalInvestFormatted}\n\n${itemDetails}\n\n<b>Status:</b> UNLOCKED\n\n${todayEarningsText}`);
-            })
-            .catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:telegram1', e); return null; });
+                await sendToTelegram(`🛍️ <b>STORE ASSET PURCHASED</b>\n\n<b>User:</b> ${paymentEmail}\n<b>Amount:</b> ₹${amountInInr}\n<b>Total Investment:</b> ${storeTotalInvestFormatted}\n\n${itemDetails}\n\n<b>Status:</b> UNLOCKED\n\n${todayEarningsText}`);
+            } catch (e: any) {
+                reportServerError('src/app/api/webhook/razorpay/route.ts:telegram1', e);
+            }
+        });
 
     } catch (e: any) {
         reportServerError('src/app/api/webhook/razorpay/route.ts:267', e);
         console.error("Store purchase sync failed:", e.message);
-        sendToTelegram(`🚨 <b>STORE SYNC FAILED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Error:</b> ${e.message}`).catch((e2: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:telegram2', e2); return null; });
+        after(() => sendToTelegram(`🚨 <b>STORE SYNC FAILED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Error:</b> ${e.message}`).catch((e2: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:telegram2', e2); return null; }));
     }
 }
 
@@ -196,7 +205,7 @@ export async function POST(req: NextRequest) {
       // of thing that pushes a response past Razorpay's own webhook
       // timeout and counts as a failed delivery — repeated failures over
       // 24h are what gets a webhook auto-disabled. Fire-and-forget instead.
-      sendToTelegram(`🚨 <b>RAZORPAY WEBHOOK REJECTED</b>\nNo webhook secret is configured on the server — paid purchases are NOT being credited.`).catch(() => null);
+      after(() => sendToTelegram(`🚨 <b>RAZORPAY WEBHOOK REJECTED</b>\nNo webhook secret is configured on the server — paid purchases are NOT being credited.`).catch(() => null));
       return NextResponse.json({ status: 'error', message: 'Webhook secret not configured on server' }, { status: 400 });
     }
 
@@ -214,7 +223,7 @@ export async function POST(req: NextRequest) {
       let eventName = 'unknown';
       try { eventName = JSON.parse(text)?.event || 'unknown'; } catch { /* body isn't JSON */ }
       // Same fire-and-forget fix as above.
-      sendToTelegram(`🚨 <b>RAZORPAY WEBHOOK REJECTED — BAD SIGNATURE</b>\n<b>Event:</b> ${escapeHtml(eventName)}\nRAZORPAY_WEBHOOK_SECRET on the server doesn't match the Razorpay dashboard webhook secret — paid purchases are NOT being credited.`).catch(() => null);
+      after(() => sendToTelegram(`🚨 <b>RAZORPAY WEBHOOK REJECTED — BAD SIGNATURE</b>\n<b>Event:</b> ${escapeHtml(eventName)}\nRAZORPAY_WEBHOOK_SECRET on the server doesn't match the Razorpay dashboard webhook secret — paid purchases are NOT being credited.`).catch(() => null));
       return NextResponse.json({ status: 'error', message: 'Invalid signature' }, { status: 400 });
     }
     
@@ -266,7 +275,7 @@ export async function POST(req: NextRequest) {
                  const userDoc = matchingUsers.docs[0];
                  const u = userDoc.data() || {};
                  await userDoc.ref.update({ 'subscription.status': nextStatus, 'subscription.statusUpdatedAt': new Date().toISOString() });
-                 sendToTelegram(
+                 after(() => sendToTelegram(
                      `📡 <b>SUBSCRIPTION ${escapeHtml(eventLabel[event.event])}</b>\n\n` +
                      `<b>By:</b> Razorpay\n` +
                      `<b>User:</b> ${escapeHtml(u.name || 'N/A')} (${escapeHtml(u.email || 'N/A')})\n` +
@@ -274,13 +283,13 @@ export async function POST(req: NextRequest) {
                      `<b>Grants given:</b> ${Number(u.subscription?.weeklyGrantCount || 0)}\n` +
                      `<b>App status now:</b> ${nextStatus}\n` +
                      `<b>Subscription ID:</b> <code>${escapeHtml(subscriptionId)}</code>`
-                 ).catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:telegram3', e); return null; });
+                 ).catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:telegram3', e); return null; }));
              } else {
-                 sendToTelegram(
+                 after(() => sendToTelegram(
                      `📡 <b>SUBSCRIPTION ${escapeHtml(eventLabel[event.event])}</b>\n\n` +
                      `⚠️ No user in the app has this subscription ID, so nothing was updated.\n` +
                      `<b>Subscription ID:</b> <code>${escapeHtml(subscriptionId)}</code>`
-                 ).catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:telegram4', e); return null; });
+                 ).catch((e: any) => { reportServerError('src/app/api/webhook/razorpay/route.ts:telegram4', e); return null; }));
              }
          }
     }

@@ -1,4 +1,5 @@
 import type * as admin from 'firebase-admin';
+import { after } from 'next/server';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
@@ -73,17 +74,19 @@ export async function handleMusicTrackPurchase(
         paymentId,
     });
 
-    // 🔴 FIX: was awaited (with a .catch, so it wouldn't throw, but still
-    // blocked on the full round-trip) — the unlock is already fully
-    // committed by this point, so there's no reason to hold the webhook's
-    // response hostage to Telegram's latency. Fire-and-forget instead.
-    sendToTelegram(
+    // 🔴 FIX: was awaited — held the webhook's response hostage to
+    // Telegram's own round-trip, even though the unlock is already fully
+    // committed by this point. Deferred via after() instead of a naked
+    // fire-and-forget: the response returns immediately, but Vercel keeps
+    // the function alive until this actually finishes, so the alert is
+    // never silently dropped mid-flight.
+    after(() => sendToTelegram(
         `<b>💎 MUSIC TRACK PURCHASED</b>\n\n` +
         `<b>Track:</b> ${escapeHtml(trackTitle)}\n` +
         `<b>User:</b> ${escapeHtml(userEmail || userId)}\n` +
         `<b>Amount:</b> ₹${amountInInr}\n` +
         `<b>Payment ID:</b> <code>${escapeHtml(paymentId)}</code>`
-    ).catch((e: any) => { reportServerError('src/lib/music-purchase.ts:telegram', e); return null; });
+    ).catch((e: any) => { reportServerError('src/lib/music-purchase.ts:telegram', e); return null; }));
 
     return { alreadyProcessed: false };
 }

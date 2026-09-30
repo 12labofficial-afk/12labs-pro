@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import type * as admin from 'firebase-admin';
+import { after } from 'next/server';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import type { UserProfile, AffiliateCode } from '@/lib/types';
 import { logSummaryEvent } from '@/lib/summary-logger';
@@ -60,7 +61,7 @@ export async function handleAffiliateCommission(
         // round-trip is exactly the kind of latency that pushes a delivery
         // past Razorpay's timeout, which Razorpay counts as a failure —
         // repeated failures over 24h get the webhook auto-disabled.
-        sendToTelegram(`💸 <b>Affiliate Commission Logged</b>\n<b>Creator:</b> ${data.code}\n<b>Buyer:</b> ${buyerEmail}\n<b>Earned:</b> ₹${commission}`).catch((e: any) => { reportServerError('src/lib/credit-purchase.ts:telegram1', e); return null; });
+        after(() => sendToTelegram(`💸 <b>Affiliate Commission Logged</b>\n<b>Creator:</b> ${data.code}\n<b>Buyer:</b> ${buyerEmail}\n<b>Earned:</b> ₹${commission}`).catch((e: any) => { reportServerError('src/lib/credit-purchase.ts:telegram1', e); return null; }));
 
     } catch (e: any) {
         reportServerError('src/app/api/webhook/razorpay/route.ts:123', e);
@@ -316,24 +317,27 @@ export async function handleCreditPurchase(
     // are what gets a webhook auto-disabled. Chained via .then() instead so
     // the Telegram summary still carries today's real revenue total
     // without making the webhook wait for any of this.
-    logSummaryEvent('creditsPurchased', tr.creditsToAdd).catch((e: any) => { reportServerError('src/lib/credit-purchase.ts:summary', e); return null; });
+    after(() => logSummaryEvent('creditsPurchased', tr.creditsToAdd).catch((e: any) => { reportServerError('src/lib/credit-purchase.ts:summary', e); return null; }));
 
-    const todayStr = getISTDateString();
-    const revenueRef = database.ref(`dailySummaries/${todayStr}/revenue`);
-    const creditTotalInvestFormatted = tr.totalInvestment !== undefined
-        ? `₹${Math.round(tr.totalInvestment).toLocaleString('en-IN')}`
-        : `${currencySymbol}${amountInOriginalCurrency}`;
-    const recurringGrantText = tr.isRecurring
-        ? `\n<b>Consistent Plan:</b> Week ${tr.grantCycle} credit grant`
-        : '';
-    revenueRef.transaction((currentValue) => (currentValue || 0) + paymentInInr)
-        .then((result) => {
+    after(async () => {
+        const todayStr = getISTDateString();
+        const revenueRef = database.ref(`dailySummaries/${todayStr}/revenue`);
+        const creditTotalInvestFormatted = tr.totalInvestment !== undefined
+            ? `₹${Math.round(tr.totalInvestment).toLocaleString('en-IN')}`
+            : `${currencySymbol}${amountInOriginalCurrency}`;
+        const recurringGrantText = tr.isRecurring
+            ? `\n<b>Consistent Plan:</b> Week ${tr.grantCycle} credit grant`
+            : '';
+        try {
+            const result = await revenueRef.transaction((currentValue) => (currentValue || 0) + paymentInInr);
             const newRevenue = result.snapshot.val() || paymentInInr;
             const previousRevenue = newRevenue - paymentInInr;
             const todayEarningsText = `🤑 <b>Today:</b> ₹${Math.round(previousRevenue).toLocaleString('en-IN')} + ₹${Math.round(paymentInInr).toLocaleString('en-IN')} = ₹${Math.round(newRevenue).toLocaleString('en-IN')}`;
-            return sendToTelegram(`<b>💎 CREDIT PURCHASE SUCCESSFUL</b>\n\n<b>User:</b> ${tr.userEmail}\n<b>Amount:</b> ${currencySymbol}${amountInOriginalCurrency}\n<b>Credit Grant:</b> +${tr.creditsToAdd.toLocaleString()}${recurringGrantText}\n<b>Total Investment:</b> ${creditTotalInvestFormatted}\n\n${todayEarningsText}`);
-        })
-        .catch((e: any) => { reportServerError('src/lib/credit-purchase.ts:telegram2', e); return null; });
+            await sendToTelegram(`<b>💎 CREDIT PURCHASE SUCCESSFUL</b>\n\n<b>User:</b> ${tr.userEmail}\n<b>Amount:</b> ${currencySymbol}${amountInOriginalCurrency}\n<b>Credit Grant:</b> +${tr.creditsToAdd.toLocaleString()}${recurringGrantText}\n<b>Total Investment:</b> ${creditTotalInvestFormatted}\n\n${todayEarningsText}`);
+        } catch (e: any) {
+            reportServerError('src/lib/credit-purchase.ts:telegram2', e);
+        }
+    });
   } catch (e: any) {
         reportServerError('src/app/api/webhook/razorpay/route.ts:501', e);
       if (!grantSettled) {
@@ -351,7 +355,8 @@ export async function handleCreditPurchase(
           throw e;
       }
       // Credits already added — only a post-grant step (affiliate/revenue log/Telegram) failed.
-      // Fire-and-forget — credits are already safely granted regardless.
-      sendToTelegram(`⚠️ <b>Payment credited, post-step failed</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Error:</b> ${escapeHtml(e.message)}`).catch((e2: any) => { reportServerError('src/lib/credit-purchase.ts:telegram4', e2); return null; });
+      // Deferred via after() — credits are already safely granted regardless,
+      // but the alert itself is still guaranteed to complete, not just fired blind.
+      after(() => sendToTelegram(`⚠️ <b>Payment credited, post-step failed</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Error:</b> ${escapeHtml(e.message)}`).catch((e2: any) => { reportServerError('src/lib/credit-purchase.ts:telegram4', e2); return null; }));
   }
 }
