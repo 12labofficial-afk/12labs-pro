@@ -1,6 +1,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import type * as admin from 'firebase-admin';
 import { after } from 'next/server';
+import Razorpay from 'razorpay';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import type { UserProfile, AffiliateCode } from '@/lib/types';
 import { logSummaryEvent } from '@/lib/summary-logger';
@@ -81,15 +82,42 @@ export function hasRunningAutopayCycle(sub: any): boolean {
     return Number(sub.weeklyGrantCount || 0) < maxGrants;
 }
 
+/**
+ * Autopay checkout puts userId/plan notes on the Razorpay SUBSCRIPTION, not
+ * on the order/payment Razorpay creates for each charge. Without this a
+ * subscription payment looked like a plain purchase with no plan and got
+ * 0 credits (or no user at all).
+ */
+async function fetchSubscriptionNotes(entity: any): Promise<Record<string, string>> {
+    const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) return {};
+    try {
+        const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+        let subscriptionId: string | null = entity?.subscription_id || null;
+        if (!subscriptionId && entity?.invoice_id) {
+            const invoice: any = await razorpay.invoices.fetch(entity.invoice_id);
+            subscriptionId = invoice?.subscription_id || null;
+        }
+        if (!subscriptionId) return {};
+        const subscription: any = await razorpay.subscriptions.fetch(subscriptionId);
+        return { ...(subscription?.notes || {}), subscriptionId };
+    } catch (e: any) {
+        reportServerError('src/lib/credit-purchase.ts:fetchSubscriptionNotes', e, { paymentId: entity?.id || 'unknown' });
+        return {};
+    }
+}
+
 export async function handleCreditPurchase(
-    firestore: admin.firestore.Firestore, 
-    database: admin.database.Database, 
-    paymentEntity: any, 
+    firestore: admin.firestore.Firestore,
+    database: admin.database.Database,
+    paymentEntity: any,
     orderEntity?: any,
     isRecurring = false
 ) {
   const entity = paymentEntity || {};
-  const notes = { ...(orderEntity?.notes || {}), ...(entity?.notes || {}) };
+  const subscriptionNotes = (entity.invoice_id || entity.subscription_id) ? await fetchSubscriptionNotes(entity) : {};
+  const notes = { ...subscriptionNotes, ...(orderEntity?.notes || {}), ...(entity?.notes || {}) };
   const paymentId = entity.id || orderEntity?.id || `pay_${Date.now()}`;
   const orderId = entity.order_id || orderEntity?.id || notes.orderId;
   const paymentEmail = entity.email || orderEntity?.email || '';
