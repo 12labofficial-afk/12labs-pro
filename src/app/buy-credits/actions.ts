@@ -11,6 +11,7 @@ import { plans } from '@/lib/plans';
 import { reportServerError } from '@/lib/report-error';
 import { handleCreditPurchase } from '@/lib/credit-purchase';
 import { escapeHtml } from '@/lib/utils';
+import { requireUser } from '@/lib/auth-guard';
 
 interface RazorpayOrderOutput {
   id: string;
@@ -354,7 +355,11 @@ export async function handleCustomTopupAction(
     }
 }
 
-export async function cancelSubscriptionAction(userId: string): Promise<{ success: boolean; error?: string }> {
+export async function cancelSubscriptionAction(idToken: string): Promise<{ success: boolean; error?: string }> {
+  // Used to take a raw userId, so anyone could cancel anyone's plan.
+  const guard = await requireUser(idToken);
+  if (!guard.ok) return { success: false, error: guard.message };
+  const userId = guard.uid;
   try {
     const { firestore } = initializeFirebase();
     if (!firestore) return { success: false, error: 'Database sync failure.' };

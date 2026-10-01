@@ -77,7 +77,8 @@ export async function handleAffiliateCommission(
  * (see the catch-up loop in src/app/actions.ts).
  */
 export function hasRunningAutopayCycle(sub: any): boolean {
-    if (!sub || sub.status !== 'active') return false;
+    // 'cancelled' still pays out its pre-paid cycle (catch-up loop handles both).
+    if (!sub || (sub.status !== 'active' && sub.status !== 'cancelled')) return false;
     const maxGrants = plans.find(p => p.id === sub.planId)?.maxGrants ?? 4;
     return Number(sub.weeklyGrantCount || 0) < maxGrants;
 }
@@ -177,7 +178,17 @@ export async function handleCreditPurchase(
             ppRef ? transaction.get(ppRef) : Promise.resolve(null)
         ]);
 
-        if (processedDoc.exists || (processedOrderDoc && processedOrderDoc.exists) || (processedSubDoc && processedSubDoc.exists)) {
+        if (processedDoc.exists || (processedOrderDoc && processedOrderDoc.exists)) {
+            return { stopProcessing: true };
+        }
+
+        // processedPayments/{subscriptionId} marks the subscription's FIRST
+        // charge. A different payment on the same subscription is a later
+        // monthly charge (its order.paid, or a Ground Truth recovery of a
+        // missed subscription.charged) — that must still be granted, not
+        // silently skipped. processedRef above dedupes it per payment.
+        const isRecurringCharge = isRecurring || !!(processedSubDoc?.exists && processedSubDoc.data()?.paymentId !== paymentId);
+        if (processedSubDoc?.exists && !isRecurringCharge) {
             return { stopProcessing: true };
         }
 
@@ -188,14 +199,18 @@ export async function handleCreditPurchase(
         const userData = userDoc.exists ? userDoc.data() as UserProfile : null;
 
         // A late recurring webhook must not resurrect a subscription that the
-        // customer already cancelled in Razorpay.
-        if (isRecurring && userData?.subscription && userData.subscription.status !== 'active') {
+        // customer already cancelled in Razorpay. Only applies to that same
+        // subscription — a brand-new one after cancelling must still grant.
+        if (isRecurringCharge && userData?.subscription && userData.subscription.status !== 'active'
+            && (!subscriptionId || userData.subscription.subscriptionId === subscriptionId)) {
             return { stopProcessing: true };
         }
-        
-        // Same payment arriving twice is already stopped by processedPayments
-        // above; a genuinely new autopay purchase mid-cycle is queued.
-        const queueForNextCycle = isAutopay && !isRecurring && hasRunningAutopayCycle(userData?.subscription);
+
+        // Each autopay charge (first purchase OR monthly renewal) is one full
+        // cycle of weekly grants. If the current cycle still has grants left
+        // (user hasn't opened the app to collect them, or bought again), the
+        // new cycle is queued behind it instead of overwriting its progress.
+        const queueForNextCycle = isAutopay && hasRunningAutopayCycle(userData?.subscription);
 
         const now = new Date();
          let creditsToAdd = 0;
@@ -203,8 +218,7 @@ export async function handleCreditPurchase(
         const planSource = plans.find(p => p.id === notes.productId);
          const previousSubscription = userData?.subscription;
          const effectivePlan = planSource || plans.find(p => p.id === previousSubscription?.planId);
-         const previousGrantCount = Number(previousSubscription?.weeklyGrantCount || 0);
-         const grantCycle = isAutopay ? (isRecurring ? previousGrantCount + 1 : 1) : 0;
+         const grantCycle = isAutopay ? 1 : 0;
 
         const bonusFromNotes = parseInt(notes.bonusCredits || '0', 10);
 
@@ -240,6 +254,13 @@ export async function handleCreditPurchase(
 
          if (queueForNextCycle) {
             userUpdates['subscription.queuedCycles'] = FieldValue.increment(1);
+            if (subscriptionId && subscriptionId !== previousSubscription?.subscriptionId) {
+                // A new paying subscription: future renewals/cancellations
+                // for it must find this user, and a cancelled old one must
+                // not block them.
+                userUpdates['subscription.subscriptionId'] = subscriptionId;
+                userUpdates['subscription.status'] = 'active';
+            }
          } else if (isAutopay) {
             const intervalDays = effectivePlan?.grantIntervalDays ?? 7;
             const nextWeek = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
@@ -303,7 +324,7 @@ export async function handleCreditPurchase(
         if (processedOrderRef) {
             transaction.set(processedOrderRef, processedPayload);
         }
-        if (processedSubRef && !isRecurring) {
+        if (processedSubRef && !isRecurringCharge) {
             transaction.set(processedSubRef, processedPayload);
         }
 
@@ -319,7 +340,7 @@ export async function handleCreditPurchase(
             planName,
             grantedAt: now.toISOString(),
              grantCycle,
-             isRecurring,
+             isRecurring: isRecurringCharge,
             queued: queueForNextCycle,
             totalInvestment: newTotalInvestment
         };

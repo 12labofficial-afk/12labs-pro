@@ -228,6 +228,7 @@ export async function POST(req: NextRequest) {
     }
     
     const event = JSON.parse(text);
+    const work = (async () => {
     const { firestore, database } = initializeFirebase();
     const entity = event?.payload?.payment?.entity || event?.payload?.subscription?.entity;
     const subscriptionEntity = event?.payload?.subscription?.entity;
@@ -293,6 +294,27 @@ export async function POST(req: NextRequest) {
              }
          }
     }
+    })();
+
+    // Razorpay counts a delivery as failed if it doesn't get a 2xx within
+    // ~5s, and repeated failures auto-disable the webhook. A cold start plus
+    // the grant (Razorpay API lookups + Firestore transaction) can get close
+    // to that, so past this budget we ack now and let the grant finish in
+    // after(). Errors thrown inside the budget still reach the catch below.
+    let budgetTimer: ReturnType<typeof setTimeout> | undefined;
+    const outcome = await Promise.race([
+        work.then(() => 'done' as const),
+        new Promise<'slow'>((resolve) => { budgetTimer = setTimeout(() => resolve('slow'), WEBHOOK_RESPONSE_BUDGET_MS); }),
+    ]);
+    clearTimeout(budgetTimer);
+    if (outcome === 'slow') {
+        const tail = work.catch(async (err: any) => {
+            reportServerError('src/app/api/webhook/razorpay/route.ts:slowWork', err);
+            await sendToTelegram(`🚨 <b>WEBHOOK BACKGROUND PROCESSING FAILED</b>\n<b>Event:</b> ${escapeHtml(event?.event || 'unknown')}\n<b>Error:</b> ${escapeHtml(err?.message || 'unknown')}\n\nAlready acked to Razorpay (no retry). Grant manually from Admin → Payments → Razorpay Ground Truth.`).catch(() => null);
+        });
+        after(() => tail);
+        return NextResponse.json({ status: 'accepted' });
+    }
     return NextResponse.json({ status: 'processed' });
   } catch (e: any) {
         reportServerError('src/app/api/webhook/razorpay/route.ts:556', e);
@@ -325,3 +347,5 @@ export async function POST(req: NextRequest) {
 }
 
 const MAX_WEBHOOK_RETRIES = 3;
+const WEBHOOK_RESPONSE_BUDGET_MS = 3500;
+export const maxDuration = 60;

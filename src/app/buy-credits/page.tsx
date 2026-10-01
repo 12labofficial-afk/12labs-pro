@@ -53,7 +53,7 @@ export default function BuyCreditsPage() {
     if (!user || !user.subscription) return;
     setIsCancellingSub(true);
     try {
-        const result = await cancelSubscriptionAction(user.uid);
+        const result = await cancelSubscriptionAction(await user.getIdToken());
         if (result.success) {
             toast({ 
                 title: 'Subscription Cancelled', 
