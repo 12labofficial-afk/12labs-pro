@@ -5,6 +5,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { HelpCircle } from 'lucide-react';
 import { Reveal } from '@/components/landing/reveal';
 
+import { jsonLd } from '@/lib/json-ld';
 const faqItems = [
   {
     question: "What is 12Labs and how do credits work?",
@@ -58,7 +59,7 @@ export function FaqSection() {
     <section className="relative z-10 w-full py-16 md:py-24 bg-background border-t border-border/50">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(faqSchema) }}
       />
       <div className="container px-4 md:px-6 max-w-4xl mx-auto">
         <div className="text-center mb-12 space-y-4">

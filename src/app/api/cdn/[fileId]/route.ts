@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { reportServerError } from '@/lib/report-error';
 
+import { safeContentType, SAFE_FILE_HEADERS, isSafeExternalUrl } from '@/lib/safe-content';
 /**
  * Secure Cloud Storage Proxy
  * Strictly uses the 'cloud-bot' token for fetching assets.
@@ -51,7 +52,8 @@ export async function GET(
 
     return new NextResponse(blob, {
       headers: {
-        'Content-Type': contentType,
+        ...SAFE_FILE_HEADERS,
+        'Content-Type': safeContentType(contentType),
         'Cache-Control': 'public, max-age=31536000, immutable',
         'Content-Disposition': `inline`,
       },

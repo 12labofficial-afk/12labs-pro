@@ -58,7 +58,10 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if isOwner(userId);
+      // Profiles are created server-side (createNewUserProfileOnServer, Admin
+      // SDK). A client create had no field limits: any new account could
+      // write its own doc with any credits / role.
+      allow create: if false;
 
       allow update: if isOwner(userId)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([

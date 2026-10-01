@@ -112,6 +112,7 @@ function prefetchAllSections() {
 
 import { LazySection } from '@/components/lazy-section';
 
+import { jsonLd } from '@/lib/json-ld';
 export default function LandingPage() {
     const { user } = useAuth();
 
@@ -150,11 +151,11 @@ export default function LandingPage() {
         <div className="flex flex-col min-h-screen text-foreground bg-background">
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+                dangerouslySetInnerHTML={{ __html: jsonLd(organizationSchema) }}
             />
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+                dangerouslySetInnerHTML={{ __html: jsonLd(websiteSchema) }}
             />
 
             <main className="flex-1">

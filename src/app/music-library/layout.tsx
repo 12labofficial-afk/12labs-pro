@@ -1,6 +1,7 @@
 
 import type { Metadata } from 'next';
 
+import { jsonLd } from '@/lib/json-ld';
 export const metadata: Metadata = {
   title: 'Free Copyright-Free Background Music for Cartoon & YouTube Videos | 12Labs',
   description: 'Download free, copyright-free background music for cartoon videos, kids animation, YouTube, and Reels. Royalty-free cinematic, emotional, horror, comedy, and lo-fi tracks — no copyright claims, safe for monetization.',
@@ -54,7 +55,7 @@ export default function Layout({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(musicLibrarySchema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(musicLibrarySchema) }}
       />
       {children}
     </>

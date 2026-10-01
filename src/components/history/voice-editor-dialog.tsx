@@ -404,7 +404,8 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
         const { database: rtdb } = initializeFirebase();
         if (!rtdb) return;
 
-        const jobsRef = ref(rtdb, 'editingjobs');
+        // Query by projectId: the rules no longer let users list every job.
+        const jobsRef = rtdbQuery(ref(rtdb, 'editingjobs'), orderByChild('projectId'), equalTo(project.id));
         const unsubscribe = onRtdbValue(jobsRef, (snapshot) => {
             if (snapshot.exists()) {
                 const data = snapshot.val();

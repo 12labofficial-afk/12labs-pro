@@ -3,6 +3,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { r2Client, R2_BUCKET, R2_PUBLIC_URL } from "@/lib/r2";
 import { reportServerError } from '@/lib/report-error';
 
+import { safeContentType, SAFE_FILE_HEADERS, isSafeExternalUrl } from '@/lib/safe-content';
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const rawUrl = searchParams.get("url");
@@ -99,6 +100,10 @@ export async function GET(req: NextRequest) {
         // folder prefix (see gcs-actions.ts), so re-add it for the CDN path.
         targetUrl = `${R2_PUBLIC_URL}/public/${urlStr.replace("pub://", "").replace(/^\/+/, "")}`;
       } else if (urlStr.startsWith("http://") || urlStr.startsWith("https://")) {
+        // Open proxy / SSRF guard: https only, no internal hosts.
+        if (!isSafeExternalUrl(urlStr)) {
+          return new NextResponse("URL not allowed", { status: 400 });
+        }
         targetUrl = urlStr;
       } else {
         targetUrl = `${R2_PUBLIC_URL}/${urlStr.replace(/^\/+/, "")}`;
@@ -151,7 +156,8 @@ export async function GET(req: NextRequest) {
   const disposition = isInline ? "inline" : `attachment; filename="${encodeURIComponent(filename)}"`;
 
   const responseHeaders = new Headers({
-    "Content-Type": contentType,
+    ...SAFE_FILE_HEADERS,
+    "Content-Type": safeContentType(contentType),
     "Content-Disposition": disposition,
     "Content-Length": buffer.length.toString(),
     "Cache-Control": "public, max-age=86400",

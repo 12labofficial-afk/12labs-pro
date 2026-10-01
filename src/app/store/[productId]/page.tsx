@@ -5,6 +5,7 @@ import ProductView from '@/components/store/product-view';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Metadata } from 'next';
 
+import { jsonLd } from '@/lib/json-ld';
 type PageProps = {
   params: Promise<{ productId: string }>;
 };
@@ -131,7 +132,7 @@ export default async function ProductPage({
     <Suspense fallback={<ProductPageSkeleton />}>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+          dangerouslySetInnerHTML={{ __html: jsonLd(productSchema) }}
         />
         <ProductView initialProduct={product} initialSeller={seller} />
     </Suspense>

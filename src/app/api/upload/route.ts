@@ -3,11 +3,19 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2Client, R2_BUCKET } from '@/lib/r2';
 import crypto from 'crypto';
 import { reportServerError } from '@/lib/report-error';
+import { requireUser } from '@/lib/auth-guard';
 
 export const maxDuration = 120; // 120 seconds timeout for large audio files
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  // Was open to anyone: free file hosting on our bucket/domain, written
+  // under any userId folder. Now signed-in users only, into their own folder.
+  const header = request.headers.get('authorization') || '';
+  const guard = await requireUser(header.startsWith('Bearer ') ? header.slice(7) : null);
+  if (!guard.ok) {
+    return NextResponse.json({ success: false, error: guard.message }, { status: 401 });
+  }
   try {
     const contentType = request.headers.get('content-type') || '';
     
@@ -51,7 +59,8 @@ export async function POST(request: NextRequest) {
     const nodeUuid = crypto.randomUUID().split('-')[0].toUpperCase();
     const rawName = customFileName || `file_${Date.now()}`;
     const safeName = rawName.replace(/[^a-zA-Z0-9.]/g, '_').replace(/_+/g, '_').trim();
-    const cleanFolder = folder.replace(/^\/|\/$/g, '');
+    userId = guard.uid;
+    const cleanFolder = folder.replace(/\.\./g, '').replace(/[^a-zA-Z0-9/_-]/g, '_').replace(/^\/+|\/+$/g, '') || 'uploads';
     const objectKey = `${rootFolder}/${cleanFolder}/${userId}/${Date.now()}_${nodeUuid}_${safeName}`;
 
     // Direct Upload to Cloudflare R2

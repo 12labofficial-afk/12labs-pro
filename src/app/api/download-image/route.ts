@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { reportServerError } from '@/lib/report-error';
 
+import { safeContentType, SAFE_FILE_HEADERS, isSafeExternalUrl } from '@/lib/safe-content';
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const imageUrl = searchParams.get('url');
@@ -8,6 +9,10 @@ export async function GET(req: NextRequest) {
 
   if (!imageUrl) {
     return NextResponse.json({ error: 'Image URL is required' }, { status: 400 });
+  }
+
+  if (!isSafeExternalUrl(imageUrl)) {
+    return NextResponse.json({ error: 'URL not allowed' }, { status: 400 });
   }
 
   try {
@@ -22,12 +27,16 @@ export async function GET(req: NextRequest) {
     }
 
     const contentType = res.headers.get('content-type') || 'image/png';
+    if (!contentType.toLowerCase().startsWith('image/')) {
+      return NextResponse.json({ error: 'Not an image' }, { status: 415 });
+    }
     const buffer = await res.arrayBuffer();
 
     return new NextResponse(buffer, {
       status: 200,
       headers: {
-        'Content-Type': contentType,
+        ...SAFE_FILE_HEADERS,
+        'Content-Type': safeContentType(contentType),
         'Content-Disposition': `attachment; filename="${customFilename.replace(/[^a-zA-Z0-9._-]/g, '_')}"`,
         'Cache-Control': 'public, max-age=86400',
       },

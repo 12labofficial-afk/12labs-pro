@@ -4,6 +4,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { r2Client, R2_BUCKET } from '@/lib/r2';
 import { reportServerError } from '@/lib/report-error';
 
+import { safeContentType, SAFE_FILE_HEADERS, isSafeExternalUrl } from '@/lib/safe-content';
 /**
  * 🔒 CLOUDFLARE R2 SECURE STORAGE PROXY
  * ----------------------------------------------------
@@ -55,7 +56,8 @@ export async function GET(
 
           return new NextResponse(readable, {
             headers: {
-              'Content-Type': response.ContentType || 'audio/wav',
+              ...SAFE_FILE_HEADERS,
+              'Content-Type': safeContentType(response.ContentType, 'audio/wav'),
               'Cache-Control': 'public, max-age=86400',
               'Access-Control-Allow-Origin': '*',
               ...(response.ContentLength ? { 'Content-Length': response.ContentLength.toString() } : {}),

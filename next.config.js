@@ -112,13 +112,12 @@ const nextConfig = {
       }
     ],
   },
+  // Only public values here — anything in `env` is inlined into the browser
+  // bundle wherever it's referenced. Server secrets (HF_TOKEN, H1-H3, C2)
+  // used to be mirrored here as NEXT_PUBLIC_*; read them via process.env
+  // on the server instead.
   env: {
-    NEXT_PUBLIC_HF_TOKEN: process.env.HF_TOKEN,
-    NEXT_PUBLIC_H1: process.env.H1,
-    NEXT_PUBLIC_H2: process.env.H2,
-    NEXT_PUBLIC_H3: process.env.H3,
     NEXT_PUBLIC_VAPID: process.env.NEXT_PUBLIC_VAPID,
-    NEXT_PUBLIC_C2: process.env.C2,
   },
   headers: async () => [
     {
@@ -127,6 +126,12 @@ const nextConfig = {
         {
           key: 'X-Content-Type-Options',
           value: 'nosniff',
+        },
+        {
+          // Clickjacking: no other site may frame our pages (admin panel,
+          // payment buttons).
+          key: 'X-Frame-Options',
+          value: 'SAMEORIGIN',
         },
         {
           key: 'Referrer-Policy',

@@ -49,6 +49,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { reportClientError } from '@/lib/report-client-error';
 
 import { getIdToken } from '@/lib/id-token';
+import { safeHref } from '@/lib/safe-content';
 function PurchaseCard({ order }: { order: Order }) {
     const { activeUid } = useAuth();
     const { toast } = useToast();
@@ -386,7 +387,7 @@ function PurchaseCard({ order }: { order: Order }) {
                                                                 variant="ghost" 
                                                                 className="w-full justify-start gap-3 h-11 rounded-xl font-bold text-xs hover:bg-primary/5 transition-all"
                                                             >
-                                                                <a href={file.url} download={file.fileName} target="_blank" rel="noopener noreferrer">
+                                                                <a href={safeHref(file.url)} download={file.fileName} target="_blank" rel="noopener noreferrer">
                                                                     <Download className="h-4 w-4" />
                                                                     {file.fileName.length > 20 ? file.fileName.slice(0, 17) + '...' : file.fileName}
                                                                 </a>

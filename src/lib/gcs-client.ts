@@ -248,9 +248,11 @@ export async function uploadFileDirectly(options: UploadOptions): Promise<string
             fileName: actualFileName
         });
 
+        const uploadToken = await getIdToken();
         const resultUrl = await new Promise<string>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', `/api/upload?${queryParams.toString()}`);
+            xhr.setRequestHeader('Authorization', `Bearer ${uploadToken}`);
             if (contentType) {
                 xhr.setRequestHeader('Content-Type', contentType);
             }
