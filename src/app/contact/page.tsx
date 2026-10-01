@@ -69,32 +69,6 @@ export default function ContactPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {/* Email Card */}
-                    <Card className="rounded-[2.5rem] border-none shadow-2xl bg-card/80 backdrop-blur-sm overflow-hidden flex flex-col group transition-all duration-500 hover:-translate-y-2">
-                        <CardHeader className="bg-primary/5 border-b p-10 text-center flex flex-col items-center">
-                            <div className="p-5 bg-white dark:bg-zinc-900 rounded-3xl shadow-xl mb-6 group-hover:scale-110 transition-transform duration-500">
-                                <Mail className="h-10 w-10 text-primary" />
-                            </div>
-                            <CardTitle className="text-2xl font-black uppercase tracking-tight">Email Us</CardTitle>
-                            <CardDescription className="font-bold text-[10px] uppercase tracking-widest mt-1 opacity-60">Professional Inquiries</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-10 flex-grow flex flex-col justify-between text-center space-y-6">
-                            <p className="text-muted-foreground text-sm font-medium leading-relaxed">
-                                For general inquiries, partnerships, or detailed feedback, please send us an email.
-                            </p>
-                            <div className="flex flex-col gap-2">
-                                <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase text-primary/60">
-                                    <Clock className="h-3 w-3" /> Response within 24 hours
-                                </div>
-                            </div>
-                        </CardContent>
-                        <CardFooter className="p-8 pt-0">
-                            <Button asChild className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs btn-shine shadow-xl shadow-primary/20">
-                                <Link href="mailto:12labofficial@gmail.com">Send an Email</Link>
-                            </Button>
-                        </CardFooter>
-                    </Card>
-
                     {/* WhatsApp Card (Dynamic) */}
                     {isLoading ? (
                         <Card className="rounded-[2.5rem] border-none shadow-xl bg-card overflow-hidden">
@@ -157,6 +131,32 @@ export default function ContactPage() {
                         <CardFooter className="p-8 pt-0">
                             <Button asChild className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs bg-blue-500 hover:bg-blue-600 shadow-xl shadow-blue-500/20">
                                 <Link href="https://t.me/twelvelab" target="_blank" prefetch={false}>Join Community</Link>
+                            </Button>
+                        </CardFooter>
+                    </Card>
+
+                    {/* Email Card */}
+                    <Card className="rounded-[2.5rem] border-none shadow-2xl bg-card/80 backdrop-blur-sm overflow-hidden flex flex-col group transition-all duration-500 hover:-translate-y-2">
+                        <CardHeader className="bg-primary/5 border-b p-10 text-center flex flex-col items-center">
+                            <div className="p-5 bg-white dark:bg-zinc-900 rounded-3xl shadow-xl mb-6 group-hover:scale-110 transition-transform duration-500">
+                                <Mail className="h-10 w-10 text-primary" />
+                            </div>
+                            <CardTitle className="text-2xl font-black uppercase tracking-tight">Email Us</CardTitle>
+                            <CardDescription className="font-bold text-[10px] uppercase tracking-widest mt-1 opacity-60">Professional Inquiries</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-10 flex-grow flex flex-col justify-between text-center space-y-6">
+                            <p className="text-muted-foreground text-sm font-medium leading-relaxed">
+                                For general inquiries, partnerships, or detailed feedback, please send us an email.
+                            </p>
+                            <div className="flex flex-col gap-2">
+                                <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase text-primary/60">
+                                    <Clock className="h-3 w-3" /> Response within 24 hours
+                                </div>
+                            </div>
+                        </CardContent>
+                        <CardFooter className="p-8 pt-0">
+                            <Button asChild className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs btn-shine shadow-xl shadow-primary/20">
+                                <Link href="mailto:12labofficial@gmail.com">Send an Email</Link>
                             </Button>
                         </CardFooter>
                     </Card>
