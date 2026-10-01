@@ -67,7 +67,7 @@ function VoicePicker({
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[95vw] sm:w-[600px] p-0 rounded-2xl shadow-2xl border-border dark:border-white/10 overflow-hidden z-[300] bg-popover text-popover-foreground dark:bg-[#0a0a0b]/95 dark:backdrop-blur-3xl" align="start">
+            <PopoverContent className="w-[95vw] sm:w-[600px] p-0 rounded-2xl shadow-2xl border-border dark:border-white/10 overflow-hidden z-[300] bg-popover text-popover-foreground dark:bg-card/95 dark:backdrop-blur-3xl" align="start">
                 <div className="flex flex-row h-80 sm:h-72 divide-x divide-border dark:divide-white/5 border-border dark:border-white/5">
                     {/* Female Voices Column */}
                     <div className="flex-1 flex flex-col min-w-0">
@@ -335,7 +335,7 @@ export function CharacterAssignments() {
                             <SelectTrigger className={cn("h-8 w-auto px-4 text-[9px] font-black uppercase tracking-widest rounded-full border-none shadow-sm transition-all active:scale-95", ageColorClasses[char.age as keyof typeof ageColorClasses])}>
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="rounded-2xl font-bold border-border dark:border-white/10 bg-popover dark:bg-[#0a0a0b] text-popover-foreground dark:text-white">
+                            <SelectContent className="rounded-2xl font-bold border-border dark:border-white/10 bg-popover dark:bg-card text-popover-foreground dark:text-white">
                                 <SelectItem value="Kid" className="rounded-xl">Kid</SelectItem>
                                 <SelectItem value="Adult" className="rounded-xl">Adult</SelectItem>
                                 <SelectItem value="Old" className="rounded-xl">Old</SelectItem>

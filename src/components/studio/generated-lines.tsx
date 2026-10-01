@@ -66,7 +66,7 @@ function VoicePicker({
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0 rounded-xl shadow-2xl border-border dark:border-white/10 overflow-hidden z-[300] bg-popover text-popover-foreground dark:bg-[#0a0a0b]/95 dark:backdrop-blur-3xl" align="start">
+            <PopoverContent className="w-[300px] p-0 rounded-xl shadow-2xl border-border dark:border-white/10 overflow-hidden z-[300] bg-popover text-popover-foreground dark:bg-card/95 dark:backdrop-blur-3xl" align="start">
                 <div className="flex flex-row h-72 divide-x divide-border dark:divide-white/5 border-border dark:border-white/5">
                     <div className="flex-1 flex flex-col min-w-0">
                         <div className="px-3 py-1.5 text-[9px] font-black uppercase bg-muted dark:bg-white/5 border-b border-border dark:border-white/5 shrink-0 text-primary/60">Female</div>
@@ -315,7 +315,7 @@ function DownloadOptions() {
                     <span className="text-xs sm:text-sm">Download ({generatedCount}/{totalCount})</span>
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 bg-popover text-popover-foreground border-border dark:bg-[#0a0a0b]/95 dark:backdrop-blur-3xl dark:border-white/10 dark:text-white">
+            <PopoverContent className="w-80 bg-popover text-popover-foreground border-border dark:bg-card/95 dark:backdrop-blur-3xl dark:border-white/10 dark:text-white">
                 <div className="grid gap-4">
                     <div className="space-y-2">
                         <h4 className="font-medium leading-none">Download Master File</h4>

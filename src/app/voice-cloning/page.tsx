@@ -964,7 +964,7 @@ export default function VoiceCloningPage() {
                                     {history.length > 0 ? history.map((item) => {
                                         const isPlaying = playingId === item.id;
                                         return (
-                                            <div key={item.id} className={cn("group p-4 rounded-[1.8rem] bg-white dark:bg-zinc-950 border border-primary/5 shadow-sm transition-all duration-300 hover:shadow-xl hover:border-primary/20", isPlaying && "ring-2 ring-primary bg-primary/[0.02]")}>
+                                            <div key={item.id} className={cn("group p-4 rounded-[1.8rem] bg-white dark:bg-card border border-primary/5 shadow-sm transition-all duration-300 hover:shadow-xl hover:border-primary/20", isPlaying && "ring-2 ring-primary bg-primary/[0.02]")}>
                                                 <div className="flex items-start gap-4">
                                                     <Button variant="ghost" size="icon" className={cn("h-12 w-12 rounded-2xl flex-shrink-0 shadow-inner transition-all", isPlaying ? "bg-primary text-white scale-95" : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary")} onClick={() => togglePlay(item)}>{isPlaying ? <Pause className="h-6 w-6 fill-current" /> : <Play className="h-6 w-6 fill-current ml-1" />}</Button>
                                                     <div className="flex-1 min-w-0 space-y-1.5 pt-0.5">

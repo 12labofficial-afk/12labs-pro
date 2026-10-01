@@ -386,7 +386,7 @@ export default function DeveloperDashboardPage() {
   // Render Login Wall (If user is not logged in)
   if (!user) {
     return (
-      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-foreground flex flex-col">
+      <div className="min-h-screen bg-neutral-50 dark:bg-card text-foreground flex flex-col">
         <main className="flex-1 py-16 px-4 md:px-8 max-w-7xl mx-auto space-y-16">
           
           {/* Landing Banner */}
@@ -483,7 +483,7 @@ export default function DeveloperDashboardPage() {
 
   // Render Full Authenticated Developer Portal
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-foreground flex flex-col">
+    <div className="min-h-screen bg-neutral-50 dark:bg-card text-foreground flex flex-col">
       <main className="flex-1 py-8 px-4 md:px-8 max-w-7xl mx-auto space-y-8 w-full">
         {isLocked && isAdmin && (
           <div className="bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 p-4 rounded-xl flex flex-wrap items-center justify-between gap-3 text-sm font-bold shadow-xs">
@@ -884,7 +884,7 @@ export default function DeveloperDashboardPage() {
                     value={topupAmount}
                     onChange={e => setTopupAmount(e.target.value)}
                     placeholder="120"
-                    className="rounded-xl h-12 text-lg font-black bg-neutral-50 dark:bg-neutral-950 border-neutral-200 dark:border-neutral-800"
+                    className="rounded-xl h-12 text-lg font-black bg-neutral-50 dark:bg-card border-neutral-200 dark:border-neutral-800"
                   />
                 </div>
 
@@ -894,7 +894,7 @@ export default function DeveloperDashboardPage() {
                   </p>
                 )}
 
-                <div className="flex items-center justify-between rounded-xl bg-neutral-50 dark:bg-neutral-950 border border-neutral-100 dark:border-neutral-900 px-4 py-3">
+                <div className="flex items-center justify-between rounded-xl bg-neutral-50 dark:bg-card border border-neutral-100 dark:border-neutral-900 px-4 py-3">
                   <span className="text-xs font-black uppercase tracking-widest text-neutral-400">Credits to Wallet</span>
                   <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">{topupPreviewCredits.toLocaleString()}</span>
                 </div>
@@ -1033,7 +1033,7 @@ export default function DeveloperDashboardPage() {
                   <iframe
                     src="/api-playground.html"
                     title="12Labs API Playground"
-                    className="w-full rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950"
+                    className="w-full rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-card"
                     style={{ height: '780px' }}
                   />
                 </div>

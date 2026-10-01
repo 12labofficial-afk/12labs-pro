@@ -36,7 +36,7 @@ function StudioContent() {
   const showGeneratedLines = generatedLines.length > 0;
 
   return (
-    <div className="relative min-h-screen bg-background text-foreground dark:bg-[#0a0a0b] pb-20 selection:bg-primary/30 selection:text-white overflow-x-hidden transition-colors duration-300">
+    <div className="relative min-h-screen bg-background text-foreground dark:bg-card pb-20 selection:bg-primary/30 selection:text-white overflow-x-hidden transition-colors duration-300">
       {/* 🎭 HIGH-PERFORMANCE NEURAL BACKGROUND */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         {/* Deep base layers */}

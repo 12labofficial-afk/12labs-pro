@@ -207,7 +207,7 @@ export default function MusicStudioPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-[#121212] text-slate-900 dark:text-[#E0E0E0] pb-32 transition-colors">
+        <div className="min-h-screen bg-slate-50 dark:bg-background text-slate-900 dark:text-[#E0E0E0] pb-32 transition-colors">
 
             <div className="container mx-auto max-w-5xl py-8 px-4 space-y-10">
                 
@@ -225,7 +225,7 @@ export default function MusicStudioPage() {
                 </div>
 
                 {/* 🔀 Premium Mode Segmented Switcher */}
-                <div className="max-w-md mx-auto grid grid-cols-2 p-1.5 bg-slate-200/80 dark:bg-[#1a1a1a] border border-slate-300 dark:border-white/10 rounded-2xl shadow-md dark:shadow-xl">
+                <div className="max-w-md mx-auto grid grid-cols-2 p-1.5 bg-slate-200/80 dark:bg-card border border-slate-300 dark:border-white/10 rounded-2xl shadow-md dark:shadow-xl">
                     <button
                         id="btn-vocal-mode"
                         onClick={() => setProductionMode('vocal')}
@@ -254,7 +254,7 @@ export default function MusicStudioPage() {
 
                 {/* 🎨 Main Form Container with dynamic styling based on mode */}
                 <Card className={cn(
-                    "rounded-[2rem] border shadow-2xl transition-all duration-300 bg-white dark:bg-[#1e1e1e] overflow-hidden",
+                    "rounded-[2rem] border shadow-2xl transition-all duration-300 bg-white dark:bg-card overflow-hidden",
                     productionMode === 'vocal' 
                         ? "border-pink-500/20 shadow-pink-900/5" 
                         : "border-indigo-500/20 shadow-indigo-900/5"
@@ -559,7 +559,7 @@ export default function MusicStudioPage() {
                     </div>
 
                     {isLoadingRequests ? (
-                        <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-[#1a1a1a] rounded-3xl border border-slate-200 dark:border-white/5 gap-3">
+                        <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-card rounded-3xl border border-slate-200 dark:border-white/5 gap-3">
                             <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
                             <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-500">Loading history...</p>
                         </div>
@@ -576,7 +576,7 @@ export default function MusicStudioPage() {
                                         : 'Recently';
 
                                     return (
-                                        <Card key={req.id} className="rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-[#1a1a1a]/60 backdrop-blur-md overflow-hidden hover:border-indigo-500/30 transition-all p-5 sm:p-6 space-y-4">
+                                        <Card key={req.id} className="rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-card/60 backdrop-blur-md overflow-hidden hover:border-indigo-500/30 transition-all p-5 sm:p-6 space-y-4">
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-white/5 pb-4">
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-2 flex-wrap">
@@ -746,7 +746,7 @@ export default function MusicStudioPage() {
                             )}
                         </>
                     ) : (
-                        <div className="text-center py-16 border border-dashed border-slate-300 dark:border-white/10 rounded-3xl opacity-60 flex flex-col items-center justify-center space-y-3 bg-slate-50 dark:bg-[#1a1a1a]/40">
+                        <div className="text-center py-16 border border-dashed border-slate-300 dark:border-white/10 rounded-3xl opacity-60 flex flex-col items-center justify-center space-y-3 bg-slate-50 dark:bg-card/40">
                             <Music className="h-12 w-12 text-indigo-500 opacity-50" />
                             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">No Audio History Yet</h3>
                             <p className="text-[11px] text-slate-500 dark:text-zinc-500 max-w-xs">

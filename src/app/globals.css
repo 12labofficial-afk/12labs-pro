@@ -26,26 +26,29 @@
     --radius: 1rem;
   }
 
+  /* Eye-comfort dark palette: soft charcoal instead of near-black navy,
+     off-white text instead of pure white, desaturated accents. Pure white
+     on near-black is what made night mode glare. */
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --background: 222 14% 9%;
+    --foreground: 220 14% 87%;
+    --card: 222 13% 12%;
+    --card-foreground: 220 14% 87%;
+    --popover: 222 13% 12%;
+    --popover-foreground: 220 14% 87%;
+    --primary: 217 65% 62%;
+    --primary-foreground: 222 25% 10%;
+    --secondary: 220 11% 17%;
+    --secondary-foreground: 220 14% 87%;
+    --muted: 220 11% 17%;
+    --muted-foreground: 220 9% 62%;
+    --accent: 220 11% 19%;
+    --accent-foreground: 220 14% 90%;
+    --destructive: 0 55% 48%;
+    --destructive-foreground: 0 0% 96%;
+    --border: 220 10% 19%;
+    --input: 220 10% 21%;
+    --ring: 217 55% 55%;
   }
 }
 
@@ -60,10 +63,7 @@
     pointer-events: auto !important;
   }
   .dark body {
-    background: radial-gradient(circle at top, #1a237e1a, #151515) !important;
-  }
-  .dark body {
-    background: radial-gradient(circle at top, #1a237e2a, #151515);
+    background: radial-gradient(circle at top, #1b2131, #14161b 60%) !important;
   }
 }
 

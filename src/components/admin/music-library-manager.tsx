@@ -558,7 +558,7 @@ export function MusicLibraryManager() {
                     
                     <div className="p-8 rounded-[2.5rem] border-4 border-dashed border-primary/10 bg-primary/[0.02] space-y-4">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-white dark:bg-zinc-950 rounded-xl shadow-lg text-primary"><ShieldCheck className="h-5 w-5" /></div>
+                            <div className="p-2 bg-white dark:bg-card rounded-xl shadow-lg text-primary"><ShieldCheck className="h-5 w-5" /></div>
                             <p className="text-[10px] font-black uppercase tracking-widest">Storage Protocol</p>
                         </div>
                         <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed tracking-wider">

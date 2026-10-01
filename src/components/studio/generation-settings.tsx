@@ -213,7 +213,7 @@ export function GenerationSettings() {
                                 </div>
                                 <div className="relative shrink-0">
                                     <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse scale-125" />
-                                    <div className="relative h-14 w-14 sm:h-16 sm:w-16 rounded-full border-2 border-border dark:border-white/10 bg-card dark:bg-[#0a0a0b]/80 flex items-center justify-center shadow-xl">
+                                    <div className="relative h-14 w-14 sm:h-16 sm:w-16 rounded-full border-2 border-border dark:border-white/10 bg-card dark:bg-card/80 flex items-center justify-center shadow-xl">
                                         <Zap className="h-6 w-6 sm:h-7 sm:w-7 text-primary fill-current" />
                                     </div>
                                 </div>

@@ -42,7 +42,7 @@ function GoogleSignInButton() {
   return (
     <Button 
         variant="outline" 
-        className="w-full h-14 rounded-2xl bg-white hover:bg-white/90 text-black border-none font-bold text-base shadow-lg transition-all active:scale-95 gap-3" 
+        className="w-full h-14 rounded-2xl bg-white hover:bg-white/90 text-black border-none dark:bg-[#131314] dark:hover:bg-[#1f1f21] dark:text-[#e3e3e3] dark:border dark:border-solid dark:border-[#8e918f]/50 font-bold text-base shadow-lg transition-all active:scale-95 gap-3" 
         onClick={handleGoogleLogin} 
         disabled={loading}
     >
