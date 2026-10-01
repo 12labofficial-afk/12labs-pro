@@ -42,7 +42,7 @@ function TransactionCard({
     onToggleSelect
 }: { 
     transaction: UnifiedTransaction, 
-    onAdminAction: () => void,
+    onAdminAction: (id: string, change: 'approved' | 'deleted') => void,
     isSelected: boolean,
     onToggleSelect: (id: string) => void
 }) {
@@ -54,29 +54,41 @@ function TransactionCard({
     const handleApprove = async () => {
         if (transaction.type !== 'credits' || !user) return;
         setIsApproving(true);
-        const idToken = await user.getIdToken();
-        const result = await manuallyApprovePayment(idToken, transaction.id);
-        if (result.success) {
-            toast({ title: 'Success', description: result.message });
-            onAdminAction();
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: result.message });
+        try {
+            const idToken = await user.getIdToken();
+            const result = await manuallyApprovePayment(idToken, transaction.id);
+            if (result.success) {
+                toast({ title: 'Success', description: result.message });
+                onAdminAction(transaction.id, 'approved');
+            } else {
+                toast({ variant: 'destructive', title: 'Error', description: result.message });
+            }
+        } catch (error: any) {
+            reportClientError('src/app/admin/payments/page.tsx:approve', error);
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } finally {
+            setIsApproving(false);
         }
-        setIsApproving(false);
     };
 
     const handleDelete = async () => {
        if (transaction.type !== 'credits' || !user) return;
        setIsDeleting(true);
-       const idToken = await user.getIdToken();
-       const result = await deletePendingPayment(idToken, transaction.id);
-       if (result.success) {
-           toast({ title: 'Success', description: result.message });
-           onAdminAction();
-       } else {
-           toast({ variant: 'destructive', title: 'Error', description: result.message });
+       try {
+           const idToken = await user.getIdToken();
+           const result = await deletePendingPayment(idToken, transaction.id);
+           if (result.success) {
+               toast({ title: 'Success', description: result.message });
+               onAdminAction(transaction.id, 'deleted');
+           } else {
+               toast({ variant: 'destructive', title: 'Error', description: result.message });
+           }
+       } catch (error: any) {
+           reportClientError('src/app/admin/payments/page.tsx:delete', error);
+           toast({ variant: 'destructive', title: 'Error', description: error.message });
+       } finally {
+           setIsDeleting(false);
        }
-       setIsDeleting(false);
     };
 
     const getStatusBadge = () => {
@@ -321,6 +333,8 @@ function RazorpayGroundTruthPanel() {
             const result = await manualGrantRazorpayPaymentAction(idToken, paymentId);
             if (result.success) {
                 toast({ title: 'Success', description: result.message });
+                // Flip the row now; the full re-fetch takes several seconds.
+                setPayments(prev => (prev || []).map(p => p.paymentId === paymentId ? { ...p, credited: true } : p));
                 fetchPayments();
             } else {
                 toast({ variant: 'destructive', title: 'Grant Failed', description: result.message });
@@ -342,6 +356,7 @@ function RazorpayGroundTruthPanel() {
             const result = await rejectRazorpayPaymentFlagAction(idToken, paymentId);
             if (result.success) {
                 toast({ title: 'Dismissed', description: result.message });
+                setPayments(prev => (prev || []).map(p => p.paymentId === paymentId ? { ...p, dismissed: true } : p));
                 fetchPayments();
             } else {
                 toast({ variant: 'destructive', title: 'Could Not Dismiss', description: result.message });
@@ -539,7 +554,11 @@ export default function PaymentsPage() {
         setItemsLimit(prev => prev + 15);
     };
 
-    const handleAdminAction = () => {
+    // Reflect the change on the card immediately; the re-fetch is slow.
+    const handleAdminAction = (id: string, change: 'approved' | 'deleted') => {
+        setTransactions(prev => change === 'deleted'
+            ? prev.filter(t => t.id !== id)
+            : prev.map(t => t.id === id ? ({ ...t, status: 'approved' } as UnifiedTransaction) : t));
         fetchHistory(itemsLimit);
     };
 
@@ -564,15 +583,24 @@ export default function PaymentsPage() {
     const handleBulkDelete = async () => {
         if (selectedIds.length === 0 || !currentUser) return;
         setIsBulkDeleting(true);
-        const idToken = await currentUser.getIdToken();
-        const result = await bulkDeletePayments(idToken, selectedIds);
-        if (result.success) {
-            toast({ title: 'Success', description: result.message });
-            fetchHistory(itemsLimit);
-        } else {
-            toast({ variant: 'destructive', title: 'Bulk Delete Failed', description: result.message });
+        try {
+            const idToken = await currentUser.getIdToken();
+            const result = await bulkDeletePayments(idToken, selectedIds);
+            if (result.success) {
+                toast({ title: 'Success', description: result.message });
+                const removed = new Set(selectedIds);
+                setTransactions(prev => prev.filter(t => !removed.has(t.id)));
+                setSelectedIds([]);
+                fetchHistory(itemsLimit);
+            } else {
+                toast({ variant: 'destructive', title: 'Bulk Delete Failed', description: result.message });
+            }
+        } catch (error: any) {
+            reportClientError('src/app/admin/payments/page.tsx:bulkDelete', error);
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } finally {
+            setIsBulkDeleting(false);
         }
-        setIsBulkDeleting(false);
     };
 
     const selectableCount = transactions.filter(t => t.type === 'credits' && t.status !== 'approved').length;
