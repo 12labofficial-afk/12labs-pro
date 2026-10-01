@@ -26,6 +26,7 @@ import { subscribeToPushNotifications } from '@/components/push-subscription-han
 import { reportClientError } from '@/lib/report-client-error';
 
 import { getIdToken } from '@/lib/id-token';
+import { userFacingError } from '@/lib/user-error';
 type ScriptState = 'pristine' | 'valid';
 type GenerationMode = 'fast' | 'high-quality';
 
@@ -1083,7 +1084,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
                         toast({ 
                             variant: 'destructive', 
                             title: 'Server Engine Error', 
-                            description: data.error || 'The HQ Cluster failed to process this manuscript. Check server logs.' 
+                            description: userFacingError(data.error, 'Generation failed. Your credits have been refunded — please try again.') 
                         });
                     }
                 }
@@ -1548,7 +1549,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         if (serverAnalysisTimeoutRef.current) clearTimeout(serverAnalysisTimeoutRef.current);
         localStorage.removeItem(storageKey);
         setIsAnalyzing(false);
-        toast({ variant: 'destructive', title: 'Server Engine Error', description: data.error || 'The server failed to process this manuscript.' });
+        toast({ variant: 'destructive', title: 'Generation Failed', description: userFacingError(data.error, 'Generation failed. Your credits have been refunded — please try again.') });
       }
     }, (error) => {
       console.error('[StudioProvider] Resume subscription error:', error);

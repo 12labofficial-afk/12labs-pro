@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { reportClientError } from '@/lib/report-client-error';
 
 import { getIdToken } from '@/lib/id-token';
+import { userFacingError } from '@/lib/user-error';
 function ProductCardPlaceholder() {
     return (
         <div className="flex flex-col w-full mb-8">
@@ -349,7 +350,7 @@ export default function SellerPublicProfilePage() {
                 title: result.isFollowing ? 'Subscribed to Creator!' : 'Unsubscribed',
             });
         } else {
-            toast({ variant: 'destructive', title: 'Error', description: result.error });
+            toast({ variant: 'destructive', title: 'Error', description: userFacingError(result.error) });
         }
         setIsLoadingFollow(false);
       };

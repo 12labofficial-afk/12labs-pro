@@ -64,6 +64,7 @@ import { format } from 'date-fns';
 import { reportClientError } from '@/lib/report-client-error';
 
 import { getIdToken } from '@/lib/id-token';
+import { userFacingError } from '@/lib/user-error';
 const genres = ["Moral", "Horror", "Comedy", "Drama", "Thriller", "Sci-Fi", "Fantasy", "Romance", "Mystery", "Action", "Documentary", "Educational", "Motivational", "Mythological", "Short Story"];
 const scriptTypes = [
     "YouTube Story Script",
@@ -841,7 +842,7 @@ export default function ScriptGeneratorPage() {
                     toast({
                         variant: 'destructive',
                         title: 'Script Generation Failed',
-                        description: val.error || 'The script node reported an error. Your credits have been refunded.'
+                        description: userFacingError(val.error, 'Script generation failed. Your credits have been refunded — please try again.')
                     });
                     continue;
                 }

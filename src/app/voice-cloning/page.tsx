@@ -59,6 +59,7 @@ import { uploadFileDirectly } from '@/lib/gcs-client';
 import { reportClientError } from '@/lib/report-client-error';
 
 import { getIdToken } from '@/lib/id-token';
+import { userFacingError } from '@/lib/user-error';
 const DB_NAME = '12labs_cloning_hub_v3';
 const STORE_NAME = 'cloning_history';
 
@@ -337,7 +338,7 @@ export default function VoiceCloningPage() {
                 setIsLoading(false);
             } else if (job.status === 'error') {
                 pendingJobId.current = null;
-                toast({ variant: 'destructive', title: 'Engine Error', description: job.error || 'Voice cloning failed on the node.' });
+                toast({ variant: 'destructive', title: 'Generation Failed', description: userFacingError(job.error, 'Voice cloning failed. Your credits have been refunded — please try again.') });
                 logBotEventAction({
                     moduleName: 'Voice Cloning',
                     userEmail: user?.email || 'N/A',

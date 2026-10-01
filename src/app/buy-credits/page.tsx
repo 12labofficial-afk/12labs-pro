@@ -32,6 +32,7 @@ import { useRouter } from 'next/navigation';
 import { reportClientError } from '@/lib/report-client-error';
 
 import { getIdToken } from '@/lib/id-token';
+import { userFacingError } from '@/lib/user-error';
 const INR_TO_USD_RATE = 85;
 
 export default function BuyCreditsPage() {
@@ -75,7 +76,7 @@ export default function BuyCreditsPage() {
             toast({ 
                 variant: 'destructive', 
                 title: 'Cancellation Failed', 
-                description: result.error || 'An error occurred during cancellation.' 
+                description: userFacingError(result.error, 'Could not cancel right now. Please try again or contact support.') 
             });
         }
     } catch (err: any) {

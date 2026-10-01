@@ -75,6 +75,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { getIdToken } from '@/lib/id-token';
+import { userFacingError } from '@/lib/user-error';
 interface VoiceEditorDialogProps {
     project: Project;
     children: React.ReactNode;
@@ -387,7 +388,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                             engine: replacementRtdbNode,
                         });
                     }
-                    toast({ variant: 'destructive', title: 'Voice Swap Failed', description: data.error || 'Server reported failure.' });
+                    toast({ variant: 'destructive', title: 'Voice Swap Failed', description: userFacingError(data.error, 'Voice swap failed. Your credits have been refunded — please try again.') });
                 }
             } else {
                 setActiveVoiceReplacementJob(null);
@@ -1455,7 +1456,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
                                                 Voice Replacement Failed
                                             </div>
                                             <p className="text-[11px] text-muted-foreground">
-                                                Server reported the following failure: {activeVoiceReplacementJob.error || 'Unknown server error.'}
+                                                {userFacingError(activeVoiceReplacementJob.error, 'Something went wrong while swapping the voice. Your credits have been refunded — please try again.')}
                                             </p>
                                         </div>
                                     )}

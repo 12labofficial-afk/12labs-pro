@@ -42,6 +42,7 @@ import { plans } from '@/lib/plans';
 import { reportClientError } from '@/lib/report-client-error';
 
 import { getIdToken } from '@/lib/id-token';
+import { cleanLedgerReason } from '@/lib/user-error';
 const safeFormatDate = (dateVal: any, formatStr: string): string => {
   if (!dateVal) return 'N/A';
   try {
@@ -383,7 +384,7 @@ export function CreditHistoryDialog({ user, open, onOpenChange, showBuyButton = 
                         const planDetails = getPlanDetails(entry);
                         const isExpired = (entry.reason || '').toLowerCase().includes('expire');
                         const entryKey = `${entry.timestamp}-${index}`;
-                        const reasonText = entry.reason || '';
+                        const reasonText = cleanLedgerReason(entry.reason);
                         // Long raw error strings (URLs, stack fragments) are clamped by
                         // default so they can never push the credit amount off-screen.
                         const isLongReason = reasonText.length > 70;
