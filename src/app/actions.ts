@@ -328,7 +328,8 @@ export async function syncUserSubscriptionInstallments(userId: string): Promise<
 
             const planSource = plans.find(p => p.id === sub.planId);
             const maxGrants = planSource?.maxGrants ?? 4;
-            if (sub.weeklyGrantCount >= maxGrants) {
+            let queuedCycles = Number(sub.queuedCycles || 0);
+            if (sub.weeklyGrantCount >= maxGrants && queuedCycles <= 0) {
                 return null;
             }
 
@@ -348,7 +349,12 @@ export async function syncUserSubscriptionInstallments(userId: string): Promise<
             const unitLabel = intervalDays === 1 ? 'Day' : 'Week';
 
             // Catch-up Loop: Awards all installments that became due while user was offline
-            while (serverNow >= currentNextGrantDate && currentWeekCount < maxGrants) {
+            while (serverNow >= currentNextGrantDate && (currentWeekCount < maxGrants || queuedCycles > 0)) {
+                // A plan bought while this one was running starts here, right after it.
+                if (currentWeekCount >= maxGrants) {
+                    currentWeekCount = 0;
+                    queuedCycles--;
+                }
                 // CRITICAL: Use the EXACT scheduled date for history
                 const scheduledTimestamp = currentNextGrantDate.toISOString();
                 
@@ -375,7 +381,7 @@ export async function syncUserSubscriptionInstallments(userId: string): Promise<
 
             if (totalCreditsToGrant > 0) {
                 // If we've hit the last installment, the plan should be deactivated after this grant
-                const isPlanFinished = currentWeekCount >= maxGrants;
+                const isPlanFinished = currentWeekCount >= maxGrants && queuedCycles <= 0;
                 
                 const updateData: any = {
                     credits: FieldValue.increment(totalCreditsToGrant),
@@ -398,6 +404,7 @@ export async function syncUserSubscriptionInstallments(userId: string): Promise<
                         ...sub,
                         weeklyGrantCount: currentWeekCount,
                         nextWeeklyGrantDate: currentNextGrantDate.toISOString(),
+                        queuedCycles,
                     };
                 }
 

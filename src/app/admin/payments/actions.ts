@@ -10,7 +10,8 @@ import type { PendingPayment } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { reportServerError } from '@/lib/report-error';
 import { requireAdmin } from '@/lib/auth-guard';
-import { handleCreditPurchase } from '@/lib/credit-purchase';
+import { handleCreditPurchase, hasRunningAutopayCycle } from '@/lib/credit-purchase';
+import { plans } from '@/lib/plans';
 import { handleMusicTrackPurchase } from '@/lib/music-purchase';
 
 /**
@@ -235,7 +236,13 @@ export async function manuallyApprovePayment(
         throw new Error(`User with ID ${paymentData.userId} not found.`);
       }
 
-      const creditsToAdd = paymentData.credits;
+      const isAutopay = paymentData.planName?.toLowerCase().includes('consistent creator');
+      const queueForNextCycle = isAutopay && hasRunningAutopayCycle(userDoc.data()?.subscription);
+      // The pending record stores the whole plan (80,000), but autopay pays
+      // out weekly: only Week 1 now, the rest via the catch-up loop. Granting
+      // the full amount here on top of that loop over-paid by 60,000.
+      const autopayPlan = plans.find(p => p.id === 'autopay_pro');
+      const creditsToAdd = queueForNextCycle ? 0 : isAutopay ? (autopayPlan?.weeklyCredits ?? 20000) : paymentData.credits;
       const amountPaidInInr = (paymentData.amount || 0) / 100;
       newCredits = (userDoc.data()?.credits || 0) + creditsToAdd;
 
@@ -243,14 +250,15 @@ export async function manuallyApprovePayment(
       transaction.update(paymentRef, { status: 'approved' });
 
       // 2. Update user credits & financial metrics
-      const isAutopay = paymentData.planName?.toLowerCase().includes('consistent creator');
       const userUpdates: any = {
         credits: FieldValue.increment(creditsToAdd),
         totalInvestment: FieldValue.increment(amountPaidInInr),
         hasMadeFirstPurchase: true
       };
 
-      if (isAutopay) {
+      if (queueForNextCycle) {
+        userUpdates['subscription.queuedCycles'] = FieldValue.increment(1);
+      } else if (isAutopay) {
         const now = new Date();
         const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
         userUpdates.subscription = { 
@@ -271,7 +279,11 @@ export async function manuallyApprovePayment(
       historyUserId = paymentData.userId;
       historyEntry = {
         amount: creditsToAdd,
-        reason: `Purchase - ${paymentData.planName} (Manual Approval)`,
+        reason: queueForNextCycle
+          ? `Purchase - ${paymentData.planName} (Queued — starts after current plan)`
+          : isAutopay
+          ? `Purchase - ${paymentData.planName} (Week 1 Grant)`
+          : `Purchase - ${paymentData.planName}`,
         timestamp: new Date().toISOString(),
         paymentId: paymentData.paymentId || `MANUAL_${Date.now()}`,
         orderId: paymentData.orderId,
@@ -283,7 +295,9 @@ export async function manuallyApprovePayment(
       const notificationRef = userRef.collection('notifications').doc('user_notifications');
       const notificationEntry = {
         id: `notif-${paymentId}-${Date.now()}`,
-        message: `Your purchase of ${creditsToAdd.toLocaleString()} credits was approved!`,
+        message: queueForNextCycle
+          ? `Your purchase was approved! Your current plan is still running — this plan's credits will start right after it finishes.`
+          : `Your purchase of ${creditsToAdd.toLocaleString()} credits was approved!`,
         timestamp: new Date().toISOString(),
         read: false,
         type: 'credits' as const,

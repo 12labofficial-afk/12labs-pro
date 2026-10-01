@@ -69,6 +69,18 @@ export async function handleAffiliateCommission(
     }
 }
 
+/**
+ * A new autopay purchase while the user's current plan still has
+ * installments left must not stack credits now or reset that plan's
+ * progress — it's queued and starts right after the current one finishes
+ * (see the catch-up loop in src/app/actions.ts).
+ */
+export function hasRunningAutopayCycle(sub: any): boolean {
+    if (!sub || sub.status !== 'active') return false;
+    const maxGrants = plans.find(p => p.id === sub.planId)?.maxGrants ?? 4;
+    return Number(sub.weeklyGrantCount || 0) < maxGrants;
+}
+
 export async function handleCreditPurchase(
     firestore: admin.firestore.Firestore, 
     database: admin.database.Database, 
@@ -153,14 +165,9 @@ export async function handleCreditPurchase(
             return { stopProcessing: true };
         }
         
-        // Safety guard for Autopay Pro: If user already has an active subscription started within last 1 hour, prevent duplicate grant
-        if (isAutopay && !isRecurring && userData?.subscription?.status === 'active') {
-            const subStartDate = userData.subscription.startDate ? new Date(userData.subscription.startDate).getTime() : 0;
-            const isRecentDuplicate = (Date.now() - subStartDate) < (60 * 60 * 1000); // 1 hour window
-            if (isRecentDuplicate && userData.subscription.weeklyGrantCount === 1) {
-                return { stopProcessing: true };
-            }
-        }
+        // Same payment arriving twice is already stopped by processedPayments
+        // above; a genuinely new autopay purchase mid-cycle is queued.
+        const queueForNextCycle = isAutopay && !isRecurring && hasRunningAutopayCycle(userData?.subscription);
 
         const now = new Date();
          let creditsToAdd = 0;
@@ -173,7 +180,10 @@ export async function handleCreditPurchase(
 
         const bonusFromNotes = parseInt(notes.bonusCredits || '0', 10);
 
-        if (isAutopay) {
+        if (queueForNextCycle) {
+             creditsToAdd = 0;
+             planName = `${effectivePlan?.name || 'Consistent Creator'} (Queued — starts after current plan)`;
+        } else if (isAutopay) {
              creditsToAdd = effectivePlan?.weeklyCredits || 20000;
              planName = `${effectivePlan?.name || 'Consistent Creator'} (Week ${grantCycle} Grant)`;
         } else if (planSource) {
@@ -200,7 +210,9 @@ export async function handleCreditPurchase(
             userUpdates[`purchasedPlans.700`] = FieldValue.increment(1);
         }
 
-         if (isAutopay) {
+         if (queueForNextCycle) {
+            userUpdates['subscription.queuedCycles'] = FieldValue.increment(1);
+         } else if (isAutopay) {
             const intervalDays = effectivePlan?.grantIntervalDays ?? 7;
             const nextWeek = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
              userUpdates.subscription = {
@@ -240,7 +252,9 @@ export async function handleCreditPurchase(
         transaction.set(notificationRef, { 
             entries: FieldValue.arrayUnion({ 
                 id: `pay-${paymentId}`, 
-                message: `Payment successful! ${creditsToAdd.toLocaleString()} credits added.`, 
+                message: queueForNextCycle
+                    ? `Payment successful! Your current plan is still running — this plan's credits will start right after it finishes.`
+                    : `Payment successful! ${creditsToAdd.toLocaleString()} credits added.`,
                 timestamp: now.toISOString(), 
                 read: false, 
                 type: 'credits' 
@@ -278,6 +292,7 @@ export async function handleCreditPurchase(
             grantedAt: now.toISOString(),
              grantCycle,
              isRecurring,
+            queued: queueForNextCycle,
             totalInvestment: newTotalInvestment
         };
     });
@@ -325,7 +340,9 @@ export async function handleCreditPurchase(
         const creditTotalInvestFormatted = tr.totalInvestment !== undefined
             ? `₹${Math.round(tr.totalInvestment).toLocaleString('en-IN')}`
             : `${currencySymbol}${amountInOriginalCurrency}`;
-        const recurringGrantText = tr.isRecurring
+        const recurringGrantText = tr.queued
+            ? `\n<b>Consistent Plan:</b> already active — queued as next cycle (no credits now)`
+            : tr.isRecurring
             ? `\n<b>Consistent Plan:</b> Week ${tr.grantCycle} credit grant`
             : '';
         try {
@@ -351,7 +368,7 @@ export async function handleCreditPurchase(
           // fire-and-forget call here could get cut off by the platform
           // once the throw unwinds, silently losing the one message that
           // says money was taken but credits were NOT granted.
-          await sendToTelegram(`🚨 <b>PAYMENT SYNC FAILED — CREDITS NOT ADDED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Email:</b> ${escapeHtml(paymentEmail || 'N/A')}\n<b>Error:</b> ${escapeHtml(e.message)}\n\nRazorpay will retry automatically. If it keeps failing, approve it from Admin → Payments.`).catch((e2: any) => { reportServerError('src/lib/credit-purchase.ts:telegram3', e2); return null; });
+          await sendToTelegram(`🚨 <b>PAYMENT SYNC FAILED — CREDITS NOT ADDED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Email:</b> ${escapeHtml(paymentEmail || 'N/A')}\n<b>Error:</b> ${escapeHtml(e.message)}\n\nRazorpay will retry a couple of times. If it keeps failing, approve it from Admin → Payments.`).catch((e2: any) => { reportServerError('src/lib/credit-purchase.ts:telegram3', e2); return null; });
           throw e;
       }
       // Credits already added — only a post-grant step (affiliate/revenue log/Telegram) failed.

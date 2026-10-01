@@ -224,10 +224,18 @@ export async function updateUserSubscription(
             await userRef.update({ subscription: sub, hasMadeFirstPurchase: true });
         } else {
             // Log deactivation
+            // 🔴 FIX: this used to interpolate the admin's own personal
+            // email straight into the `reason` string — creditHistory is
+            // the SAME ledger the end user's own account reads (their
+            // Credit History / notifications view), not an admin-only
+            // log, so the admin's personal Gmail was leaking directly
+            // into a user-facing screen. Full admin attribution (which IS
+            // meant to be admin-only) already goes to the Telegram alert
+            // below — this entry just says it was an admin action.
             if (database) {
                 await database.ref(`creditHistory/${userId}`).push({
                     amount: 0,
-                    reason: `Consistency Plan Deactivated${adminEmail ? ` by ${adminEmail}` : ''}`,
+                    reason: 'Consistency Plan Deactivated by Admin',
                     timestamp: new Date().toISOString(),
                 }).catch((e: any) => console.error("RTDB history error:", e));
             }

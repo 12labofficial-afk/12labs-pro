@@ -22,6 +22,7 @@ export interface UserSubscription {
     weeklyGrantCount: number; // 1 to 4
     currentCycleMonth: string; // YYYY-MM
     manuallyGranted?: boolean; // true if activated by an admin via the admin panel, not via a real Razorpay subscription
+    queuedCycles?: number; // plans bought while this one was still running; each starts after the current one finishes
 }
 
 export interface UserProfile {

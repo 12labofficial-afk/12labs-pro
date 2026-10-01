@@ -295,8 +295,33 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ status: 'processed' });
   } catch (e: any) {
-        reportServerError('src/app/api/webhook/razorpay/route.ts:556', e); 
+        reportServerError('src/app/api/webhook/razorpay/route.ts:556', e);
     console.error('[Razorpay Webhook Exception]:', e);
-    return NextResponse.json({ status: 'error', message: e.message }, { status: 500 }); 
+    // A permanent failure (e.g. payer's email matches no account) used to
+    // answer 500 on every redelivery; Razorpay retries for ~24h and then
+    // auto-disables the whole webhook. Allow a couple of retries for
+    // transient errors, then ack with 200 — the failure stays recorded for
+    // manual recovery from Admin → Payments.
+    const eventId = req.headers.get('x-razorpay-event-id') || `noid_${Date.now()}`;
+    let attempts = MAX_WEBHOOK_RETRIES;
+    try {
+        const { firestore } = initializeFirebase();
+        const failRef = firestore.collection('webhookFailures').doc(eventId);
+        attempts = await firestore.runTransaction(async (t: any) => {
+            const snap = await t.get(failRef);
+            const next = Number(snap.exists ? snap.data()?.attempts || 0 : 0) + 1;
+            t.set(failRef, { eventId, attempts: next, lastError: String(e?.message || e), lastAttemptAt: new Date().toISOString() }, { merge: true });
+            return next;
+        });
+    } catch (logErr: any) {
+        reportServerError('src/app/api/webhook/razorpay/route.ts:failLog', logErr);
+    }
+    if (attempts < MAX_WEBHOOK_RETRIES) {
+        return NextResponse.json({ status: 'error', message: e.message }, { status: 500 });
+    }
+    after(() => sendToTelegram(`🚨 <b>WEBHOOK EVENT GAVE UP</b>\n<b>Event ID:</b> <code>${escapeHtml(eventId)}</code>\n<b>Error:</b> ${escapeHtml(e?.message || 'unknown')}\n\nAcked to Razorpay so the webhook stays enabled. Grant manually from Admin → Payments.`).catch(() => null));
+    return NextResponse.json({ status: 'failed_acknowledged' });
   }
 }
+
+const MAX_WEBHOOK_RETRIES = 3;
