@@ -20,6 +20,7 @@ import { findUserAndDataByEmail, updateUserHistory } from './actions';
 import type { UserProfile, CreditHistoryEntry, Notification } from '@/lib/types';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
+import { getIdToken } from '@/lib/id-token';
 // Schemas for edit dialog forms
 const creditHistoryEditSchema = z.object({
   amount: z.coerce.number(),
@@ -53,7 +54,7 @@ export default function UserLookupPage() {
         setUserData(null);
         setVisibleCreditCount(5);
         setVisibleNotificationCount(5);
-        const result = await findUserAndDataByEmail(email);
+        const result = await findUserAndDataByEmail(await getIdToken(), email);
         if (result.success && result.data) {
             setUserData(result.data);
         } else {
@@ -84,7 +85,7 @@ export default function UserLookupPage() {
             return;
         }
         
-        const result = await updateUserHistory(userData.user.uid, type, fullHistory);
+        const result = await updateUserHistory(await getIdToken(), userData.user.uid, type, fullHistory);
         if (result.success) {
             setUserData(prev => prev ? { ...prev, [type === 'credit' ? 'creditHistory' : 'notifications']: fullHistory } : null);
             toast({ title: 'Success', description: 'Record updated.' });
@@ -107,7 +108,7 @@ export default function UserLookupPage() {
             fullHistory = userData.notifications.filter(item => item.timestamp !== itemToRemove.timestamp);
         }
         
-        const result = await updateUserHistory(userData.user.uid, deletingItem.type, fullHistory);
+        const result = await updateUserHistory(await getIdToken(), userData.user.uid, deletingItem.type, fullHistory);
         if (result.success) {
             setUserData(prev => prev ? { ...prev, [deletingItem.type === 'credit' ? 'creditHistory' : 'notifications']: fullHistory } : null);
             toast({ title: 'Success', description: 'Record deleted.' });

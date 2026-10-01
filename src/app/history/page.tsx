@@ -281,7 +281,7 @@ function HistoryPageContent() {
         ...(proProjects || []),
         ...(musicPartitionedProjects || []),
         ...(scriptProjects || [])
-    ].filter((p): p is Project => !!p && typeof p === 'object' && !!p.id);
+    ].filter((p: any): p is Project => !!p && typeof p === 'object' && !!p.id);
     const uniqueProjects = Array.from(new Map(combinedProjects.map(p => [p.id, p])).values());
     
     const combinedThumbnails = [
@@ -289,7 +289,7 @@ function HistoryPageContent() {
         ...(partitionedThumbnails || []),
         ...(snakeCaseThumbnails || []),
         ...(rootThumbnails || [])
-    ].filter((t): t is Thumbnail => !!t && typeof t === 'object' && !!t.id).map(t => {
+    ].filter((t: any): t is Thumbnail => !!t && typeof t === 'object' && !!t.id).map(t => {
         const rawUrl = t.imageUrl || (t as any).link || (t as any).url || (t as any).image || (t as any).thumbnailUrl || (t as any).mediaUrl || (t as any).audioUrl || (t as any).outputUrl || (t as any).imageDataUri || '';
         return {
             ...t,
@@ -317,7 +317,7 @@ function HistoryPageContent() {
 
     const combined = [
         ...uniqueProjects.filter(p => p && !p.userDeleted).map(p => {
-            const isThumb = p.projectType === 'thumbnail' || (p as any).type === 'thumbnail_generation';
+            const isThumb = (p as any).projectType === 'thumbnail' || (p as any).type === 'thumbnail_generation';
             if (isThumb) {
                 const img = (p as any).imageUrl || (p as any).link || (p as any).url || (p as any).image || (p as any).thumbnailUrl || (p as any).mediaUrl || (p as any).audioUrl || '';
                 return {

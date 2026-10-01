@@ -24,6 +24,7 @@ import { ref, onValue } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import { Badge } from '@/components/ui/badge';
 
+import { getIdToken } from '@/lib/id-token';
 const chartConfig = {
   revenue: {
     label: "Revenue (₹)",
@@ -178,7 +179,7 @@ export function CreditUsageSummary() {
   const handleSaveDate = async () => {
     if (!currentUser?.email) return;
     setIsSavingDate(true);
-    const result = await savePaidUntilDate(dateInputValue, currentUser.email);
+    const result = await savePaidUntilDate(await getIdToken(), dateInputValue, currentUser.email);
     if (result.success) toast({ title: 'Last Paid Date Synced Successfully' });
     else toast({ variant: 'destructive', title: 'Save Failed', description: result.message });
     setIsSavingDate(false);

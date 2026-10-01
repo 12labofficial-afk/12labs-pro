@@ -54,6 +54,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 function PendingSellerCard({ profile, onApprove, onReject }: { profile: SellerProfile; onApprove: (id: string) => Promise<void>; onReject: (id: string, reason: string) => Promise<void>; }) {
     const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
     const [reason, setReason] = useState('');
@@ -422,7 +423,7 @@ export default function AdminPendingPage() {
         if (!project) return;
         
         setIsLoading(true);
-        const result = await completeProjectAction(
+        const result = await completeProjectAction(await getIdToken(), 
             projectId,
             project.userId,
             project.projectName,
@@ -493,17 +494,17 @@ export default function AdminPendingPage() {
     };
 
     const handleApproveSeller = async (uid: string) => {
-        const res = await approveSellerAction(uid, currentUser?.email || '');
+        const res = await approveSellerAction(await getIdToken(), uid, currentUser?.email || '');
         if (res.success) toast({ title: 'Seller Approved' }); else toast({ variant: 'destructive', title: 'Failed', description: res.message });
     };
 
     const handleRejectSeller = async (uid: string, reason: string) => {
-        const res = await rejectSellerAction(uid, reason, currentUser?.email || '');
+        const res = await rejectSellerAction(await getIdToken(), uid, reason, currentUser?.email || '');
         if (res.success) toast({ title: 'Seller Rejected' }); else toast({ variant: 'destructive', title: 'Failed', description: res.message });
     };
 
     const handleStartProcessing = async (proj: any) => {
-        const result = await startProcessingProject(proj.id, proj.userId, currentUser?.email || '');
+        const result = await startProcessingProject(await getIdToken(), proj.id, proj.userId, currentUser?.email || '');
         if (!result.success) {
             toast({ variant: 'destructive', title: 'Action Failed', description: result.message });
         }

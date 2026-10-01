@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireAdmin, requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { r2Client, R2_BUCKET } from '@/lib/r2';
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { sendToTelegram } from '@/lib/telegram-logger';
@@ -18,10 +20,12 @@ const MAX_CHAT_TEXT_LENGTH = 1000;
  * 🔓 PUBLIC CHAT IMAGE UPLOADER (R2 NODE)
  * Stores in 'public/live-chat-assets' folder.
  */
-export async function uploadChatImageToGCS(
+export async function uploadChatImageToGCS(idToken: string, 
   userId: string,
   base64Image: string
 ): Promise<{ success: boolean; url?: string; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, error: guard.message };
   try {
     if (!R2_BUCKET) throw new Error("R2 Node: Bucket not configured.");
 
@@ -54,13 +58,15 @@ export async function uploadChatImageToGCS(
   }
 }
 
-export async function sendUserChatMessage(
+export async function sendUserChatMessage(idToken: string, 
   userId: string,
   userName: string,
   userEmail: string,
   message: { text?: string; imageUrl?: string },
   clientMessageId: string
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, message: guard.message };
   const { database } = initializeFirebase();
 
   if (!message.text && !message.imageUrl) {
@@ -145,10 +151,12 @@ export async function sendUserChatMessage(
   }
 }
 
-export async function deleteSingleChatMessage(
+export async function deleteSingleChatMessage(idToken: string, 
   userId: string,
   messageId: string
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
   const { database } = initializeFirebase();
 
   try {
@@ -161,10 +169,12 @@ export async function deleteSingleChatMessage(
   }
 }
 
-export async function deleteChatSession(
+export async function deleteChatSession(idToken: string, 
   userId: string,
   userEmail: string
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, message: guard.message };
   const { database } = initializeFirebase();
 
   try {
@@ -179,9 +189,11 @@ export async function deleteChatSession(
   }
 }
 
-export async function bulkDeleteChats(
+export async function bulkDeleteChats(idToken: string, 
   userIds: string[]
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
   const { database } = initializeFirebase();
   try {
     const updates: { [key: string]: any } = {};
@@ -199,11 +211,13 @@ export async function bulkDeleteChats(
  * 🚀 ADMIN CHAT REPLY SENDER + INSTANT PUSH DISPATCH
  * Saves message to RTDB and fires real-time Web Push notification to user's device
  */
-export async function sendAdminChatReply(
+export async function sendAdminChatReply(idToken: string, 
   userId: string,
   userEmail: string,
   message: { text?: string; imageUrl?: string }
 ): Promise<{ success: boolean; message: string; pushSent?: boolean }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
   const { database } = initializeFirebase();
 
   if (!message.text && !message.imageUrl) {
@@ -260,7 +274,7 @@ export async function sendAdminChatReply(
 
     let pushSent = false;
     try {
-      const pushRes = await sendPushToUserById(
+      const pushRes = await sendPushToUserById(idToken, 
         userId,
         '12Labs Support',
         pushBody,

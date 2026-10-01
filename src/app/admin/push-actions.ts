@@ -1,5 +1,7 @@
 'use server';
 
+import { requireAdmin } from '@/lib/auth-guard';
+
 import webpush from 'web-push';
 import crypto from 'crypto';
 import { initializeFirebase } from '@/firebase/server';
@@ -108,7 +110,9 @@ export async function getActiveVapidPublicKey(): Promise<string> {
 /**
  * Server Action for Push Diagnostic Report
  */
-export async function getPushDiagnostics() {
+export async function getPushDiagnostics(idToken: string) {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { isPrivateKeySet: false, derivedPublicKey: '', configuredPublicKey: '', keysMatch: false, keyError: guard.message, totalSubscriptions: 0, activeUserCount: 0 };
     const vapid = getVapidKeys();
     const { database } = initializeFirebase();
 
@@ -145,12 +149,14 @@ export async function getPushDiagnostics() {
  * Server action to send push notifications to a user.
  * Logic: Email -> Auth User Record -> UID -> RTDB Subscription -> Send
  */
-export async function sendPushToUserByEmail(
+export async function sendPushToUserByEmail(idToken: string, 
   email: string, 
   title: string, 
   body: string, 
   url?: string
 ): Promise<{ success: boolean; message?: string; error?: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { auth, database } = initializeFirebase();
     const vapid = getVapidKeys();
 
@@ -242,12 +248,14 @@ export async function sendPushToUserByEmail(
 /**
  * Server action to send push notifications to a user directly by user ID (UID).
  */
-export async function sendPushToUserById(
+export async function sendPushToUserById(idToken: string, 
   userId: string, 
   title: string, 
   body: string, 
   url?: string
 ): Promise<{ success: boolean; message?: string; error?: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { database } = initializeFirebase();
     const vapid = getVapidKeys();
 
@@ -330,11 +338,13 @@ export async function sendPushToUserById(
 /**
  * Server action to send push notifications to ALL subscribed devices in RTDB.
  */
-export async function sendBroadcastPush(
+export async function sendBroadcastPush(idToken: string, 
   title: string,
   body: string,
   url?: string
 ): Promise<{ success: boolean; count?: number; error?: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { database } = initializeFirebase();
     const vapid = getVapidKeys();
 

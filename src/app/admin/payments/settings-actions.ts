@@ -1,14 +1,18 @@
 'use server';
 
+import { requireAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import { revalidatePath } from 'next/cache';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { reportServerError } from '@/lib/report-error';
 
-export async function savePaidUntilDate(
+export async function savePaidUntilDate(idToken: string, 
   date: string,
   adminEmail: string
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
   try {
     const { database } = initializeFirebase();
     const settingsRef = database.ref('settings/payments');

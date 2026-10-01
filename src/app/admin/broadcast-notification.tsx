@@ -14,6 +14,7 @@ import { Loader2, Bell, ShieldCheck, AlertTriangle, RefreshCw, Key } from 'lucid
 import { sendBroadcastPush, getPushDiagnostics } from './push-actions';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 export function BroadcastNotification() {
   const { user: currentUser } = useAuth();
   const { firestore } = initializeFirebase();
@@ -26,7 +27,7 @@ export function BroadcastNotification() {
   const runDiagnostics = async () => {
     setIsCheckingDiag(true);
     try {
-      const result = await getPushDiagnostics();
+      const result = await getPushDiagnostics(await getIdToken());
       setDiag(result);
     } catch (err: any) {
         reportClientError('src/app/admin/broadcast-notification.tsx:30', err);
@@ -85,7 +86,7 @@ export function BroadcastNotification() {
         }
 
         // Send Web Push Notification to all devices subscribed in RTDB
-        const pushResult = await sendBroadcastPush('12Labs Announcement', message);
+        const pushResult = await sendBroadcastPush(await getIdToken(), '12Labs Announcement', message);
 
         if (pushResult.success) {
             toast({ title: 'Broadcast Sent 🎉', description: `In-app notification sent to ${users.length} users. Push sent to ${pushResult.count || 0} device(s).`});

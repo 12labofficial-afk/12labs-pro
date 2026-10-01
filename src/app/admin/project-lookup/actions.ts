@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import type { Project } from '@/lib/types';
 import { reportServerError } from '@/lib/report-error';
@@ -9,7 +11,9 @@ import { reportServerError } from '@/lib/report-error';
  * Finds a project by its unique ID across the entire partitioned hierarchy.
  * Capable of resolving both Legacy and Partitioned nodes.
  */
-export async function findProjectById(projectId: string): Promise<{ success: boolean; project?: any; message: string }> {
+export async function findProjectById(idToken: string, projectId: string): Promise<{ success: boolean; project?: any; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     const id = projectId?.trim();
     if (!id) {
         return { success: false, message: 'Project ID is required.' };

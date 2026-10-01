@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import type { Product, DownloadableFile } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
@@ -22,7 +24,9 @@ export interface MigratableScript {
  * 🔍 FETCH SYNC QUEUE
  * Returns all Hand Written Scripts and their current migration status.
  */
-export async function fetchScriptsForMigration(): Promise<{ success: boolean; data?: MigratableScript[]; message: string }> {
+export async function fetchScriptsForMigration(idToken: string): Promise<{ success: boolean; data?: MigratableScript[]; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { firestore } = initializeFirebase();
     try {
         const snapshot = await firestore.collection('products')
@@ -53,7 +57,9 @@ export async function fetchScriptsForMigration(): Promise<{ success: boolean; da
  * 🚀 MIGRATE SINGLE NODE (R2 SYNC)
  * Migrates a specific script to R2 Secure Folder.
  */
-export async function migrateSingleScriptAction(productId: string) {
+export async function migrateSingleScriptAction(idToken: string, productId: string) {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { firestore } = initializeFirebase();
     
     try {

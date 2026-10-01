@@ -9,12 +9,16 @@ import { getDisplayUrl, resolvePublicAudioUrl } from '@/lib/utils';
 import { headers } from 'next/headers';
 import { sendProjectReadyEmailAction } from '@/app/emails/actions';
 import { reportServerError } from '@/lib/report-error';
+import { requireAdmin } from '@/lib/auth-guard';
+import { completeProject } from '@/lib/complete-project';
 
-export async function startProcessingProject(
+export async function startProcessingProject(idToken: string, 
   projectId: string,
   userId: string,
   adminEmail: string
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
   const { firestore, database } = initializeFirebase();
   try {
     // 📂 DYNAMIC PATH ROUTING: Check if it's a Pro project
@@ -40,6 +44,7 @@ export async function startProcessingProject(
 }
 
 export async function completeProjectAction(
+  idToken: string,
   projectId: string,
   userId: string,
   projectName: string,
@@ -48,84 +53,17 @@ export async function completeProjectAction(
   adminEmail?: string,
   usedBridge: boolean = false
 ): Promise<{ success: boolean; message: string }> {
-  const { firestore, database } = initializeFirebase();
-  try {
-    const batch = firestore.batch();
-    
-    // 📂 DYNAMIC PATH ROUTING
-    const isPro = projectId.startsWith('PRO_');
-    const rtdbPath = isPro ? 'pro_projects' : 'pending_projects';
-    const collectionName = isPro ? 'pro_projects' : 'projects';
-    
-    const projectRef = firestore.collection(collectionName).doc(userId).collection('userProjects').doc(projectId);
-    
-    const updateData: any = { 
-      id: projectId,
-      userId: userId,
-      status: 'completed', 
-      audioUrl: resolvePublicAudioUrl(audioUrl)
-    };
-
-    if (syncData && syncData.trim() !== '') {
-      try {
-        updateData.syncData = JSON.parse(syncData);
-      } catch (e) {
-    reportServerError('src/app/admin/pending/actions.ts#2', e);
-        console.warn("[Finalize] Malformed syncData received, skipping update.");
-      }
-    }
-    
-    batch.set(projectRef, updateData, { merge: true });
-
-    const notificationRef = firestore.collection('users').doc(userId).collection('notifications').doc('user_notifications');
-    const notificationData = { 
-      id: `done-${Date.now()}`, 
-      message: `Your project "${projectName}" has been successfully generated!`, 
-      timestamp: new Date().toISOString(), 
-      read: false, 
-      type: 'system' as const 
-    };
-    batch.set(notificationRef, { entries: FieldValue.arrayUnion(notificationData) }, { merge: true });
-
-    await batch.commit();
-    
-    // Cleanup from correct RTDB Node
-    await database.ref(`${rtdbPath}/${projectId}`).remove();
-    
-    try {
-        const userDoc = await firestore.collection('users').doc(userId).get();
-        const projectDoc = await projectRef.get();
-        
-        if (userDoc.exists && projectDoc.exists) {
-            const userData = userDoc.data();
-            const projectData = projectDoc.data();
-            
-            await sendProjectReadyEmailAction({
-                name: userData?.name || 'Creator',
-                email: userData?.email || '',
-                projectName: projectData?.projectName || projectName,
-                script: projectData?.script || '',
-                characters: projectData?.characters || []
-            });
-        }
-    } catch (emailError) {
-    reportServerError('src/app/admin/pending/actions.ts#3', emailError);
-        console.error("Non-critical email dispatch failure:", emailError);
-    }
-
-    revalidatePath('/admin/pending');
-    return { success: true, message: 'Project finalized and user notified.' };
-  } catch (error: any) {
-    reportServerError('src/app/admin/pending/actions.ts#4', error);
-    console.error("Finalize project error:", error);
-    return { success: false, message: error.message };
-  }
+  const guard = await requireAdmin(idToken);
+  if (!guard.ok) return { success: false, message: guard.message };
+  return completeProject(projectId, userId, projectName, audioUrl, syncData, adminEmail, usedBridge);
 }
 
-export async function approveSellerAction(
+export async function approveSellerAction(idToken: string, 
     userId: string,
     adminEmail: string
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { database } = initializeFirebase();
     try {
         const pendingRef = database.ref(`pendingSellerProfiles/${userId}`);
@@ -159,11 +97,13 @@ export async function approveSellerAction(
     }
 }
 
-export async function rejectSellerAction(
+export async function rejectSellerAction(idToken: string, 
     userId: string,
     reason: string,
     adminEmail: string
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { database } = initializeFirebase();
     try {
         const pendingRef = database.ref(`pendingSellerProfiles/${userId}`);

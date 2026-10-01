@@ -1,11 +1,15 @@
 'use server';
 
+import { requireAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import { reportServerError } from '@/lib/report-error';
 
 // Push notification logic removed as system is disabled.
 // Restoring empty export to fix build dependencies.
-export async function sendPushNotificationToAdmins(title: string, body: string, url: string) {
+export async function sendPushNotificationToAdmins(idToken: string, title: string, body: string, url: string) {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     // Push notifications are currently handled via Targeted Push Hub.
     return { success: true };
 }
@@ -16,7 +20,9 @@ export async function sendPushNotificationToAdmins(title: string, body: string, 
  * the hardcoded email list / without the custom 'role' claim, causing the
  * Global Registry / Verified Output Nodes cards to show 0.
  */
-export async function getAdminDashboardStatsAction(): Promise<{ success: boolean; totalUsers: number; totalProjects: number; message?: string }> {
+export async function getAdminDashboardStatsAction(idToken: string): Promise<{ success: boolean; totalUsers: number; totalProjects: number; message?: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, totalUsers: 0, totalProjects: 0, message: guard.message };
     try {
         const { firestore } = initializeFirebase();
         if (!firestore) throw new Error('Firestore service unavailable.');
@@ -37,7 +43,9 @@ export async function getAdminDashboardStatsAction(): Promise<{ success: boolean
     }
 }
 
-export async function saveDailyFreeScriptLimitAction(data: { limit: number; todayCount: number; today: string }) {
+export async function saveDailyFreeScriptLimitAction(idToken: string, data: { limit: number; todayCount: number; today: string }) {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     try {
         const { database } = initializeFirebase();
         if (!database) throw new Error("Database service unavailable.");
@@ -56,7 +64,9 @@ export async function saveDailyFreeScriptLimitAction(data: { limit: number; toda
     }
 }
 
-export async function saveHqBackendUrlAction(url: string) {
+export async function saveHqBackendUrlAction(idToken: string, url: string) {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     try {
         const { database } = initializeFirebase();
         if (!database) throw new Error("Database service unavailable.");
@@ -70,7 +80,9 @@ export async function saveHqBackendUrlAction(url: string) {
     }
 }
 
-export async function saveEditingHfBackendAction(data: { url: string; enabled: boolean }) {
+export async function saveEditingHfBackendAction(idToken: string, data: { url: string; enabled: boolean }) {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     try {
         const { database } = initializeFirebase();
         if (!database) throw new Error("Database service unavailable.");
@@ -88,7 +100,9 @@ export async function saveEditingHfBackendAction(data: { url: string; enabled: b
     }
 }
 
-export async function saveAiDialogueExpandCostAction(cost: number) {
+export async function saveAiDialogueExpandCostAction(idToken: string, cost: number) {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     try {
         const { database } = initializeFirebase();
         if (!database) throw new Error("Database service unavailable.");
@@ -103,7 +117,9 @@ export async function saveAiDialogueExpandCostAction(cost: number) {
     }
 }
 
-export async function toggleToolLockAction(id: string, locked: boolean) {
+export async function toggleToolLockAction(idToken: string, id: string, locked: boolean) {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     try {
         const { database } = initializeFirebase();
         if (!database) throw new Error("Database service unavailable.");
@@ -117,7 +133,9 @@ export async function toggleToolLockAction(id: string, locked: boolean) {
     }
 }
 
-export async function saveMusicWatermarkUrlAction(url: string) {
+export async function saveMusicWatermarkUrlAction(idToken: string, url: string) {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     try {
         const { database } = initializeFirebase();
         if (!database) throw new Error("Database service unavailable.");
@@ -131,7 +149,9 @@ export async function saveMusicWatermarkUrlAction(url: string) {
     }
 }
 
-export async function setAnalysisExecutionModeAction(mode: 'realtime' | 'server') {
+export async function setAnalysisExecutionModeAction(idToken: string, mode: 'realtime' | 'server') {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     try {
         const { database } = initializeFirebase();
         if (!database) throw new Error("Database service unavailable.");

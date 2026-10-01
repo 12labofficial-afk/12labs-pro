@@ -12,6 +12,7 @@ import { sendPushToUserByEmail } from '@/app/admin/push-actions';
 import { Badge } from '../ui/badge';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 export function PushNotificationManager() {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +30,7 @@ export function PushNotificationManager() {
 
         setIsLoading(true);
         try {
-            const result = await sendPushToUserByEmail(targetEmail.trim(), title, body, url);
+            const result = await sendPushToUserByEmail(await getIdToken(), targetEmail.trim(), title, body, url);
             if (result.success) {
                 toast({ 
                     title: 'Push Delivered', 

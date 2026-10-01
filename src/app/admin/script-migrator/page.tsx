@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 export default function ScriptMigratorPage() {
     const [isFetching, setIsFetching] = useState(false);
     const [scripts, setScripts] = useState<MigratableScript[]>([]);
@@ -24,7 +25,7 @@ export default function ScriptMigratorPage() {
     const handleFetch = async () => {
         setIsFetching(true);
         try {
-            const res = await fetchScriptsForMigration();
+            const res = await fetchScriptsForMigration(await getIdToken());
             if (res.success && res.data) {
                 setScripts(res.data);
                 toast({ title: 'Sync Queue Populated' });
@@ -40,7 +41,7 @@ export default function ScriptMigratorPage() {
     const handleMigrateSingle = async (id: string) => {
         setIsMigratingId(id);
         try {
-            const res = await migrateSingleScriptAction(id);
+            const res = await migrateSingleScriptAction(await getIdToken(), id);
             if (res.success) {
                 toast({ title: 'Script Migrated' });
                 // Update local state to show completion

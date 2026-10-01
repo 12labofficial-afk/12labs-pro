@@ -32,6 +32,7 @@ import NextImage from 'next/image';
 import type { Product, StoreProduct } from '@/lib/types';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 // Category types list matches exact system config
 const productTypes = [ "PC Character", "Green Screen Character", "Premium Background", "Hand Written Script", "Real Voice", "AutoDraft Character", "YouTube Thumbnail", "YouTube Story" ] as const;
 
@@ -116,7 +117,7 @@ function ProductInspectionDialog({
         const fetchProductDetails = async () => {
             if (open && initialProduct) {
                 setIsLoading(true);
-                const result = await getCompleteProduct(initialProduct.id);
+                const result = await getCompleteProduct(await getIdToken(), initialProduct.id);
                 if (result.success && result.product) {
                     const fetchedProduct = result.product;
                     if (fetchedProduct.scriptPreview && !Array.isArray(fetchedProduct.scriptPreview)) {
@@ -160,7 +161,7 @@ function ProductInspectionDialog({
     const onSubmit = async (data: z.infer<typeof approvalFormSchema>) => {
         setIsSubmitting(true);
         const finalProduct = { ...product, previews: adminPreviews };
-        const result = await approveProduct(product.id, finalProduct, data);
+        const result = await approveProduct(await getIdToken(), product.id, finalProduct, data);
         if (result.success) {
             toast({ title: 'Product updated and is live!' });
             onActionComplete();
@@ -177,7 +178,7 @@ function ProductInspectionDialog({
             return;
         }
         setIsRejecting(true);
-        const result = await rejectProduct(product.id, product, rejectionReason);
+        const result = await rejectProduct(await getIdToken(), product.id, product, rejectionReason);
         if (result.success) {
             toast({ title: 'Product De-listed / Rejected successfully' });
             onActionComplete();
@@ -437,7 +438,7 @@ function SellerDetailDialog({
     const handleMarkAsPaid = async () => {
         if (!adminUser?.email || !seller.pendingRequestId) return;
         setIsActing(true);
-        const result = await processWithdrawal({
+        const result = await processWithdrawal(await adminUser.getIdToken(), {
             requestId: seller.pendingRequestId,
             sellerName: seller.storeName,
             amount: seller.pendingWithdrawalAmount,
@@ -461,8 +462,9 @@ function SellerDetailDialog({
             toast({ variant: 'destructive', title: 'Reason too short', description: 'Please provide at least 10 characters.' });
             return;
         }
+        if (!adminUser) return;
         setIsActing(true);
-        const result = await rejectWithdrawal({
+        const result = await rejectWithdrawal(await adminUser.getIdToken(), {
             requestId: seller.pendingRequestId,
             sellerName: seller.storeName,
             reason: rejectionReason

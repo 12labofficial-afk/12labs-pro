@@ -8,6 +8,7 @@ import { useAuth } from '@/context/auth-provider';
 import { sendUserChatMessage } from '@/app/admin/chat/actions';
 import { APP_UPDATE_NOTES, APP_UPDATE_SIZE, APP_VERSION } from '@/lib/app-version';
 
+import { getIdToken } from '@/lib/id-token';
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -91,7 +92,7 @@ export function AppVersionGate() {
     setFeedbackSending(true);
     setFeedbackError('');
     try {
-      const result = await sendUserChatMessage(
+      const result = await sendUserChatMessage(await getIdToken(), 
         user.uid,
         user.name || user.email || 'N/A',
         user.email || 'N/A',

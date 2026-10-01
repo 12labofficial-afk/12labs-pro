@@ -30,6 +30,7 @@ import {
 import { GetNotifiedButton } from '@/components/push-subscription-handler';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 function ChatMessageItem({
     message,
     localPreview,
@@ -278,12 +279,12 @@ export function LiveChatWidget() {
     try {
         let finalImageUrl: string | undefined;
         if (imageToSend && currentPreview) {
-            const uploadRes = await uploadChatImageToGCS(user.uid, currentPreview);
+            const uploadRes = await uploadChatImageToGCS(await getIdToken(), user.uid, currentPreview);
             if (!uploadRes.success || !uploadRes.url) throw new Error(uploadRes.error);
             finalImageUrl = uploadRes.url;
         }
         
-        const result = await sendUserChatMessage(
+        const result = await sendUserChatMessage(await getIdToken(), 
             user.uid, user.name || user.email || 'N/A', user.email || 'N/A',
             { text: messageText.trim() ? messageText : undefined, imageUrl: finalImageUrl },
             clientMessageId
@@ -302,7 +303,7 @@ export function LiveChatWidget() {
     if (!user) return;
     setIsDeletingChat(true);
     try {
-        const result = await deleteChatSession(user.uid, user.email || 'N/A');
+        const result = await deleteChatSession(await getIdToken(), user.uid, user.email || 'N/A');
         if (!result.success) throw new Error(result.message);
         setMessages([]);
         toast({ title: 'Conversation Deleted' });

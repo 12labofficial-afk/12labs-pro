@@ -1,5 +1,7 @@
 'use server';
 
+import { requireAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import type { Order, Product, SellerProfile } from '@/lib/types';
 import { reportServerError } from '@/lib/report-error';
@@ -9,7 +11,9 @@ export interface SoldProductEntry extends Order {
   productTitle: string;
 }
 
-export async function getSoldProductsList(): Promise<{ success: boolean; data?: SoldProductEntry[]; message: string }> {
+export async function getSoldProductsList(idToken: string): Promise<{ success: boolean; data?: SoldProductEntry[]; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
   try {
     const { firestore, database } = initializeFirebase();
 

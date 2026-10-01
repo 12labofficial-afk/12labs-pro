@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
         .collection('api_keys')
         .where('userId', '==', identity.uid)
         .get();
-      const hasActiveFirestoreKey = existing.docs.some((doc) => doc.data()?.disabled !== true);
+      const hasActiveFirestoreKey = existing.docs.some((doc: any) => doc.data()?.disabled !== true);
 
       let hasActiveLegacyKey = false;
       if (database) {

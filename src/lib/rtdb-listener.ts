@@ -41,9 +41,12 @@ function getRefPath(refOrQuery: DatabaseReference | Query): string {
 export function onRtdbValue(
   refOrQuery: DatabaseReference | Query,
   onNext: (snapshot: any) => void,
-  context?: string
+  contextOrOnError?: string | ((error: Error & { code?: string }) => void)
 ): () => void {
+  const context = typeof contextOrOnError === 'string' ? contextOrOnError : undefined;
+  const onError = typeof contextOrOnError === 'function' ? contextOrOnError : undefined;
   const handleError = (error: Error & { code?: string }) => {
+    try { onError?.(error); } catch (e) { reportClientError('src/lib/rtdb-listener.ts:onError', e); }
     const path = getRefPath(refOrQuery);
     const label = context || path; // no label passed -> path itself identifies the failing listener
     const key = `${label}::${path}::${error.code || error.message}`;

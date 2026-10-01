@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+import { getIdToken } from '@/lib/id-token';
 export default function ProjectLookupPage() {
     const [projectId, setProjectId] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -111,7 +112,7 @@ export default function ProjectLookupPage() {
 
         setIsLoading(true);
         setFoundProject(null);
-        const result = await findProjectById(projectId);
+        const result = await findProjectById(await getIdToken(), projectId);
         
         if (result.success && result.project) {
             /**

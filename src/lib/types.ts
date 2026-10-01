@@ -413,3 +413,9 @@ export interface MusicEntry {
     // record (see src/app/admin/music-manager/actions.ts).
     hasMaster?: boolean;
 }
+
+/**
+ * Same shape as T, but optional fields may also be null. Firestore/RTDB
+ * reject `undefined`, so records written there use null for "absent".
+ */
+export type DbRecord<T> = { [K in keyof T]: undefined extends T[K] ? T[K] | null : T[K] };

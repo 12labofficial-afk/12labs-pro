@@ -28,9 +28,11 @@ export type SimpleAuthUser = {
   };
 };
 
-export async function searchAuthUsers(
+export async function searchAuthUsers(idToken: string, 
   query: string
 ): Promise<{ success: boolean; users?: SimpleAuthUser[]; error?: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
   if (!query.trim()) {
     return { success: false, error: 'Query cannot be empty.' };
   }
@@ -90,7 +92,9 @@ export async function searchAuthUsers(
   }
 }
 
-export async function getUserProfileFromServer(uid: string): Promise<UserProfile | null> {
+export async function getUserProfileFromServer(idToken: string, uid: string): Promise<UserProfile | null> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return null;
     try {
         const { firestore } = initializeFirebase();
         if (!firestore) return null;
@@ -489,11 +493,13 @@ export async function reactivateUser(idToken: string, userId: string, adminEmail
   }
 }
 
-export async function updateUserHistory(
+export async function updateUserHistory(idToken: string, 
     userId: string,
     type: 'credit' | 'notification',
     entries: any[]
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     if (!userId) return { success: false, message: 'User ID is required.' };
     
     const { firestore, database } = initializeFirebase();
@@ -570,7 +576,9 @@ export async function updateUserHistory(
  * Derived investment totals from plan names and transactions to ensure accuracy.
  * Sets hasMadeFirstPurchase to true if history length > 1 or investment > 0.
  */
-export async function recalculateUserFinancials(userId: string): Promise<{ success: boolean; error?: string }> {
+export async function recalculateUserFinancials(idToken: string, userId: string): Promise<{ success: boolean; error?: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { firestore, database } = initializeFirebase();
     if (!firestore) return { success: false, error: 'Database instance unavailable.' };
     const userRef = firestore.collection('users').doc(userId);
@@ -684,7 +692,7 @@ export async function recalculateUserFinancials(userId: string): Promise<{ succe
  * Ultra-optimized: Queries ONLY users with subscriptions or recorded purchases instead of scanning 25,000+ free users.
  * Saves 99%+ Firestore reads.
  */
-export async function auditAllUsersDuplicateGrants(): Promise<{
+export async function auditAllUsersDuplicateGrants(idToken: string): Promise<{
     success: boolean;
     totalUsersScanned: number;
     totalExcessCredits: number;
@@ -704,6 +712,8 @@ export async function auditAllUsersDuplicateGrants(): Promise<{
     }>;
     error?: string;
 }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, totalUsersScanned: 0, totalExcessCredits: 0, affectedUsers: [], error: guard.message };
     const { firestore, database } = initializeFirebase();
     if (!firestore) return { success: false, totalUsersScanned: 0, totalExcessCredits: 0, affectedUsers: [], error: 'Database unavailable' };
 
@@ -715,7 +725,7 @@ export async function auditAllUsersDuplicateGrants(): Promise<{
         try {
             // 1. Users with active or recorded subscriptions
             const subQuery = await firestore.collection('users').where('subscription', '!=', null).limit(500).get();
-            subQuery.docs.forEach(d => candidateUserDocs.set(d.id, d));
+            subQuery.docs.forEach((d: any) => candidateUserDocs.set(d.id, d));
         } catch (e) {
     reportServerError('src/app/admin/users/actions.ts#17', e);
             console.warn("Subscription filter query:", e);
@@ -724,7 +734,7 @@ export async function auditAllUsersDuplicateGrants(): Promise<{
         try {
             // 2. Users with hasMadeFirstPurchase == true
             const purchaseQuery = await firestore.collection('users').where('hasMadeFirstPurchase', '==', true).limit(500).get();
-            purchaseQuery.docs.forEach(d => candidateUserDocs.set(d.id, d));
+            purchaseQuery.docs.forEach((d: any) => candidateUserDocs.set(d.id, d));
         } catch (e) {
     reportServerError('src/app/admin/users/actions.ts#18', e);
             console.warn("Purchase filter query:", e);
@@ -733,7 +743,7 @@ export async function auditAllUsersDuplicateGrants(): Promise<{
         try {
             // 3. Users with totalInvestment > 0
             const investmentQuery = await firestore.collection('users').where('totalInvestment', '>', 0).limit(500).get();
-            investmentQuery.docs.forEach(d => candidateUserDocs.set(d.id, d));
+            investmentQuery.docs.forEach((d: any) => candidateUserDocs.set(d.id, d));
         } catch (e) {
     reportServerError('src/app/admin/users/actions.ts#19', e);
             console.warn("Investment filter query:", e);
@@ -742,7 +752,7 @@ export async function auditAllUsersDuplicateGrants(): Promise<{
         // If candidates are empty (e.g. index missing), fallback to top users by credit balance
         if (candidateUserDocs.size === 0) {
             const topCreditQuery = await firestore.collection('users').orderBy('credits', 'desc').limit(100).get();
-            topCreditQuery.docs.forEach(d => candidateUserDocs.set(d.id, d));
+            topCreditQuery.docs.forEach((d: any) => candidateUserDocs.set(d.id, d));
         }
 
         const affectedUsers: any[] = [];
@@ -822,7 +832,7 @@ export async function auditAllUsersDuplicateGrants(): Promise<{
                 totalExcessCredits += userExcess;
                 affectedUsers.push({
                     userId,
-                    name: userData.name || userData.displayName || 'Unnamed User',
+                    name: userData.name || (userData as any).displayName || 'Unnamed User',
                     email: userData.email || 'No Email',
                     currentCredits: userData.credits || 0,
                     excessCredits: userExcess,
@@ -833,7 +843,7 @@ export async function auditAllUsersDuplicateGrants(): Promise<{
 
         return {
             success: true,
-            totalUsersScanned: usersSnap.size,
+            totalUsersScanned: candidateUserDocs.size,
             totalExcessCredits,
             affectedUsers
         };
@@ -847,11 +857,13 @@ export async function auditAllUsersDuplicateGrants(): Promise<{
 /**
  * 🧹 FIX DUPLICATE GRANTS FOR A SPECIFIC USER
  */
-export async function fixUserDuplicateGrants(
+export async function fixUserDuplicateGrants(idToken: string, 
     userId: string,
     duplicateEntriesToRemove: Array<{ id?: string; timestamp: string; reason: string; amount: number }>,
     creditsToDeduct: number
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { firestore, database } = initializeFirebase();
     if (!firestore) return { success: false, message: 'Database unavailable' };
 
@@ -911,7 +923,7 @@ export async function fixUserDuplicateGrants(
         });
 
         // 5. Recalculate financials to ensure exact sync
-        await recalculateUserFinancials(userId);
+        await recalculateUserFinancials(idToken, userId);
 
         revalidatePath('/admin/users');
         return { success: true, message: `Successfully reverted ${creditsToDeduct.toLocaleString()} duplicate credits for ${userId}.` };
@@ -927,7 +939,9 @@ export async function fixUserDuplicateGrants(
  * Ultra-efficient targeted query: Reads ONLY users with active subscription or purchased consistency plan.
  * Reads = exact count of active consistency users (Zero wasted reads).
  */
-export async function getActiveConsistencyPlanUsers(): Promise<{ success: boolean; users?: UserProfile[]; error?: string }> {
+export async function getActiveConsistencyPlanUsers(idToken: string): Promise<{ success: boolean; users?: UserProfile[]; error?: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { firestore } = initializeFirebase();
     if (!firestore) return { success: false, error: 'Database instance unavailable' };
 
@@ -939,7 +953,7 @@ export async function getActiveConsistencyPlanUsers(): Promise<{ success: boolea
             const subSnap = await firestore.collection('users')
                 .where('subscription.status', '==', 'active')
                 .get();
-            subSnap.docs.forEach(doc => {
+            subSnap.docs.forEach((doc: any) => {
                 usersMap.set(doc.id, { ...doc.data() as UserProfile, uid: doc.id });
             });
         } catch (e) {
@@ -949,10 +963,12 @@ export async function getActiveConsistencyPlanUsers(): Promise<{ success: boolea
 
         // 2. Query users with purchased consistency plan (key "700")
         try {
+            // purchasedPlans.700 is a purchase COUNT (FieldValue.increment),
+            // so `== true` never matched anyone.
             const planSnap = await firestore.collection('users')
-                .where('purchasedPlans.700', '==', true)
+                .where('purchasedPlans.700', '>', 0)
                 .get();
-            planSnap.docs.forEach(doc => {
+            planSnap.docs.forEach((doc: any) => {
                 if (!usersMap.has(doc.id)) {
                     usersMap.set(doc.id, { ...doc.data() as UserProfile, uid: doc.id });
                 }
@@ -997,11 +1013,13 @@ export async function getActiveConsistencyPlanUsers(): Promise<{ success: boolea
  * ⏳ LOG EXPIRED CREDITS TO HISTORY & RTDB
  * Explicitly records credit expiry in history ledger.
  */
-export async function logCreditExpiry(
+export async function logCreditExpiry(idToken: string, 
     userId: string, 
     expiredAmount: number, 
     reason?: string
 ): Promise<{ success: boolean; error?: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { firestore, database } = initializeFirebase();
     if (!firestore) return { success: false, error: 'Database instance unavailable' };
 
@@ -1049,8 +1067,10 @@ export async function logCreditExpiry(
 /**
  * ⚡ FIX ALL DETECTED DUPLICATE GRANTS IN BATCH
  */
-export async function fixAllDuplicateGrants(): Promise<{ success: boolean; fixedUsersCount: number; totalRevertedCredits: number; message: string }> {
-    const audit = await auditAllUsersDuplicateGrants();
+export async function fixAllDuplicateGrants(idToken: string): Promise<{ success: boolean; fixedUsersCount: number; totalRevertedCredits: number; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, fixedUsersCount: 0, totalRevertedCredits: 0, message: guard.message };
+    const audit = await auditAllUsersDuplicateGrants(idToken);
     if (!audit.success || audit.affectedUsers.length === 0) {
         return { success: true, fixedUsersCount: 0, totalRevertedCredits: 0, message: 'No duplicate grants found across any user.' };
     }
@@ -1059,7 +1079,7 @@ export async function fixAllDuplicateGrants(): Promise<{ success: boolean; fixed
     let totalReverted = 0;
 
     for (const affected of audit.affectedUsers) {
-        const res = await fixUserDuplicateGrants(affected.userId, affected.duplicateEntries, affected.excessCredits);
+        const res = await fixUserDuplicateGrants(idToken, affected.userId, affected.duplicateEntries, affected.excessCredits);
         if (res.success) {
             fixedCount++;
             totalReverted += affected.excessCredits;

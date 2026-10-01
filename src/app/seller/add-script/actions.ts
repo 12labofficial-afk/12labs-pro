@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
-import type { Product, ProductPreview } from '@/lib/types';
+import type { Product, ProductPreview, DbRecord } from '@/lib/types';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
@@ -41,7 +41,7 @@ export async function addScriptAction(
 
     const productId = firestore.collection('products').doc().id;
 
-    const firestoreProductData: Omit<Product, 'id'> = {
+    const firestoreProductData: DbRecord<Omit<Product, 'id'>> = {
         title,
         description: description,
         price,

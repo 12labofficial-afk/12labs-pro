@@ -1,7 +1,9 @@
 'use server';
 
+import { requireAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
-import type { Product, SellerProfile, StoreProduct } from '@/lib/types';
+import type { Product, SellerProfile, StoreProduct, DbRecord } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -23,7 +25,7 @@ async function getSellerProfile(userId: string): Promise<SellerProfile | null> {
     return null;
 }
 
-export async function approveProduct(
+export async function approveProduct(idToken: string, 
     productId: string,
     originalData: Product,
     updateData: {
@@ -34,6 +36,8 @@ export async function approveProduct(
         isOneTimePurchase: boolean;
     }
 ): Promise<{ success: boolean; message: string; }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { firestore, database } = initializeFirebase();
     
     try {
@@ -58,7 +62,7 @@ export async function approveProduct(
         
         // SANITIZED DATA FOR PUBLIC RTDB
         // downloadableFiles AND fullScriptContent are STRICTLY excluded here.
-        const storeProductData: StoreProduct = {
+        const storeProductData: DbRecord<StoreProduct> = {
             id: productId,
             title: approvedProductData.title,
             description: approvedProductData.description,
@@ -128,7 +132,9 @@ export async function approveProduct(
     }
 }
 
-export async function rejectProduct(productId: string, productData: Product, reason: string): Promise<{ success: boolean; message: string; }> {
+export async function rejectProduct(idToken: string, productId: string, productData: Product, reason: string): Promise<{ success: boolean; message: string; }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
      const { firestore, database } = initializeFirebase();
     const productRef = firestore.collection('products').doc(productId);
 
@@ -158,7 +164,7 @@ export async function rejectProduct(productId: string, productData: Product, rea
             
             const previewImage = restoredData.previews?.find(p => p.type === 'image')?.url || '';
 
-            const storeProductData: StoreProduct = {
+            const storeProductData: DbRecord<StoreProduct> = {
                 id: productId,
                 title: restoredData.title,
                 description: restoredData.description,
@@ -223,7 +229,9 @@ ${JSON.stringify({ productId, reason }, null, 2)}
     }
 }
 
-export async function getProductsByStatus(status: 'rejected' | 'sold' | 'approved'): Promise<{ success: boolean; products?: Product[]; message: string; }> {
+export async function getProductsByStatus(idToken: string, status: 'rejected' | 'sold' | 'approved'): Promise<{ success: boolean; products?: Product[]; message: string; }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { firestore } = initializeFirebase();
     try {
         const productsRef = firestore.collection('products');
@@ -253,7 +261,9 @@ export async function getProductsByStatus(status: 'rejected' | 'sold' | 'approve
     }
 }
 
-export async function getCompleteProduct(productId: string): Promise<{ success: boolean; product?: Product; message: string; }> {
+export async function getCompleteProduct(idToken: string, productId: string): Promise<{ success: boolean; product?: Product; message: string; }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { firestore } = initializeFirebase();
     try {
         const productDoc = await firestore.collection('products').doc(productId).get();

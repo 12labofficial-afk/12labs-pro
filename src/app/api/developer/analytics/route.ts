@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const recent = rows
-      .map((row) => ({ ...row, timestamp: toIsoDate(row.timestamp || row.createdAt) }))
+      .map((row: any) => ({ ...row, timestamp: toIsoDate(row.timestamp || row.createdAt) }))
       .filter((row) => new Date(row.timestamp).getTime() >= since)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 

@@ -958,7 +958,7 @@ export default function ThumbnailGeneratorPage() {
                 )}
 
                 {/* 2. Ready State */}
-                {isJobReady && (activeJob?.imageUrl || (activeJob as any)?.link || (activeJob as any)?.url || (activeJob as any)?.image) && (
+                {isJobReady && activeJob && (activeJob.imageUrl || (activeJob as any)?.link || (activeJob as any)?.url || (activeJob as any)?.image) && (
                   <div className="w-full space-y-4 animate-in fade-in zoom-in-95 duration-300">
                     <div className="relative w-full rounded-xl overflow-hidden border border-border shadow-2xl bg-black group">
                       <div className={cn("w-full relative", currentRatio.aspectClass)}>

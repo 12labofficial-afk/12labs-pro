@@ -70,3 +70,11 @@ export async function requireAdmin(idToken: string | undefined | null): Promise<
     return { ok: false, message: 'Could not verify admin access.' };
   }
 }
+
+/** The caller must be `userId` themselves, or an admin acting on their behalf. */
+export async function requireSelfOrAdmin(idToken: string | undefined | null, userId: string): Promise<GuardResult> {
+  const result = await requireUser(idToken);
+  if (!result.ok) return result;
+  if (result.uid === userId) return result;
+  return requireAdmin(idToken);
+}

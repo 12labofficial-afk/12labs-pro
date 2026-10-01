@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
+import { getIdToken } from '@/lib/id-token';
 export default function SoldProductsPage() {
     const [entries, setEntries] = useState<SoldProductEntry[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -22,7 +23,7 @@ export default function SoldProductsPage() {
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
-            const result = await getSoldProductsList();
+            const result = await getSoldProductsList(await getIdToken());
             if (result.success && result.data) {
                 setEntries(result.data);
             }

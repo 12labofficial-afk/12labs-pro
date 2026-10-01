@@ -41,6 +41,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
+import { getIdToken } from '@/lib/id-token';
 const productTypes = [ "PC Character", "Green Screen Character", "Premium Background", "Hand Written Script", "Real Voice", "AutoDraft Character", "YouTube Thumbnail", "YouTube Story" ] as const;
 
 const approvalFormSchema = z.object({
@@ -110,7 +111,7 @@ function ApprovalDialog({ product: initialProduct, productId, onApprove, trigger
         const fetchProduct = async () => {
             if (open && productId && !initialProduct) {
                 setIsLoading(true);
-                const result = await getCompleteProduct(productId);
+                const result = await getCompleteProduct(await getIdToken(), productId);
                 if (result.success && result.product) {
                     const fetchedProduct = result.product;
                     if (fetchedProduct.scriptPreview && !Array.isArray(fetchedProduct.scriptPreview)) {
@@ -289,7 +290,7 @@ function ApprovedProductCard({ product, onAdminAction }: { product: StoreProduct
     
     const handleApproveAction = async (originalProduct: Product, updateData: z.infer<typeof approvalFormSchema>) => {
         setIsApproving(true);
-        const result = await approveProduct(originalProduct.id, originalProduct, updateData);
+        const result = await approveProduct(await getIdToken(), originalProduct.id, originalProduct, updateData);
         if (result.success) { toast({ title: 'Approved!' }); onAdminAction(); }
         else toast({ variant: 'destructive', title: 'Failed', description: result.message });
         setIsApproving(false);
@@ -405,7 +406,7 @@ export default function AdminProductsPage() {
         if (activeTab !== 'rejected') return;
         const fetch = async () => {
             setIsRejectedLoading(true);
-            const result = await getProductsByStatus('rejected');
+            const result = await getProductsByStatus(await getIdToken(), 'rejected');
             if (result.success && result.products) setRejectedProducts(result.products.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
             setIsRejectedLoading(false);
         };
@@ -416,7 +417,7 @@ export default function AdminProductsPage() {
         if (activeTab !== 'sold') return;
         const fetch = async () => {
             setIsSoldLoading(true);
-            const result = await getProductsByStatus('sold');
+            const result = await getProductsByStatus(await getIdToken(), 'sold');
             if (result.success && result.products) setSoldProducts(result.products.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
             setIsSoldLoading(false);
         };
@@ -424,13 +425,13 @@ export default function AdminProductsPage() {
     }, [activeTab, refreshKey]);
 
     const handleApproveAction = async (product: Product, updateData: z.infer<typeof approvalFormSchema>) => {
-        const result = await approveProduct(product.id, product, updateData);
+        const result = await approveProduct(await getIdToken(), product.id, product, updateData);
         if (result.success) { toast({ title: 'Approved!' }); setRefreshKey(k => k + 1); }
         else toast({ variant: 'destructive', title: 'Failed', description: result.message });
     };
 
     const handleRejectAction = async (product: Product, reason: string) => {
-        const result = await rejectProduct(product.id, product, reason);
+        const result = await rejectProduct(await getIdToken(), product.id, product, reason);
         if (result.success) { toast({ title: 'Rejected' }); setRefreshKey(k => k + 1); }
         else toast({ variant: 'destructive', title: 'Failed', description: result.message });
     };

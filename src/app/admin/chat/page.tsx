@@ -39,6 +39,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 // Helper function to escape HTML characters for safe inclusion in Telegram messages
 function escapeHtml(text: string) {
   if (!text) return '';
@@ -259,7 +260,7 @@ function ChatView({ session, onBack, onSessionDeleted }: { session: LiveChatSess
             if (imageToSend && imagePreview) {
                 setIsUploading(true);
                 // Use the private GCS bucket for admin uploads too
-                const uploadRes = await uploadChatImageToGCS(session.userId, imagePreview);
+                const uploadRes = await uploadChatImageToGCS(await getIdToken(), session.userId, imagePreview);
                 if (uploadRes.success && uploadRes.url) {
                     imageUrl = uploadRes.url;
                 } else throw new Error(uploadRes.error || "GCS node rejection.");
@@ -270,7 +271,7 @@ function ChatView({ session, onBack, onSessionDeleted }: { session: LiveChatSess
             setMessageError('');
             
             // Server Action: writes the reply to RTDB and sends an optional push.
-            const result = await sendAdminChatReply(session.userId, session.userEmail, {
+            const result = await sendAdminChatReply(await getIdToken(), session.userId, session.userEmail, {
                 text: adminReplyText.trim() || undefined,
                 imageUrl
             });
@@ -326,7 +327,7 @@ function ChatView({ session, onBack, onSessionDeleted }: { session: LiveChatSess
         } catch (error) {
         reportClientError('src/app/admin/chat/page.tsx:322', error);
             console.error("Failed to delete message:", error);
-            const result = await deleteSingleChatMessage(session.userId, messageId);
+            const result = await deleteSingleChatMessage(await getIdToken(), session.userId, messageId);
             if (result.success) {
                 toast({ title: 'Message Deleted' });
             } else {
@@ -338,7 +339,7 @@ function ChatView({ session, onBack, onSessionDeleted }: { session: LiveChatSess
     const handleDeleteSession = async () => {
         if (!session) return;
         setIsDeleting(true);
-        const result = await deleteChatSession(session.userId, session.userEmail);
+        const result = await deleteChatSession(await getIdToken(), session.userId, session.userEmail);
         if (result.success) {
             toast({ title: 'Chat Deleted', description: result.message });
             onSessionDeleted();
@@ -592,7 +593,7 @@ export default function AdminChatPage() {
 
             const unsubscribe = onRtdbValue(sessionsQuery, (snapshot) => {
                 const sessionList: LiveChatSession[] = [];
-                snapshot.forEach((childSnapshot) => {
+                snapshot.forEach((childSnapshot: any) => {
                     sessionList.push({ id: childSnapshot.key!, userId: childSnapshot.key!, ...childSnapshot.val() });
                 });
 
@@ -642,7 +643,7 @@ export default function AdminChatPage() {
     const handleBulkDelete = async () => {
         if (selectedUserIds.length === 0) return;
         setIsBulkDeleting(true);
-        const result = await bulkDeleteChats(selectedUserIds);
+        const result = await bulkDeleteChats(await getIdToken(), selectedUserIds);
         if (result.success) {
             toast({ title: 'Success', description: result.message });
             setSelectedUserIds([]);

@@ -135,6 +135,7 @@ export function MusicLibraryManager() {
                 userEmail: adminUser.email || 'Admin',
             });
             setWatermarkInputValue(uploadedUrl);
+            if (!database) throw new Error('Database unavailable.');
             const wmRef = ref(database, 'settings/app/musicWatermarkUrl');
             await set(wmRef, uploadedUrl);
             toast({ title: 'Watermark Uploaded', description: 'Audio watermark updated and synchronized.' });
@@ -175,8 +176,8 @@ export function MusicLibraryManager() {
             return;
         }
 
-        const effectiveEmail = adminUser?.email || (activeUser as any)?.email || '12labofficial@gmail.com';
-        const effectiveUid = adminUser?.uid || activeUid || (activeUser as any)?.uid || 'admin_master_node';
+        const effectiveEmail = adminUser?.email || '12labofficial@gmail.com';
+        const effectiveUid = adminUser?.uid || 'admin_master_node';
 
         setIsSubmitting(true);
         setUploadProgressPct(0);

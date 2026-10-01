@@ -67,6 +67,7 @@ import { BroadcastNotification } from '@/components/admin/broadcast-notification
 import { PricingSettingsManager } from '@/components/admin/pricing-settings-manager';
 import { QuotesManager } from '@/components/admin/quotes-manager';
 
+import { getIdToken } from '@/lib/id-token';
 function LiveUsers() {
     const { database } = initializeFirebase();
     const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
@@ -207,7 +208,7 @@ function DailyFreeScriptLimitSettings() {
             const numLimit = Math.max(1, Number(limit) || 40);
             const numCount = Math.max(0, Number(todayCount) || 0);
 
-            const result = await saveDailyFreeScriptLimitAction({
+            const result = await saveDailyFreeScriptLimitAction(await getIdToken(), {
                 limit: numLimit,
                 todayCount: numCount,
                 today,
@@ -302,7 +303,7 @@ function HqBackendSettings() {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const res = await saveHqBackendUrlAction(url);
+            const res = await saveHqBackendUrlAction(await getIdToken(), url);
             if (res.success) {
                 toast({ title: 'HQ Backend Updated', description: 'The core script analysis and generation URL has been updated.' });
             } else {
@@ -366,7 +367,7 @@ function EditingHfBackendSettings() {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const res = await saveEditingHfBackendAction({ url, enabled });
+            const res = await saveEditingHfBackendAction(await getIdToken(), { url, enabled });
             if (res.success) {
                 toast({ title: 'Editing HF Backend Synchronized', description: 'Dialogue voice editing requests will route to this URL.' });
             } else {
@@ -445,7 +446,7 @@ function AiDialogueFixSettings() {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const res = await saveAiDialogueExpandCostAction(cost);
+            const res = await saveAiDialogueExpandCostAction(await getIdToken(), cost);
             if (res.success) {
                 toast({ title: 'AI-Fix Cost Updated', description: `Now costs ${cost} credits per expand.` });
             } else {
@@ -510,7 +511,7 @@ function AnalysisExecutionModeSettings() {
         setMode(newMode);
         setIsUpdating(true);
         try {
-            const res = await setAnalysisExecutionModeAction(newMode);
+            const res = await setAnalysisExecutionModeAction(await getIdToken(), newMode);
             if (res.success) {
                 toast({
                     title: newMode === 'server' ? 'Server Engine Mode Active' : 'Vercel Realtime Mode Active',
@@ -591,7 +592,7 @@ export default function AdminPage() {
           // getCountFromServer() silently failed permission checks for
           // admins outside the hardcoded Firestore-rules email list,
           // leaving these cards stuck at 0.
-          const statsRes = await getAdminDashboardStatsAction();
+          const statsRes = await getAdminDashboardStatsAction(await getIdToken());
           if (statsRes.success) {
             uCount = statsRes.totalUsers;
             pCount = statsRes.totalProjects;
@@ -632,7 +633,7 @@ export default function AdminPage() {
 
   const toggleTool = async (id: string, current: boolean) => {
     try {
-      const res = await toggleToolLockAction(id, !current);
+      const res = await toggleToolLockAction(await getIdToken(), id, !current);
       if (res.success) {
         toast({ title: 'Status Updated' });
       } else {
@@ -646,7 +647,7 @@ export default function AdminPage() {
 
   const handleSaveWatermark = async () => {
     try {
-      const res = await saveMusicWatermarkUrlAction(musicWatermark);
+      const res = await saveMusicWatermarkUrlAction(await getIdToken(), musicWatermark);
       if (res.success) {
         toast({ title: 'Watermark Synced' });
       } else {

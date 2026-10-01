@@ -29,6 +29,7 @@ import {
 import { format } from 'date-fns';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 /**
  * Floating live-chat reply bubbles in the hero — up to 3 unread
  * conversations on the left, 3 more on the right, so replying to a
@@ -183,7 +184,7 @@ function AdminChatReplyDialog({ session, onClose }: { session: LiveChatSession |
     setIsSending(true);
     const text = reply.trim();
     try {
-      const result = await sendAdminChatReply(session.userId, session.userEmail, { text });
+      const result = await sendAdminChatReply(await getIdToken(), session.userId, session.userEmail, { text });
       if (!result.success) throw new Error(result.message);
       setReply('');
     } catch (err: any) {
@@ -217,7 +218,7 @@ function AdminChatReplyDialog({ session, onClose }: { session: LiveChatSession |
       toast({ title: 'Message Deleted' });
     } catch (err: any) {
       reportClientError('src/components/admin/admin-chat-dock.tsx:handleDeleteMessage', err);
-      const result = await deleteSingleChatMessage(session.userId, messageId);
+      const result = await deleteSingleChatMessage(await getIdToken(), session.userId, messageId);
       if (result.success) {
         toast({ title: 'Message Deleted' });
       } else {

@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import type { UserProfile, CreditHistoryEntry, Notification } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
@@ -12,7 +14,9 @@ interface UserLookupResult {
     notifications: Notification[];
 }
 
-export async function findUserAndDataByEmail(email: string): Promise<{ success: boolean; data?: UserLookupResult; message: string }> {
+export async function findUserAndDataByEmail(idToken: string, email: string): Promise<{ success: boolean; data?: UserLookupResult; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     if (!email) {
         return { success: false, message: 'Email is required.' };
     }
@@ -60,11 +64,13 @@ export async function findUserAndDataByEmail(email: string): Promise<{ success: 
     }
 }
 
-export async function updateUserHistory(
+export async function updateUserHistory(idToken: string, 
     userId: string,
     type: 'credit' | 'notification',
     entries: any[]
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     if (!userId) return { success: false, message: 'User ID is required.' };
     
     const { firestore, database } = initializeFirebase();

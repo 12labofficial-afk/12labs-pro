@@ -94,6 +94,7 @@ import { reportClientError } from '@/lib/report-client-error';
 import { voices } from '@/lib/voices';
 import { UserReachOutDialog } from '@/components/admin/user-reach-out-dialog';
 
+import { getIdToken } from '@/lib/id-token';
 interface ConfirmActionState {
     type: 'role' | 'seller' | 'sponsor' | 'ban' | 'suspend' | 'reactivate' | 'cancel_sub';
     title: string;
@@ -691,7 +692,7 @@ function UserUnifiedViewDialog({
 
     const handleUpdateHistory = async (type: 'credit' | 'notification', updatedEntries: any[]) => {
         setIsUpdating(true);
-        const result = await updateUserHistory(user.uid, type, updatedEntries);
+        const result = await updateUserHistory(await getIdToken(), user.uid, type, updatedEntries);
         if (result.success) {
             if (type === 'credit') setCreditHistory(updatedEntries);
             else setNotifications(updatedEntries);
@@ -705,10 +706,10 @@ function UserUnifiedViewDialog({
     const handleSyncFinancials = async () => {
         setIsReconstructing(true);
         try {
-            const res = await recalculateUserFinancials(user.uid);
+            const res = await recalculateUserFinancials(await getIdToken(), user.uid);
             if (res.success) {
                 toast({ title: 'Financials Recalculated' });
-                const updated = await getUserProfileFromServer(user.uid);
+                const updated = await getUserProfileFromServer(await getIdToken(), user.uid);
                 if (updated) onProfileUpdate(updated);
             } else throw new Error(res.error);
         } catch (e: any) {
@@ -934,7 +935,7 @@ function UserUnifiedViewDialog({
     const handleRevertSingleDuplicate = async (entry: CreditHistoryEntry) => {
         setIsUpdating(true);
         try {
-            const res = await fixUserDuplicateGrants(
+            const res = await fixUserDuplicateGrants(await getIdToken(), 
                 user.uid,
                 [{ id: (entry as any).id, timestamp: entry.timestamp, reason: entry.reason, amount: entry.amount }],
                 entry.amount
@@ -942,7 +943,7 @@ function UserUnifiedViewDialog({
             if (res.success) {
                 toast({ title: 'Duplicate Reverted', description: `Reverted ${entry.amount.toLocaleString()} credits.` });
                 await fetchData();
-                const updated = await getUserProfileFromServer(user.uid);
+                const updated = await getUserProfileFromServer(await getIdToken(), user.uid);
                 if (updated) onProfileUpdate(updated);
             } else {
                 toast({ variant: 'destructive', title: 'Revert Failed', description: res.message });
@@ -1761,7 +1762,7 @@ export function UserManagement() {
       if (!searchQuery.trim()) return;
       setIsSearching(true);
       setActiveConsistencyUsers(null);
-      const result = await searchAuthUsers(searchQuery);
+      const result = await searchAuthUsers(await getIdToken(), searchQuery);
       if (result.success && result.users) setSearchResults(result.users);
       setIsSearching(false);
   };
@@ -1770,7 +1771,7 @@ export function UserManagement() {
       setIsFilteringConsistency(true);
       setSearchResults(null);
       try {
-          const res = await getActiveConsistencyPlanUsers();
+          const res = await getActiveConsistencyPlanUsers(await getIdToken());
           if (res.success && res.users) {
               setActiveConsistencyUsers(res.users);
               res.users.forEach(u => {
@@ -1794,7 +1795,7 @@ export function UserManagement() {
   const fetchProfile = useCallback(async (uid: string) => {
     if (firestoreProfiles[uid] && firestoreProfiles[uid] !== 'loading') return firestoreProfiles[uid] as UserProfile;
     setFirestoreProfiles(prev => ({ ...prev, [uid]: 'loading' }));
-    const fetchedProfile = await getUserProfileFromServer(uid);
+    const fetchedProfile = await getUserProfileFromServer(await getIdToken(), uid);
     setFirestoreProfiles(prev => ({ ...prev, [uid]: fetchedProfile }));
     return fetchedProfile;
   }, [firestoreProfiles]);
@@ -1815,7 +1816,7 @@ export function UserManagement() {
         const result = await adjustUserCredits(idToken, selectedProfile.uid, selectedProfile.credits, finalBalance, currentUser.email, creditReason);
         if (result.success) {
             toast({ title: 'Credits Synchronized' });
-            const updated = await getUserProfileFromServer(selectedProfile.uid);
+            const updated = await getUserProfileFromServer(await getIdToken(), selectedProfile.uid);
             setFirestoreProfiles(prev => ({ ...prev, [selectedProfile.uid]: updated }));
             setShowCreditDialog(false);
         } else throw new Error(result.error);

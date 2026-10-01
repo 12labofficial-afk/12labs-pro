@@ -485,7 +485,7 @@ function HistoryScriptCard({
                 setIsFetching(true);
                 try {
                     // Use standardized download proxy with 'url' parameter
-                    const fetchUrl = `/api/download?url=${encodeURIComponent(item.scriptUrl)}`;
+                    const fetchUrl = `/api/download?url=${encodeURIComponent(item.scriptUrl || '')}`;
 
                     const res = await fetch(fetchUrl, { cache: 'no-store' });
                     if (res.ok) {

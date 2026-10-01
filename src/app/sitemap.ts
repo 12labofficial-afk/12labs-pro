@@ -49,7 +49,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       firestore.collection('sellers').where('onboarded', '==', true).limit(5000).get(),
     ]);
 
-    const productRoutes: MetadataRoute.Sitemap = productsSnap.docs.map((doc) => {
+    const productRoutes: MetadataRoute.Sitemap = productsSnap.docs.map((doc: any) => {
       const data = doc.data() as { createdAt?: string };
       return {
         url: `${baseUrl}/store/${doc.id}`,
@@ -59,7 +59,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       };
     });
 
-    const sellerRoutes: MetadataRoute.Sitemap = sellersSnap.docs.map((doc) => {
+    const sellerRoutes: MetadataRoute.Sitemap = sellersSnap.docs.map((doc: any) => {
       const data = doc.data() as { createdAt?: string };
       return {
         url: `${baseUrl}/seller/${doc.id}`,

@@ -1,6 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { completeProjectAction } from '@/app/admin/pending/actions';
+import crypto from 'crypto';
+import { completeProject } from '@/lib/complete-project';
 import { reportServerError } from '@/lib/report-error';
 
 /**
@@ -13,7 +14,22 @@ import { reportServerError } from '@/lib/report-error';
 
 export const dynamic = 'force-dynamic';
 
+// This marks any user's project complete with a caller-supplied audio URL,
+// so it was effectively public write access. Now requires the shared secret
+// in HQ_FINALIZE_SECRET (header: x-hq-secret); disabled until it's set.
+function hasValidSecret(request: NextRequest): boolean {
+    const expected = process.env.HQ_FINALIZE_SECRET;
+    const got = request.headers.get('x-hq-secret');
+    if (!expected || !got) return false;
+    const a = Buffer.from(expected, 'utf8');
+    const b = Buffer.from(got, 'utf8');
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 export async function POST(request: NextRequest) {
+    if (!hasValidSecret(request)) {
+        return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 });
+    }
     try {
         const userAgent = request.headers.get('user-agent') || 'Unknown';
         
@@ -33,7 +49,7 @@ export async function POST(request: NextRequest) {
          * 🏁 PRODUCTION FINALIZATION
          * Note: syncData is already saved directly by the bridge to Firestore.
          */
-        const result = await completeProjectAction(
+        const result = await completeProject(
             projectId,
             userId,
             projectName || "HQ Voiceover",
