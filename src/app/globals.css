@@ -230,6 +230,10 @@
 :root {
   --status-bar-color: #ffffff; /* matches theme_color in layout.tsx / manifest.ts */
 }
+.dark {
+  /* Same as the dark body background / theme-color (dynamic-theme-provider). */
+  --status-bar-color: #14161b;
+}
 
 .status-bar-spacer {
   position: fixed;
@@ -275,4 +279,11 @@ header.site-header {
 
 .impersonation-bar {
   top: env(safe-area-inset-top, 0px) !important;
+}
+
+/* iOS-like feel: no grey/blue tap flash on Android/iOS, crisper text. */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

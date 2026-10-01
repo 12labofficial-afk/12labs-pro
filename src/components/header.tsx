@@ -175,7 +175,7 @@ export function Header() {
   // blur plus a more opaque background reads almost identically but is
   // far cheaper to keep recomputing every frame.
   return (
-    <header className="site-header sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
+    <header className="site-header sticky top-0 z-50 w-full border-b border-border/60 bg-background/95 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl backdrop-saturate-150">
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-1.5 sm:gap-4">
           {!isLoading && user && (
