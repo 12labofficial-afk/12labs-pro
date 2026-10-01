@@ -206,6 +206,8 @@ export default function VoiceCloningPage() {
     const trimmerAudioRef = useRef<HTMLAudioElement | null>(null);
 
     const [isLoading, setIsLoading] = useState(false);
+
+    const [statusNote, setStatusNote] = useState<string | null>(null);
     const [generationStartTime, setGenerationStartTime] = useState<number | null>(null);
     const [showResetButton, setShowResetButton] = useState(false);
     const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -307,6 +309,9 @@ export default function VoiceCloningPage() {
 
             const job = snapshot.val()?.[jobId];
             if (!job) return; // not ours, or already cleaned up server-side
+
+            // Worker is backing off on HF rate limits — tell the user it's still alive.
+            setStatusNote(job.status === 'completed' || job.status === 'error' ? null : (job.statusNote || null));
 
             if (job.status === 'completed' && job.audioUrl) {
                 pendingJobId.current = null;
@@ -924,7 +929,7 @@ export default function VoiceCloningPage() {
                                 </div>
                             )}
                             <Button onClick={handleGeneration} disabled={isLoading || !text.trim() || !referenceAudio || isOverLimit || insufficientCredits || !hasCloningConsent} className="w-full h-16 text-lg font-black rounded-2xl shadow-xl shadow-primary/30 btn-shine uppercase transition-all active:scale-95 flex flex-col gap-0.5 leading-tight">
-                                {isLoading ? <span className="flex items-center gap-2"><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCHRONIZING...</span> : (<><span className="flex items-center gap-2"><Wand2 className="h-6 w-6 fill-current" /> COMMENCE CLONING</span><span className="text-[10px] opacity-60 font-black tracking-widest flex items-center gap-1 uppercase"><Coins className="h-3 w-3" /> {cost.toLocaleString()} CREDITS</span></>)}
+                                {isLoading ? <span className="flex items-center gap-2"><Loader2 className="mr-3 h-6 w-6 animate-spin" /> {statusNote ? statusNote.toUpperCase() : 'SYNCHRONIZING...'}</span> : (<><span className="flex items-center gap-2"><Wand2 className="h-6 w-6 fill-current" /> COMMENCE CLONING</span><span className="text-[10px] opacity-60 font-black tracking-widest flex items-center gap-1 uppercase"><Coins className="h-3 w-3" /> {cost.toLocaleString()} CREDITS</span></>)}
                             </Button>
                             {showResetButton && isLoading && (
                                 <Button onClick={handleResetGeneration} variant="destructive" className="w-full h-12 text-sm font-black rounded-2xl shadow-lg uppercase transition-all active:scale-95 flex items-center justify-center gap-2 animate-in fade-in slide-in-from-bottom-4">
