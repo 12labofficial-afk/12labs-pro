@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Store, MoreVertical, Trash2, ShoppingCart, Gem, Play, Video, Clock, Eye, ChevronDown, ChevronUp, Package, Sparkles, X, Share2, Edit, CheckCircle } from 'lucide-react';
+import { Store, MoreVertical, Trash2, ShoppingCart, Gem, Play, Video, Clock, Eye, ChevronDown, ChevronUp, Package, Sparkles, X, Share2, Edit, CheckCircle, Search, Flame } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { initializeFirebase } from '@/firebase';
@@ -32,6 +32,7 @@ import { reportClientError } from '@/lib/report-client-error';
 import { getIdToken } from '@/lib/id-token';
 import { rankStoreProducts, buildCategoryAffinity } from '@/lib/store-ranking';
 import { getMyFollowedSellerIds } from '@/app/seller/actions';
+import { StoreDiscovery, CATEGORY_LABELS, trendingIds } from '@/components/store/store-discovery';
 /**
  * Optimized Product Overlay Component for Zero-Lag Interaction
  */
@@ -200,12 +201,14 @@ function ProductCard({
     isPurchasedByMe,
     globalDiscount = 0,
     onSelect,
-    onAdminAction 
+    onAdminAction,
+    isTrending = false
 }: { 
     product: StoreProduct, 
     seller?: SellerProfile, 
     isPurchasedByMe?: boolean,
     globalDiscount?: number,
+    isTrending?: boolean,
     onSelect: (id: string) => void,
     onAdminAction: () => void 
 }) {
@@ -278,6 +281,7 @@ function ProductCard({
     };
 
     const isStory = product.productType === 'YouTube Story';
+    const isNewListing = !!product.createdAt && Date.now() - new Date(product.createdAt as any).getTime() < 2 * 24 * 60 * 60 * 1000;
 
     return (
         <div className="flex flex-col w-full bg-background mb-8 group animate-in fade-in duration-500">
@@ -286,6 +290,13 @@ function ProductCard({
                 className="relative block w-full aspect-video overflow-hidden bg-muted/30 cursor-pointer rounded-[2rem] border-primary/5 shadow-sm group-hover:shadow-xl transition-all duration-500"
             >
                 <img src={displayImageUrl || 'https://res.cloudinary.com/dptryoeis/image/upload/v1772590885/c10h0lknqblj7kfxp5qr.png'} alt={product.title} className="w-full h-full object-contain disable-long-press-download transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+                {!isSold && !isOwner && (isNewListing || isTrending || discountPercentage > 0) && (
+                    <div className="absolute left-3 top-3 z-20 flex flex-wrap gap-1">
+                        {isNewListing && <span className="rounded-md bg-emerald-500 px-1.5 py-0.5 text-[10px] font-black uppercase text-white shadow">New</span>}
+                        {isTrending && <span className="flex items-center gap-0.5 rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] font-black uppercase text-white shadow"><Flame className="h-3 w-3" />Trending</span>}
+                        {discountPercentage > 0 && <span className="rounded-md bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white shadow">{discountPercentage}% OFF</span>}
+                    </div>
+                )}
                 {isStory && (
                     <div className="absolute inset-0 bg-black/10 flex items-center justify-center transition-opacity pointer-events-none z-10">
                         <div className="p-4 bg-white/20 backdrop-blur-xl rounded-full border border-white/40 shadow-2xl scale-100 group-hover:scale-110 transition-transform duration-500">
@@ -566,8 +577,7 @@ export default function StoreHomePage() {
     setActiveSeller(null);
   };
 
-  const filteredProducts = useMemo(() => { 
-    const isAdmin = user?.role === 'admin';
+  const rankedAll = useMemo(() => {
 
     // ONLY show fresh, available, unsold products in the store
     const visibleProducts = products.filter(product => {
@@ -587,20 +597,56 @@ export default function StoreHomePage() {
     const purchasedTypes = products
       .filter(p => purchasedProductIds.has(p.id))
       .map(p => p.productType as string);
+    const affinity = buildCategoryAffinity(purchasedTypes);
     const ranked = rankStoreProducts(visibleProducts, {
       sellers,
       followedSellerIds,
-      categoryAffinity: buildCategoryAffinity(purchasedTypes),
+      categoryAffinity: affinity,
       viewerKey: user?.uid || 'anon',
     });
-    if (selectedType === 'All') return ranked;
-    return ranked.filter(product => product.productType === selectedType);
-  }, [products, selectedType, user, purchasedProductIds, sellers, followedSellerIds]);
+    const topCategory = Object.entries(affinity).sort((a, b) => b[1] - a[1])[0]?.[0];
+    return { ranked, topCategory };
+  }, [products, user, purchasedProductIds, sellers, followedSellerIds]);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  const showDiscovery = selectedType === 'All' && !trimmedQuery;
+  const trendingSet = useMemo(() => trendingIds(rankedAll.ranked), [rankedAll.ranked]);
+
+  const filteredProducts = useMemo(() => {
+    let list = rankedAll.ranked;
+    if (selectedType !== 'All') list = list.filter(p => p.productType === selectedType);
+    if (trimmedQuery) {
+      list = list.filter(p => {
+        const sellerName = sellers[p.sellerId]?.storeName || p.sellerName || '';
+        return [p.title, sellerName, p.description, CATEGORY_LABELS[p.productType as string] || p.productType]
+          .some(f => String(f || '').toLowerCase().includes(trimmedQuery));
+      });
+    }
+    return list;
+  }, [rankedAll.ranked, selectedType, trimmedQuery, sellers]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
         
         <div className="sticky top-[64px] z-40 bg-background/95 backdrop-blur-md border-b">
+            <div className="px-4 pt-3">
+                <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                        type="search"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search scripts, videos, creators…"
+                        className="h-10 w-full rounded-full border bg-muted/40 pl-9 pr-9 text-sm outline-none transition focus:border-primary/40 focus:bg-background"
+                    />
+                    {searchQuery && (
+                        <button type="button" aria-label="Clear search" onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted">
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+            </div>
             <ScrollArea className="w-full">
                 <div className="flex items-center gap-3 p-3 px-4">
                     {['All', 'YouTube Story', 'Hand Written Script', 'PC Character', 'Premium Background', 'Real Voice'].map((cat) => { 
@@ -627,6 +673,26 @@ export default function StoreHomePage() {
             {isLoading ? (
                 <div className="p-8 space-y-8"><Skeleton className="aspect-video w-full rounded-[2rem]" /></div>
             ) : filteredProducts.length > 0 ? (
+                <>
+                {showDiscovery && (
+                    <>
+                        <StoreDiscovery
+                            ranked={rankedAll.ranked}
+                            sellers={sellers}
+                            globalDiscount={globalDiscount}
+                            followedSellerIds={followedSellerIds}
+                            topCategory={rankedAll.topCategory}
+                            onSelect={handleProductSelect}
+                        />
+                        <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+                            <Gem className="h-4 w-4 text-primary" />
+                            <h2 className="text-base font-black tracking-tight sm:text-lg">Explore more</h2>
+                        </div>
+                    </>
+                )}
+                {trimmedQuery && (
+                    <p className="px-4 pt-4 text-sm text-muted-foreground">{filteredProducts.length} result{filteredProducts.length === 1 ? '' : 's'} for “{searchQuery.trim()}”</p>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-x-4">
                     {filteredProducts.map(p => (
                         <ProductCard 
@@ -637,9 +703,13 @@ export default function StoreHomePage() {
                             globalDiscount={globalDiscount}
                             onSelect={handleProductSelect}
                             onAdminAction={() => setRefreshKey(k => k + 1)}
+                            isTrending={trendingSet.has(p.id)}
                         />
                     ))}
                 </div>
+                </>
+            ) : trimmedQuery ? (
+                <div className="px-4 py-24 text-center text-muted-foreground"><Search className="mx-auto mb-3 h-10 w-10 opacity-40" />No results for “{searchQuery.trim()}”. Try another word.</div>
             ) : (
                 <div className="text-center py-32 opacity-20"><Store className="mx-auto h-20 w-20" /><h3 className="mt-6 text-3xl font-black uppercase">Archives Empty</h3></div>
             )}
