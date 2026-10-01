@@ -7,6 +7,7 @@ import { withCors, corsPreflight } from '@/lib/cors';
 import crypto from 'node:crypto';
 
 import { SERVER_INTERNAL } from '@/lib/auth-guard';
+import { rateLimit, tooManyRequests } from '@/lib/rate-limit';
 /**
  * 🌐 PUBLIC API — POST /api/v1/script
  * ----------------------------------------
@@ -51,6 +52,9 @@ async function handlePOST(request: NextRequest) {
   if (keyRecord.disabled) {
     return NextResponse.json({ error: 'This API key has been disabled. Re-enable it in the Developer dashboard.' }, { status: 403 });
   }
+  if (!(await rateLimit('api-script', keyRecord.keyId, 30, 60))) {
+    return tooManyRequests(60);
+  }
 
   let body: any;
   try {
@@ -71,12 +75,16 @@ async function handlePOST(request: NextRequest) {
 
   let errorMessage: string | undefined;
   let mappingId: string | undefined;
-  let cost = 0;
 
   try {
     const { firestore } = initializeFirebase();
     const userDoc = await firestore.collection('users').doc(keyRecord.userId).get();
     const userEmail = userDoc.exists ? (userDoc.data()?.email || 'N/A') : 'N/A';
+    // Exact price is decided on HF at pickup (daily tier); this just rejects
+    // an empty balance up front, like the website's precheck.
+    if (Number(userDoc.data()?.credits || 0) <= 0) {
+      return NextResponse.json({ error: 'Insufficient credits.', error_code: 'insufficient_credits' }, { status: 402 });
+    }
 
     const res = await deductScriptCreditsAction(
       SERVER_INTERNAL,
@@ -99,7 +107,6 @@ async function handlePOST(request: NextRequest) {
     );
     if (!res.success || !res.mappingId) throw new Error(res.error || 'Script generation failed to start.');
     mappingId = res.mappingId;
-    cost = res.cost || 0;
   } catch (e: any) {
     errorMessage = e?.message || 'Script generation failed.';
     reportServerError('src/app/api/v1/script/route.ts', e);
@@ -113,7 +120,7 @@ async function handlePOST(request: NextRequest) {
     userId: keyRecord.userId,
     username: keyRecord.username,
     apiKeySuffix: maskKeySuffix(apiKey),
-    cost: errorMessage ? 0 : cost,
+    cost: 0, // charged later on HF
     latencyMs,
     status: errorMessage ? 'error' : 'success',
     timestamp: new Date().toISOString(),
@@ -128,7 +135,8 @@ async function handlePOST(request: NextRequest) {
   return NextResponse.json({
     mapping_id: mappingId,
     status: 'processing',
-    estimated_cost: cost,
+    // Charged on HF when the job starts; see credits_charged on the poll URL.
+    estimated_cost: null,
     poll_url: `/api/v1/script/${mappingId}`,
   }, { status: 202 });
 }

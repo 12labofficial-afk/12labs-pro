@@ -16,6 +16,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 // 🔴 FIX: checkAndDeductCloningCredits used to live here — removed
 // entirely, not just moved. It trusted a `cost` number computed and
 // sent BY THE CLIENT outright, with no server-side recomputation at
@@ -50,6 +51,7 @@ const SaveClonedVoiceInputSchema = z.object({
 export async function saveClonedVoiceProjectAction(idToken: string, input: z.infer<typeof SaveClonedVoiceInputSchema>): Promise<{ success: boolean; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, input.userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('clone-save', guard.uid, 20, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     const validation = SaveClonedVoiceInputSchema.safeParse(input);
     if (!validation.success) {
         return { success: false, error: validation.error.flatten().formErrors.join(', ') };
@@ -104,6 +106,7 @@ export async function importVoiceCloneReferenceFromUrlAction(idToken: string, in
 }): Promise<{ success: boolean; pointer?: string; fileName?: string; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, input.userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('clone-import', guard.uid, 10, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     const { userId, url } = input;
     if (!userId || !url?.trim()) return { success: false, error: 'Missing URL.' };
 
@@ -192,6 +195,7 @@ export async function generateVoiceCloningAction(idToken: AuthToken, input: {
 }): Promise<{ success: boolean; audioDataUri?: string; error?: string; usedToken?: string; usedPath?: string }> {
     const guard = await requireUser(idToken);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('clone-gen', guard.uid, 10, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     
     const { text, language, refAudioBase64, userEmail, numStep, guidanceScale, denoise, speed, preprocessPrompt, postprocessOutput } = input;
     const { database } = initializeFirebase();

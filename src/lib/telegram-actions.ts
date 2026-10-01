@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth-guard';
 
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 /**
  * Server action to upload files to the Telegram storage channel.
  * Strictly uses the "cloud-bot" for all storage operations.
@@ -11,6 +12,7 @@ import { reportServerError } from '@/lib/report-error';
 export async function uploadToTelegramAction(idToken: string, formData: FormData): Promise<{ success: boolean; fileId?: string; error?: string }> {
     const guard = await requireUser(idToken);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('upload', guard.uid, 60, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     const file = formData.get('file') as File;
     
     // Explicitly use ONLY the storage bot token

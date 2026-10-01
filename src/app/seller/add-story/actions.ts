@@ -10,6 +10,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 const AddStorySchema = z.object({
   title: z.string().min(5),
   description: z.string().min(20),
@@ -39,6 +40,7 @@ export async function addStoryAction(idToken: string,
 ): Promise<{ success: boolean; message: string; }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, message: guard.message };
+    if (!(await rateLimit('add-listing', guard.uid, 20, 3600))) return { success: false, message: RATE_LIMIT_MESSAGE };
   
   const validation = AddStorySchema.safeParse(input);
   if (!validation.success) {

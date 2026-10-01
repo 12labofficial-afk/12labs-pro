@@ -8,6 +8,7 @@ import { FieldValue, Transaction } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 /**
  * Toggles the follow status between a user and a seller.
  * Atomically updates follower/following counts and relationships in Firestore.
@@ -19,6 +20,7 @@ export async function toggleFollowSeller(idToken: string,
 ): Promise<{ success: boolean; isFollowing: boolean; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, isFollowing: false, error: guard.message };
+    if (!(await rateLimit('follow', guard.uid, 60, 60))) return { success: false, isFollowing: false, error: RATE_LIMIT_MESSAGE };
   if (!userId) {
     return { success: false, isFollowing: false, error: 'User not logged in.' };
   }

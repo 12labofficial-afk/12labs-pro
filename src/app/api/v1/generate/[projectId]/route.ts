@@ -5,6 +5,7 @@ import { getDisplayUrl } from '@/lib/utils';
 import { withCors, corsPreflight } from '@/lib/cors';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, tooManyRequests } from '@/lib/rate-limit';
 /**
  * 🌐 PUBLIC API — GET /api/v1/generate/{projectId}
  * ---------------------------------------------------
@@ -33,6 +34,9 @@ async function handleGET(
   }
   if (keyRecord.disabled) {
     return NextResponse.json({ error: 'This API key has been disabled. Re-enable it in the Developer dashboard.' }, { status: 403 });
+  }
+  if (!(await rateLimit('api-poll', keyRecord.keyId, 120, 60))) {
+    return tooManyRequests(60);
   }
 
   const { projectId } = await params;
@@ -64,6 +68,9 @@ async function handleGET(
       project_name: data.projectName || null,
       audio_url: status === 'completed' && audioUrl ? audioUrl : null,
       error: status === 'error' ? (data.error || 'Generation failed.') : null,
+      error_code: status === 'error' && /insufficient credits/i.test(String(data.error || '')) ? 'insufficient_credits' : null,
+      // Written by the HF worker when it actually charges; null until then.
+      credits_charged: typeof data.creditCost === 'number' ? data.creditCost : null,
     });
   } catch (e: any) {
         reportServerError('src/app/api/v1/generate/[projectId]/route.ts:67', e);

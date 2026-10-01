@@ -4,6 +4,7 @@ import { callHfApi, isValidDeveloperKey, resolveDeveloperKey, logDeveloperApiUsa
 import { reportServerError } from '@/lib/report-error';
 import { withCors, corsPreflight } from '@/lib/cors';
 
+import { rateLimit, tooManyRequests } from '@/lib/rate-limit';
 /**
  * 🌐 PUBLIC API — POST /api/v1/voice
  *
@@ -44,6 +45,9 @@ async function handlePOST(request: NextRequest) {
   }
   if (keyRecord.disabled) {
     return NextResponse.json({ error: 'This API key has been disabled. Re-enable it in the Developer dashboard.' }, { status: 403 });
+  }
+  if (!(await rateLimit('api-voice', keyRecord.keyId, 60, 60))) {
+    return tooManyRequests(60);
   }
 
   let body: any;

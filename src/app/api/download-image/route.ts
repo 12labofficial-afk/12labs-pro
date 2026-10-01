@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { reportServerError } from '@/lib/report-error';
 
 import { safeContentType, SAFE_FILE_HEADERS, isSafeExternalUrl } from '@/lib/safe-content';
+import { memoryLimit, clientIp, tooManyRequests } from '@/lib/rate-limit';
 export async function GET(req: NextRequest) {
+  // Per-instance IP throttle: these proxy media bytes, so no DB write per hit.
+  if (!memoryLimit(`dl-img:${clientIp(req.headers)}`, 120, 60)) return tooManyRequests(60);
   const { searchParams } = new URL(req.url);
   const imageUrl = searchParams.get('url');
   const customFilename = searchParams.get('filename') || `12labs_thumbnail_${Date.now()}.png`;

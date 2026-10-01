@@ -9,6 +9,7 @@ import { getISTDateString, escapeHtml } from '@/lib/utils';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 const SubmitThumbnailRequestSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
   userEmail: z.string().optional(),
@@ -37,6 +38,7 @@ export async function submitThumbnailRequestAction(idToken: string,
 ): Promise<{ success: boolean; cost?: number; newCredits?: number; mappingId?: string; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, input.userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('thumb-submit', guard.uid, 20, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
   const validation = SubmitThumbnailRequestSchema.safeParse(input);
   if (!validation.success) {
     return { success: false, error: validation.error.flatten().formErrors.join(', ') };

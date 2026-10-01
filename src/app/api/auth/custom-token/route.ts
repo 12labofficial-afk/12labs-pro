@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase/server';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, tooManyRequests, clientIp } from '@/lib/rate-limit';
+import { resolveDeveloperKey } from '@/lib/hf-proxy';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch((e: any) => { reportServerError('src/app/api/auth/custom-token/route.ts:7', e); return ({}); });
@@ -19,30 +21,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let targetUid = uid;
+    // The token is minted ONLY for the identity the caller proves: a valid
+    // Firebase ID token, or an existing enabled API key (its owner). A uid in
+    // the body used to be accepted as-is (and also when the ID token failed
+    // to verify), which let anyone mint a sign-in token for any account.
+    let targetUid: string | null = null;
 
-    // Verify Bearer ID token or X-API-Key if provided
+    if (!(await rateLimit('custom-token', clientIp(request.headers), 20, 60))) {
+      return tooManyRequests(60);
+    }
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const idToken = authHeader.split('Bearer ')[1];
+      const idToken = authHeader.slice('Bearer '.length);
       try {
         const decodedToken = await auth.verifyIdToken(idToken);
         targetUid = decodedToken.uid;
       } catch (err: any) {
-        reportServerError('src/app/api/auth/custom-token/route.ts:29', err);
-        console.warn('ID Token verification failed in custom-token route:', err.message);
+        return NextResponse.json({ success: false, error: 'Invalid or expired ID token.' }, { status: 401 });
       }
-    } else if (xApiKey && database) {
-      const snapshot = await database.ref(`api_keys/${xApiKey}`).once('value');
-      const keyData = snapshot.val();
-      if (keyData && keyData.uid) {
-        targetUid = keyData.uid;
+    } else if (xApiKey) {
+      const keyRecord = await resolveDeveloperKey(xApiKey);
+      if (!keyRecord.exists || keyRecord.disabled || !keyRecord.userId) {
+        return NextResponse.json({ success: false, error: 'Invalid or disabled API key.' }, { status: 401 });
       }
+      targetUid = keyRecord.userId;
+    }
+
+    if (uid && targetUid && uid !== targetUid) {
+      return NextResponse.json({ success: false, error: 'uid does not match the authenticated caller.' }, { status: 403 });
     }
 
     if (!targetUid) {
       return NextResponse.json(
-        { success: false, error: 'User ID (uid) or valid authentication is required to generate a custom token.' },
-        { status: 400 }
+        { success: false, error: 'A valid Bearer ID token or x-api-key is required.' },
+        { status: 401 }
       );
     }
 

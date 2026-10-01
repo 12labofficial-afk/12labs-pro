@@ -5,6 +5,7 @@ import { r2Client, R2_BUCKET } from '@/lib/r2';
 import { reportServerError } from '@/lib/report-error';
 
 import { safeContentType, SAFE_FILE_HEADERS, isSafeExternalUrl } from '@/lib/safe-content';
+import { memoryLimit, clientIp, tooManyRequests } from '@/lib/rate-limit';
 /**
  * 🔒 CLOUDFLARE R2 SECURE STORAGE PROXY
  * ----------------------------------------------------
@@ -14,6 +15,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
+  // Per-instance IP throttle: these proxy media bytes, so no DB write per hit.
+  if (!memoryLimit(`storage:${clientIp(request.headers)}`, 600, 60)) return tooManyRequests(60);
   const { path } = await params;
   
   if (!path || path.length === 0) {

@@ -16,6 +16,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { logSummaryEvent } from '@/lib/summary-logger';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 const SearchSoundEffectsInputSchema = z.object({
   query: z.string().describe('The search term for the sound effect.'),
   userEmail: z.string().describe('The email of the user searching.'),
@@ -48,6 +49,7 @@ export type SearchSoundEffectsOutput = z.infer<typeof SearchSoundEffectsOutputSc
 export async function searchSoundEffects(idToken: string, input: SearchSoundEffectsInput): Promise<SearchSoundEffectsOutput> {
     const guard = await requireUser(idToken);
     if (!guard.ok) throw new Error(guard.message);
+    if (!(await rateLimit('sfx-search', guard.uid, 20, 60))) throw new Error(RATE_LIMIT_MESSAGE);
     try {
         return await searchSoundEffectsFlow(input);
     } catch (error: any) {

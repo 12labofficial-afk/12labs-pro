@@ -4,7 +4,10 @@ import { r2Client, R2_BUCKET, R2_PUBLIC_URL } from "@/lib/r2";
 import { reportServerError } from '@/lib/report-error';
 
 import { safeContentType, SAFE_FILE_HEADERS, isSafeExternalUrl } from '@/lib/safe-content';
+import { memoryLimit, clientIp, tooManyRequests } from '@/lib/rate-limit';
 export async function GET(req: NextRequest) {
+  // Per-instance IP throttle: these proxy media bytes, so no DB write per hit.
+  if (!memoryLimit(`dl:${clientIp(req.headers)}`, 120, 60)) return tooManyRequests(60);
   const { searchParams } = new URL(req.url);
   const rawUrl = searchParams.get("url");
   const filename = searchParams.get("filename") || "12labs_audio.mp3";

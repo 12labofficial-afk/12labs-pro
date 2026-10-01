@@ -361,7 +361,7 @@ export default function ApiDocsPage() {
             <div>
               <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2">Response</h4>
               <div className="bg-muted p-3 rounded-md font-mono text-xs overflow-x-auto">
-                <pre>{`{ "project_id": "HQ_...", "status": "completed", "audio_url": "https://...", "error": null }`}</pre>
+                <pre>{`{ "project_id": "HQ_...", "status": "completed", "audio_url": "https://...", "error": null, "error_code": null, "credits_charged": 42 }`}</pre>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 <code className="bg-muted px-1 py-0.5 rounded">status</code> moves through <code className="bg-muted px-1 py-0.5 rounded">in_queue</code> → <code className="bg-muted px-1 py-0.5 rounded">processing</code> → <code className="bg-muted px-1 py-0.5 rounded">completed</code> (or <code className="bg-muted px-1 py-0.5 rounded">error</code>).
@@ -421,7 +421,7 @@ export default function ApiDocsPage() {
             <div>
               <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2">Response</h4>
               <div className="bg-muted p-3 rounded-md font-mono text-xs overflow-x-auto">
-                <pre>{`{ "mapping_id": "STORY_...", "status": "processing", "estimated_cost": 500, "poll_url": "/api/v1/script/STORY_..." }`}</pre>
+                <pre>{`{ "mapping_id": "STORY_...", "status": "processing", "estimated_cost": null, "poll_url": "/api/v1/script/STORY_..." }`}</pre>
               </div>
             </div>
           </CardContent>
@@ -445,7 +445,7 @@ export default function ApiDocsPage() {
             <div>
               <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2">Response</h4>
               <div className="bg-muted p-3 rounded-md font-mono text-xs overflow-x-auto">
-                <pre>{`{ "mapping_id": "STORY_...", "status": "completed", "script_url": "https://...script.txt", "teaser": "...", "error": null }`}</pre>
+                <pre>{`{ "mapping_id": "STORY_...", "status": "completed", "script_url": "https://...script.txt", "teaser": "...", "error": null, "error_code": null, "credits_charged": 500 }`}</pre>
               </div>
             </div>
           </CardContent>

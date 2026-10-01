@@ -23,6 +23,7 @@ import { reportServerError } from '@/lib/report-error';
 import { getEngineRate } from '@/lib/pricing';
 import { refundCreditsWithHistory } from '@/lib/credit-refund';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 async function toWav(
   pcmData: Buffer,
   channels = 1,
@@ -47,6 +48,7 @@ async function toWav(
 export async function generateTtsAudioAction(idToken: string, text: string, voiceId: string, userEmail?: string, workerId?: number, character?: string, lineId?: string): Promise<{ success: boolean; audioDataUri?: string; usedBridge?: boolean; keyName?: string; error?: string }> {
     const guard = await requireUser(idToken);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('tts', guard.uid, 200, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     try {
         const { database } = initializeFirebase();
         const editingSettingsSnap = await database.ref('settings/editingHfBackend').get();
@@ -108,6 +110,7 @@ export async function completeFastGenerationAction(idToken: string,
 ): Promise<{ success: boolean; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('fastgen-save', guard.uid, 30, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     const { firestore } = initializeFirebase();
     try {
         const multiplier = await getEngineRate('gemini');
@@ -162,6 +165,7 @@ export async function deductFastGenCreditsAction(idToken: string,
 ): Promise<{ success: boolean; newCredits?: number; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('fastgen', guard.uid, 30, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     const { firestore, database } = initializeFirebase();
     const userRef = firestore.collection('users').doc(userId);
     
@@ -254,6 +258,7 @@ export async function processHighQualityGenerationAndDeductCredits(idToken: Auth
 ): Promise<{ success: boolean; newCredits?: number; projectId?: string; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('hq-submit', guard.uid, 20, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     // 🔴 FIX: a submission with an empty (or missing) dialogues array used
     // to sail straight through — a Firestore project doc created and a job
     // queued with total_dialogues: 0. Nothing exists for the worker to
@@ -357,6 +362,7 @@ export async function processHighQualityGenerationAndDeductCredits(idToken: Auth
 export async function regenerateLineWithCreditsAction(idToken: string, userId: string, text: string, voiceId: string): Promise<{ success: boolean; audioDataUri?: string; error?: string; newCredits?: number }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('tts-regen', guard.uid, 30, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     const { firestore, database } = initializeFirebase();
     const userRef = firestore.collection('users').doc(userId);
     const cost = Math.ceil(text.length * await getEngineRate('gemini'));
@@ -443,6 +449,7 @@ export async function createCharacterVoiceReplacementJobAction(idToken: string, 
 }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('voice-swap', guard.uid, 20, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     const { firestore, database } = initializeFirebase();
     const userRef = firestore.collection('users').doc(userId);
     let cost = 0;

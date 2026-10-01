@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 /**
  * 💰 SCRIPT HUB INITIALIZER (pure submission)
  *
@@ -51,6 +52,7 @@ export async function deductScriptCreditsAction(idToken: AuthToken,
 ): Promise<{ success: boolean; cost?: number; newCredits?: number; mappingId?: string; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('script-submit', guard.uid, 20, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     const { firestore, database } = initializeFirebase();
     const today = getISTDateString();
 

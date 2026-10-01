@@ -10,6 +10,7 @@ import { reportServerError } from '@/lib/report-error';
 import { deleteProductAction } from '@/app/seller/products/actions';
 import { hashEmailForAbuseCheck } from '@/lib/email-hash';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 export interface AccountSummary {
     projectCount: number;
     purchaseCount: number;
@@ -85,6 +86,7 @@ export async function deleteMyAccountAction(idToken: string,
 ): Promise<{ success: boolean; message: string }> {
     const guard = await requireSelfOrAdmin(idToken, uid);
     if (!guard.ok) return { success: false, message: guard.message };
+    if (!(await rateLimit('delete-account', guard.uid, 3, 3600))) return { success: false, message: RATE_LIMIT_MESSAGE };
     if (!uid) return { success: false, message: 'Missing user ID.' };
 
     const { firestore, database, auth } = initializeFirebase();

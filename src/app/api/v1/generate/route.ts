@@ -10,6 +10,7 @@ import { reportServerError } from '@/lib/report-error';
 import { withCors, corsPreflight } from '@/lib/cors';
 
 import { SERVER_INTERNAL } from '@/lib/auth-guard';
+import { rateLimit, tooManyRequests } from '@/lib/rate-limit';
 /**
  * 🌐 PUBLIC API — POST /api/v1/generate
  * -----------------------------------------
@@ -107,6 +108,9 @@ async function handlePOST(request: NextRequest) {
   if (keyRecord.disabled) {
     return NextResponse.json({ error: 'This API key has been disabled. Re-enable it in the Developer dashboard.' }, { status: 403 });
   }
+  if (!(await rateLimit('api-generate', keyRecord.keyId, 30, 60))) {
+    return tooManyRequests(60);
+  }
 
   let body: any;
   try {
@@ -133,6 +137,17 @@ async function handlePOST(request: NextRequest) {
   let errorMessage: string | undefined;
   let projectId: string | undefined;
   let estimatedCost = 0;
+
+  // Read-only balance check, same as the website's "Not enough credits"
+  // precheck. The real charge happens on HF when the job is picked up; this
+  // just stops a zero-balance key from burning a Gemini analysis call and
+  // queueing a job HF would reject anyway.
+  const { firestore: precheckDb } = initializeFirebase();
+  const precheckDoc = await precheckDb.collection('users').doc(keyRecord.userId).get();
+  const availableCredits = Number(precheckDoc.data()?.credits || 0);
+  if (availableCredits <= 0) {
+    return NextResponse.json({ error: 'Insufficient credits.', error_code: 'insufficient_credits', available: availableCredits }, { status: 402 });
+  }
 
   try {
     // --- 1. Analyze ---
@@ -177,6 +192,9 @@ async function handlePOST(request: NextRequest) {
     const totalChars = lines.reduce((sum: number, l: any) => sum + String(l.text || l.dialogue || '').length, 0);
     const rate = await getEngineRate(engine);
     estimatedCost = Math.ceil(totalChars * rate);
+    if (availableCredits < estimatedCost) {
+      return NextResponse.json({ error: 'Insufficient credits.', error_code: 'insufficient_credits', required: estimatedCost, available: availableCredits }, { status: 402 });
+    }
 
     // --- 4. Submit to the exact same pipeline the website uses ---
     const res = await processHighQualityGenerationAndDeductCredits(

@@ -9,6 +9,7 @@ import { reportServerError } from '@/lib/report-error';
 import { refundCreditsWithHistory } from '@/lib/credit-refund';
 import { MIN_DIALOGUE_WORDS, isDialogueTooShort } from '@/lib/dialogue-validation';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 const DEFAULT_AI_FIX_COST = 50;
 
 /**
@@ -28,6 +29,7 @@ export async function expandDialogueWithAiAction(idToken: string,
 ): Promise<{ success: boolean; expandedText?: string; newCredits?: number; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('ai-fix', guard.uid, 20, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     if (!userId) return { success: false, error: 'User ID required.' };
     if (!dialogueText.trim()) return { success: false, error: 'Empty dialogue line.' };
 

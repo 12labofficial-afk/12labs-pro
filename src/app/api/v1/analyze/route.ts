@@ -5,6 +5,7 @@ import { analyzeScriptStudio } from '@/ai/flows/analyze-script-studio';
 import { reportServerError } from '@/lib/report-error';
 import { withCors, corsPreflight } from '@/lib/cors';
 
+import { rateLimit, tooManyRequests } from '@/lib/rate-limit';
 /**
  * 🌐 PUBLIC API — POST /api/v1/analyze
  * ---------------------------------------
@@ -36,6 +37,9 @@ async function handlePOST(request: NextRequest) {
   }
   if (keyRecord.disabled) {
     return NextResponse.json({ error: 'This API key has been disabled. Re-enable it in the Developer dashboard.' }, { status: 403 });
+  }
+  if (!(await rateLimit('api-analyze', keyRecord.keyId, 30, 60))) {
+    return tooManyRequests(60);
   }
 
   let body: any;

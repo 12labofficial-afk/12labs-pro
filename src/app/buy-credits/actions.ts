@@ -13,6 +13,7 @@ import { handleCreditPurchase } from '@/lib/credit-purchase';
 import { escapeHtml } from '@/lib/utils';
 import { requireUser, requireSelfOrAdmin } from '@/lib/auth-guard';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 interface RazorpayOrderOutput {
   id: string;
   amount: number;
@@ -126,6 +127,7 @@ export async function handlePurchaseAction(idToken: string,
 ): Promise<{ success: true; order?: RazorpayOrderOutput; free_purchase?: boolean } | { success: false; error: string }> {
     const guard = await requireSelfOrAdmin(idToken, user.uid);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('order', guard.uid, 15, 600))) return { success: false, error: RATE_LIMIT_MESSAGE };
   
   // 🛡️ IDENTITY SYNC CHECK
   if (!user || !user.uid || !user.email) {
@@ -299,6 +301,7 @@ export async function handleCustomTopupAction(idToken: string,
 ): Promise<{ success: true; order?: RazorpayOrderOutput; breakdown: { baseCredits: number; giftCredits: number; giftPercent: number; totalCredits: number } } | { success: false; error: string }> {
     const guard = await requireSelfOrAdmin(idToken, user.uid);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('order', guard.uid, 15, 600))) return { success: false, error: RATE_LIMIT_MESSAGE };
 
     if (!user || !user.uid || !user.email) {
         return { success: false, error: 'Identity node missing. Please sign in again.' };

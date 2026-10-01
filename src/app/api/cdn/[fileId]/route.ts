@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { reportServerError } from '@/lib/report-error';
 
 import { safeContentType, SAFE_FILE_HEADERS, isSafeExternalUrl } from '@/lib/safe-content';
+import { memoryLimit, clientIp, tooManyRequests } from '@/lib/rate-limit';
 /**
  * Secure Cloud Storage Proxy
  * Strictly uses the 'cloud-bot' token for fetching assets.
@@ -10,6 +11,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ fileId: string }> }
 ) {
+  // Per-instance IP throttle: these proxy media bytes, so no DB write per hit.
+  if (!memoryLimit(`cdn:${clientIp(request.headers)}`, 600, 60)) return tooManyRequests(60);
   const { fileId } = await params;
   
   if (!fileId || fileId === 'undefined' || fileId === 'null') {

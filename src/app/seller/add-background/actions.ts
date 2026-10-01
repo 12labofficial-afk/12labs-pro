@@ -8,6 +8,7 @@ import type { Product, ProductPreview } from '@/lib/types';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 const AssetProtocolSchema = z.string().refine(val => 
     val.startsWith('pub://') || 
     val.startsWith('gcs://') || 
@@ -32,6 +33,7 @@ export async function addBackgroundAction(idToken: string,
 ): Promise<{ success: boolean; message: string; }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, message: guard.message };
+    if (!(await rateLimit('add-listing', guard.uid, 20, 3600))) return { success: false, message: RATE_LIMIT_MESSAGE };
   
   const validation = AddBackgroundInputSchema.safeParse(input);
   if (!validation.success) {

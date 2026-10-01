@@ -4,6 +4,7 @@ import { initializeFirebase } from '@/firebase/server';
 import { withCors, corsPreflight } from '@/lib/cors';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, tooManyRequests } from '@/lib/rate-limit';
 /**
  * 🌐 PUBLIC API — GET /api/v1/script/{mapping_id}
  * ----------------------------------------------------
@@ -26,6 +27,9 @@ async function handleGET(
   }
   if (keyRecord.disabled) {
     return NextResponse.json({ error: 'This API key has been disabled. Re-enable it in the Developer dashboard.' }, { status: 403 });
+  }
+  if (!(await rateLimit('api-poll', keyRecord.keyId, 120, 60))) {
+    return tooManyRequests(60);
   }
 
   const { mappingId } = await params;
@@ -60,6 +64,8 @@ async function handleGET(
       script_url: status === 'completed' ? (data.scriptUrl || null) : null,
       teaser: data.teaser || null,
       error: status === 'error' ? (data.error || 'Script generation failed.') : null,
+      error_code: status === 'error' && /insufficient credits/i.test(String(data.error || '')) ? 'insufficient_credits' : null,
+      credits_charged: typeof data.creditCost === 'number' ? data.creditCost : null,
     });
   } catch (e: any) {
         reportServerError('src/app/api/v1/script/[mappingId]/route.ts:63', e);

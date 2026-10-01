@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { reportServerError } from '@/lib/report-error';
 import { requireUser } from '@/lib/auth-guard';
 
+import { rateLimit, tooManyRequests } from '@/lib/rate-limit';
 export const maxDuration = 120; // 120 seconds timeout for large audio files
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
   if (!guard.ok) {
     return NextResponse.json({ success: false, error: guard.message }, { status: 401 });
   }
+  if (!(await rateLimit('upload', guard.uid, 60, 60))) return tooManyRequests(60);
   try {
     const contentType = request.headers.get('content-type') || '';
     

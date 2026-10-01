@@ -8,6 +8,7 @@ import { initializeFirebase } from '@/firebase/server';
 import { reportServerError } from '@/lib/report-error';
 import { handleMusicTrackPurchase } from '@/lib/music-purchase';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 interface RazorpayOrderOutput {
   id: string;
   amount: number;
@@ -30,6 +31,7 @@ export async function createOrderForMusicTrack(idToken: string,
 ): Promise<{ success: true; order: RazorpayOrderOutput } | { success: false; error: string }> {
     const guard = await requireSelfOrAdmin(idToken, user.uid);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('order', guard.uid, 15, 600))) return { success: false, error: RATE_LIMIT_MESSAGE };
   try {
     if (!user?.uid || !user?.email) {
       return { success: false, error: 'Sign in required to purchase a track.' };

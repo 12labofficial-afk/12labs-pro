@@ -1,5 +1,6 @@
 import { initializeFirebase } from '@/firebase/server';
 import { reportServerError } from '@/lib/report-error';
+import { memoryLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 
 /**
  * SECURITY: Next.js Server Actions are exposed as callable network
@@ -52,6 +53,13 @@ export async function requireUser(idToken: AuthToken): Promise<GuardResult> {
   try {
     const { auth } = initializeFirebase();
     const decoded = await auth.verifyIdToken(idToken);
+    // Global per-user ceiling on authenticated calls (per instance; the
+    // shared RTDB limits on paid actions are in rate-limit.ts). Admins are
+    // exempt so bulk admin tools that loop over users don't trip it.
+    const isAdminEmail = !!decoded.email && ADMIN_EMAILS.includes(decoded.email.toLowerCase());
+    if (!isAdminEmail && !memoryLimit(`user:${decoded.uid}`, 300, 60)) {
+      return { ok: false, message: RATE_LIMIT_MESSAGE };
+    }
     return { ok: true, uid: decoded.uid, email: decoded.email || null };
   } catch (e) {
         reportServerError('src/lib/auth-guard.ts:46', e);

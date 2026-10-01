@@ -4,6 +4,7 @@ import { callHfApi, isValidDeveloperKey, resolveDeveloperKey, logDeveloperApiUsa
 import { withCors, corsPreflight } from '@/lib/cors';
 
 import { reportServerError } from '@/lib/report-error';
+import { rateLimit, tooManyRequests } from '@/lib/rate-limit';
 /**
  * 🌐 PUBLIC API — GET /api/v1/voice/names
  * Returns every valid voice name, so callers can validate client-side
@@ -28,6 +29,9 @@ async function handleGET(request: NextRequest) {
   }
   if (keyRecord.disabled) {
     return NextResponse.json({ error: 'This API key has been disabled. Re-enable it in the Developer dashboard.' }, { status: 403 });
+  }
+  if (!(await rateLimit('api-voice-names', keyRecord.keyId, 60, 60))) {
+    return tooManyRequests(60);
   }
 
   const result = await callHfApi('/api/v1/voice/names', { method: 'GET', customerApiKey: apiKey });

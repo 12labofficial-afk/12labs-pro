@@ -9,6 +9,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import type { PromoCode, AffiliateCode, UserProfile } from '@/lib/types';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 const PromoCodeSchema = z.string().regex(/^[A-Z0-9-_]+$/, {
   message: "Invalid promo code format.",
 });
@@ -28,6 +29,7 @@ export async function applyPromoCode(idToken: string,
 }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, message: guard.message };
+    if (!(await rateLimit('promo', guard.uid, 10, 600))) return { success: false, message: RATE_LIMIT_MESSAGE };
   const codeValidation = PromoCodeSchema.safeParse(code.toUpperCase());
   if (!codeValidation.success) return { success: false, message: codeValidation.error.flatten().formErrors.join(', ') };
   const validatedCode = codeValidation.data;

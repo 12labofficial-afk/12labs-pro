@@ -10,6 +10,8 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { z } from 'zod';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE, clientIp } from '@/lib/rate-limit';
+import { headers } from 'next/headers';
 /**
  * 🔒 Strips payout/contact fields (UPI ID, bank account holder name, QR
  * code, mobile number, secondary email) before a seller profile is sent
@@ -242,6 +244,7 @@ export async function checkIfUserLiked(idToken: string, productId: string, userI
 export async function toggleLikeProduct(idToken: string, productId: string, userId: string): Promise<{ success: boolean; newLikeCount?: number; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('like', guard.uid, 60, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     if (!userId) {
         return { success: false, error: 'User must be logged in.' };
     }
@@ -354,6 +357,8 @@ const ReportSchema = z.object({
 });
 
 export async function submitProductReport(input: z.infer<typeof ReportSchema>): Promise<{ success: boolean; message: string }> {
+  const ip = clientIp(await headers());
+  if (!(await rateLimit('report', ip, 5, 600))) return { success: false, message: RATE_LIMIT_MESSAGE };
   const validation = ReportSchema.safeParse(input);
   if (!validation.success) return { success: false, message: 'Invalid data.' };
   const { firestore } = initializeFirebase();

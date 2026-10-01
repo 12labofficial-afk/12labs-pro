@@ -12,6 +12,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, tooManyRequests } from '@/lib/rate-limit';
 function authErrorResponse(error: unknown) {
   if (error instanceof DeveloperApiAuthError) {
     return NextResponse.json({ success: false, error: error.message }, { status: error.status });
@@ -69,6 +70,7 @@ async function findOwnedKey(identity: DeveloperIdentity, keyId: string) {
 export async function GET(request: NextRequest) {
   try {
     const identity = await requireDeveloperIdentity(request);
+    if (!(await rateLimit('keys', identity.uid, 30, 60))) return tooManyRequests(60);
     const { firestore, database } = initializeFirebase();
     if (!firestore) return NextResponse.json({ success: false, error: 'Database is not configured.' }, { status: 503 });
 
@@ -117,6 +119,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const identity = await requireDeveloperIdentity(request);
+    if (!(await rateLimit('keys', identity.uid, 30, 60))) return tooManyRequests(60);
     const { firestore, database } = initializeFirebase();
     if (!firestore) return NextResponse.json({ success: false, error: 'Database is not configured.' }, { status: 503 });
 
@@ -196,6 +199,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const identity = await requireDeveloperIdentity(request);
+    if (!(await rateLimit('keys', identity.uid, 30, 60))) return tooManyRequests(60);
     const body = await request.json().catch((e: any) => { reportServerError('src/app/api/keys/route.ts:199', e); return ({}); });
     const keyId = String(body.keyId || '').trim();
     const disabled = body.disabled === true;
@@ -257,6 +261,7 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const identity = await requireDeveloperIdentity(request);
+    if (!(await rateLimit('keys', identity.uid, 30, 60))) return tooManyRequests(60);
     const keyId = new URL(request.url).searchParams.get('keyId')?.trim();
     if (!keyId) return NextResponse.json({ success: false, error: 'keyId is required.' }, { status: 400 });
 

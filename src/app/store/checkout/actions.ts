@@ -11,6 +11,7 @@ import { logSummaryEvent } from '@/lib/summary-logger';
 import { escapeHtml, formatCredits, wholeCredits } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 // This will be passed from the client
 interface ActionCartItem {
     id: string;
@@ -34,6 +35,7 @@ export async function createOrderForCart(idToken: string,
 ): Promise<{ success: true; order: RazorpayOrderOutput } | { success: false; error: string }> {
     const guard = await requireSelfOrAdmin(idToken, user.uid);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('order', guard.uid, 15, 600))) return { success: false, error: RATE_LIMIT_MESSAGE };
 
     if (!user) {
         return { success: false, error: "User not authenticated." };
@@ -125,6 +127,7 @@ export async function processFreeOrder(idToken: string,
 ): Promise<{ success: boolean; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, user.uid);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('free-order', guard.uid, 10, 600))) return { success: false, error: RATE_LIMIT_MESSAGE };
     if (!user) {
         return { success: false, error: "User not authenticated." };
     }
@@ -212,6 +215,7 @@ export async function processCreditOrder(idToken: string,
 ): Promise<{ success: boolean; newBalance?: number; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, user.uid);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('credit-order', guard.uid, 15, 600))) return { success: false, error: RATE_LIMIT_MESSAGE };
     if (!user) return { success: false, error: "User not authenticated." };
     if (cartItems.length === 0) return { success: false, error: 'Cart is empty.' };
 

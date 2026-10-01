@@ -9,6 +9,7 @@ import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 /**
  * 🎵 SUBMIT MUSIC PROJECT REQUEST (Firestore `music_project` submission)
  */
@@ -31,6 +32,7 @@ export async function submitMusicProjectRequestAction(idToken: string, input: {
 }): Promise<{ success: boolean; projectId?: string; newCredits?: number; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, input.userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('music-submit', guard.uid, 20, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     const { 
         userId, userName, userEmail, prompt, productionMode, 
         selectedLanguage, selectedTags, lyrics, mood, duration, 

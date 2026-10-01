@@ -19,6 +19,7 @@ import { escapeHtml } from "./utils";
 import crypto from 'crypto';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 /**
  * 🎫 R2 SIGNED URL GENERATOR
  */
@@ -32,6 +33,7 @@ export async function getSignedUploadUrlAction(idToken: string, input: {
 }): Promise<{ success: boolean; signedUrl?: string; gcsPath?: string; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, input.userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('upload', guard.uid, 60, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     const { fileName, folder, userId, bucketType, fileSize, contentType } = input;
 
     try {
@@ -88,6 +90,7 @@ export async function uploadToGCS(idToken: string,
 ): Promise<{ success: boolean; url?: string; error?: string }> {
     const guard = await requireUser(idToken);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('upload', guard.uid, 60, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
     const file = formData.get('file') as File;
     if (!file) return { success: false, error: 'No file provided.' };
 

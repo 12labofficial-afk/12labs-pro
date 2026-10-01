@@ -14,6 +14,7 @@ import { initializeFirebase } from '@/firebase/server';
 import { sendPushToUserById } from '@/app/admin/push-actions';
 import { reportServerError } from '@/lib/report-error';
 
+import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
 const MAX_CHAT_TEXT_LENGTH = 1000;
 
 /**
@@ -26,6 +27,7 @@ export async function uploadChatImageToGCS(idToken: string,
 ): Promise<{ success: boolean; url?: string; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, error: guard.message };
+    if (!(await rateLimit('chat-image', guard.uid, 10, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
   try {
     if (!R2_BUCKET) throw new Error("R2 Node: Bucket not configured.");
 
@@ -67,6 +69,7 @@ export async function sendUserChatMessage(idToken: string,
 ): Promise<{ success: boolean; message: string }> {
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, message: guard.message };
+    if (!(await rateLimit('chat', guard.uid, 20, 60))) return { success: false, message: RATE_LIMIT_MESSAGE };
   const { database } = initializeFirebase();
 
   if (!message.text && !message.imageUrl) {
