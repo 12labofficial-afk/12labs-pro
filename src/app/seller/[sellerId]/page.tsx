@@ -294,11 +294,11 @@ export default function SellerPublicProfilePage() {
                     .filter(([_, val]: [string, any]) => {
                         if (!val || typeof val !== 'object' || !val.title || !val.productType) return false;
                         if (val.sellerId !== sellerId) return false;
+                        // Same rule as the store: a sold exclusive isn't a live listing for
+                        // anyone (admins included) and doesn't count toward "Assets Live".
+                        // Buyers find it in Purchase History, sellers in their dashboard.
                         const isSold = val.status === 'sold' || val.isSold === true || Boolean(val.buyerUid);
-                        if (!isSold) return true;
-                        const isAdmin = user?.role === 'admin';
-                        const isBuyerOrSeller = (user?.uid && (val.buyerUid === user.uid || val.sellerId === user.uid));
-                        return isAdmin || isBuyerOrSeller;
+                        return !isSold;
                     })
                     .map(([id, val]: [string, any]) => ({
                         ...val,
