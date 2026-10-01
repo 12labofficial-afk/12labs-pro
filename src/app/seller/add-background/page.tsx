@@ -30,6 +30,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { Progress } from '@/components/ui/progress';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const formSchema = z.object({
   title: z.string().min(5, { message: "Title must be at least 5 characters." }),
   description: z.string().min(20, { message: "Description must be at least 20 characters." }),
@@ -159,7 +160,7 @@ export default function AddBackgroundPage() {
         setUploadProgress(0);
         const assetUrl = await uploadFileDirectly(assetFile, 'private', 'store/backgrounds/masters', user.uid, user.email || 'N/A', setUploadProgress);
 
-        const res = await addBackgroundAction({ ...values, thumbnailUrl: thumbUrl, masterAssetUrl: assetUrl, assetFileName: assetFile.name }, user.uid, user.name!);
+        const res = await addBackgroundAction(await getIdToken(), { ...values, thumbnailUrl: thumbUrl, masterAssetUrl: assetUrl, assetFileName: assetFile.name }, user.uid, user.name!);
         if (res.success) router.push('/seller/products'); else throw new Error(res.message);
     } catch (e: any) {
             reportClientError('src/app/seller/add-background/page.tsx:163', e); toast({ variant: 'destructive', title: "Upload Failed", description: e.message }); }

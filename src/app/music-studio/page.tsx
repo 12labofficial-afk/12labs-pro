@@ -24,6 +24,7 @@ import { ref as rtdbRef } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 export default function MusicStudioPage() {
     const { user, setUser, loading: authLoading } = useAuth();
     const { toast } = useToast();
@@ -141,7 +142,7 @@ export default function MusicStudioPage() {
         const finalLyrics = productionMode === 'vocal' ? songLyrics.trim() : '';
 
         try {
-            const res = await submitMusicProjectRequestAction({
+            const res = await submitMusicProjectRequestAction(await getIdToken(), {
                 userId: user.uid,
                 userName: user.name || 'User',
                 userEmail: user.email || 'N/A',
@@ -183,7 +184,7 @@ export default function MusicStudioPage() {
         if (!user?.uid) return;
         setDeletingId(projectId);
         try {
-            const res = await deleteMusicProjectRequestAction(projectId, user.uid);
+            const res = await deleteMusicProjectRequestAction(await getIdToken(), projectId, user.uid);
             if (res.success) {
                 toast({ title: 'Request Removed' });
             } else {

@@ -1,5 +1,7 @@
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import { FieldValue, Transaction } from 'firebase-admin/firestore';
 import { z } from 'zod';
@@ -11,7 +13,7 @@ const PromoCodeSchema = z.string().regex(/^[A-Z0-9-_]+$/, {
   message: "Invalid promo code format.",
 });
 
-export async function applyPromoCode(
+export async function applyPromoCode(idToken: string, 
   code: string,
   userId: string,
   userEmail: string,
@@ -24,6 +26,8 @@ export async function applyPromoCode(
     extraFlatCredits?: number;
     message: string; 
 }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, message: guard.message };
   const codeValidation = PromoCodeSchema.safeParse(code.toUpperCase());
   if (!codeValidation.success) return { success: false, message: codeValidation.error.flatten().formErrors.join(', ') };
   const validatedCode = codeValidation.data;

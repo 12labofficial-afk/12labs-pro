@@ -24,6 +24,7 @@ import {
 import { deleteUserThumbnailAction } from '@/app/history/actions';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 export function ThumbnailCard({ thumbnail }: { thumbnail: Thumbnail }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -62,7 +63,7 @@ export function ThumbnailCard({ thumbnail }: { thumbnail: Thumbnail }) {
     if (!user) return;
     setIsDeleting(true);
     try {
-        const result = await deleteUserThumbnailAction(thumbnail.id, user.uid);
+        const result = await deleteUserThumbnailAction(await getIdToken(), thumbnail.id, user.uid);
         if (result.success) {
             toast({ title: 'Thumbnail Deleted' });
         } else {

@@ -27,6 +27,7 @@ import { saveAs } from 'file-saver';
 import { downloadScriptAsPdf, downloadScriptAsTxt, downloadScriptAsDocx } from '@/lib/export-script-pdf';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const cleanDisplayId = (id: string) => id.replace(/^12LABS-PROJ-/i, '').toUpperCase();
 
 function VoiceEditDialog({ project, onUpdate }: { project: Project, onUpdate: () => void }) {
@@ -53,7 +54,7 @@ function VoiceEditDialog({ project, onUpdate }: { project: Project, onUpdate: ()
     const handleSave = async () => {
         if (!user) return;
         setIsSaving(true);
-        const result = await userUpdateProjectVoicesAction(project.id, user.uid, chars);
+        const result = await userUpdateProjectVoicesAction(await getIdToken(), project.id, user.uid, chars);
         if (result.success) {
             toast({ title: 'Voices Updated' });
             onUpdate();
@@ -344,8 +345,8 @@ export function ProjectCard({
     setIsDeleting(true);
     const adminUid = (isImpersonating ? sessionStorage.getItem('admin_uid') : user?.uid) || '';
     const result = isAdmin 
-        ? await adminDeleteProjectAction(project.id, adminUid, project.userId)
-        : await deleteUserProjectAction(project.id, user?.uid || '');
+        ? await adminDeleteProjectAction(await getIdToken(), project.id, adminUid, project.userId)
+        : await deleteUserProjectAction(await getIdToken(), project.id, user?.uid || '');
     if (result.success) { toast({ title: result.message }); onProjectDeleted(project.id); }
     else { toast({ variant: 'destructive', title: 'Deletion Failed', description: result.message }); }
     setIsDeleting(false);

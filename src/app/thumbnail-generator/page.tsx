@@ -48,6 +48,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 // Helper to extract YouTube Video ID
 const extractYouTubeVideoId = (url: string): string | null => {
   if (!url) return null;
@@ -574,7 +575,7 @@ export default function ThumbnailGeneratorPage() {
     setIsSubmitting(true);
 
     try {
-      const res = await submitThumbnailRequestAction({
+      const res = await submitThumbnailRequestAction(await getIdToken(), {
         userId: user.uid,
         userEmail: user.email || 'N/A',
         title: finalTitle,
@@ -651,7 +652,7 @@ export default function ThumbnailGeneratorPage() {
   const handleDeleteJob = async (jobId: string) => {
     if (!user) return;
     try {
-      await removeThumbnailJobAction(user.uid, jobId);
+      await removeThumbnailJobAction(await getIdToken(), user.uid, jobId);
       if (activeJobId === jobId) setActiveJobId(null);
       toast({ title: 'Job Removed' });
     } catch (e) {

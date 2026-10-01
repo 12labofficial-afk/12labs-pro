@@ -30,6 +30,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { Progress } from '@/components/ui/progress';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const formSchema = z.object({
   title: z.string().min(5, { message: "Title must be at least 5 characters." }),
   description: z.string().min(20, { message: "Description must be at least 20 characters." }),
@@ -275,7 +276,7 @@ export default function SellerAddProductPage() {
 
         // 4. Finalize with Server Action
         setSubmittingStatus('Finalizing submission...');
-        const res = await addProductAction({
+        const res = await addProductAction(await getIdToken(), {
             ...values, 
             thumbnailUrl: thumbUrl, 
             additionalImageUrls: additionalUrls,

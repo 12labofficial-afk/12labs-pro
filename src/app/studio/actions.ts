@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireSelfOrAdmin, requireUser, type AuthToken } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import { Transaction } from 'firebase-admin/firestore';
 import type { Character, UserProfile } from '@/lib/types';
@@ -42,7 +44,9 @@ async function toWav(
   });
 }
 
-export async function generateTtsAudioAction(text: string, voiceId: string, userEmail?: string, workerId?: number, character?: string, lineId?: string): Promise<{ success: boolean; audioDataUri?: string; usedBridge?: boolean; keyName?: string; error?: string }> {
+export async function generateTtsAudioAction(idToken: string, text: string, voiceId: string, userEmail?: string, workerId?: number, character?: string, lineId?: string): Promise<{ success: boolean; audioDataUri?: string; usedBridge?: boolean; keyName?: string; error?: string }> {
+    const guard = await requireUser(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     try {
         const { database } = initializeFirebase();
         const editingSettingsSnap = await database.ref('settings/editingHfBackend').get();
@@ -88,7 +92,7 @@ export async function generateTtsAudioAction(text: string, voiceId: string, user
     }
 }
 
-export async function completeFastGenerationAction(
+export async function completeFastGenerationAction(idToken: string, 
     userId: string,
     userName: string,
     userEmail: string,
@@ -102,6 +106,8 @@ export async function completeFastGenerationAction(
     keyName: string = 'Unknown',
     syncData?: any
 ): Promise<{ success: boolean; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { firestore } = initializeFirebase();
     try {
         const multiplier = await getEngineRate('gemini');
@@ -146,7 +152,7 @@ export async function completeFastGenerationAction(
 // public API's /api/v1/generate so both charge from the exact same rate,
 // read from the exact same settings/pricing RTDB path.)
 
-export async function deductFastGenCreditsAction(
+export async function deductFastGenCreditsAction(idToken: string, 
     userId: string, 
     totalChars: number, 
     projectName: string, 
@@ -154,6 +160,8 @@ export async function deductFastGenCreditsAction(
     customCost?: number,
     reasonOverride?: string
 ): Promise<{ success: boolean; newCredits?: number; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { firestore, database } = initializeFirebase();
     const userRef = firestore.collection('users').doc(userId);
     
@@ -222,7 +230,7 @@ export async function deductFastGenCreditsAction(
     reportServerError('src/app/studio/actions.ts#3', error); return { success: false, error: error.message }; }
 }
 
-export async function processHighQualityGenerationAndDeductCredits(
+export async function processHighQualityGenerationAndDeductCredits(idToken: AuthToken, 
   userId: string, 
   userName: string, 
   userEmail: string, 
@@ -244,6 +252,8 @@ export async function processHighQualityGenerationAndDeductCredits(
   // picked for that engine, so nothing else about the payload changes.
   voiceEngine: 'gemini' | 'elevenlabs' = 'gemini'
 ): Promise<{ success: boolean; newCredits?: number; projectId?: string; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     // 🔴 FIX: a submission with an empty (or missing) dialogues array used
     // to sail straight through — a Firestore project doc created and a job
     // queued with total_dialogues: 0. Nothing exists for the worker to
@@ -344,7 +354,9 @@ export async function processHighQualityGenerationAndDeductCredits(
     }
 }
 
-export async function regenerateLineWithCreditsAction(userId: string, text: string, voiceId: string): Promise<{ success: boolean; audioDataUri?: string; error?: string; newCredits?: number }> {
+export async function regenerateLineWithCreditsAction(idToken: string, userId: string, text: string, voiceId: string): Promise<{ success: boolean; audioDataUri?: string; error?: string; newCredits?: number }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { firestore, database } = initializeFirebase();
     const userRef = firestore.collection('users').doc(userId);
     const cost = Math.ceil(text.length * await getEngineRate('gemini'));
@@ -377,7 +389,7 @@ export async function regenerateLineWithCreditsAction(userId: string, text: stri
             });
         }
 
-        const genResult = await generateTtsAudioAction(text, voiceId, userEmail);
+        const genResult = await generateTtsAudioAction(idToken, text, voiceId, userEmail);
         if (!genResult.success || !genResult.audioDataUri) throw new Error(genResult.error);
 
         const parts = genResult.audioDataUri.split(';base64,');
@@ -405,7 +417,7 @@ export async function regenerateLineWithCreditsAction(userId: string, text: stri
     }
 }
 
-export async function createCharacterVoiceReplacementJobAction({
+export async function createCharacterVoiceReplacementJobAction(idToken: string, {
     projectId,
     userId,
     character,
@@ -429,6 +441,8 @@ export async function createCharacterVoiceReplacementJobAction({
     updatedSyncData?: any;
     error?: string;
 }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { firestore, database } = initializeFirebase();
     const userRef = firestore.collection('users').doc(userId);
     let cost = 0;
@@ -535,7 +549,7 @@ export async function createCharacterVoiceReplacementJobAction({
 
         for (const item of affectedIndices) {
             const lineText = dialogues[item.idx].line;
-            const genResult = await generateTtsAudioAction(lineText, item.voiceId, userEmail);
+            const genResult = await generateTtsAudioAction(idToken, lineText, item.voiceId, userEmail);
 
             if (genResult.success && genResult.audioDataUri) {
                 const parts = genResult.audioDataUri.split(';base64,');

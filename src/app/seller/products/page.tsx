@@ -34,6 +34,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 interface FileWithPreview extends File {
   preview: string;
 }
@@ -115,7 +116,7 @@ function EditProductDialog({ product, children }: { product: Product, children: 
     const finalSize = values.sizeValue ? `${values.sizeValue} ${values.sizeUnit}` : undefined;
     const { sizeValue, sizeUnit, ...submissionData } = values;
 
-    const result = await updateProductAction(product.id, user.uid, { 
+    const result = await updateProductAction(await getIdToken(), product.id, user.uid, { 
         ...submissionData, 
         videoSize: finalSize 
     } as any);
@@ -233,12 +234,12 @@ function EditMediaDialog({ product, children }: { product: Product, children: Re
                 toast({ title: `Syncing ${newFiles.length} new previews...` });
                 for (const file of newFiles) {
                     const fd = new FormData(); fd.append('file', file); fd.append('type', 'photo');
-                    const res: any = await (import('@/lib/telegram-actions').then(m => m.uploadToTelegramAction(fd)));
+                    const res: any = await (import('@/lib/telegram-actions').then(async m => m.uploadToTelegramAction(await getIdToken(), fd)));
                     if (res.success && res.fileId) newImageUrls.push(getDisplayUrl(res.fileId));
                 }
             }
             const finalPreviews: ProductPreview[] = [...currentPreviews, ...newImageUrls.map(url => ({ type: 'image' as const, url }))];
-            const result = await updateProductMediaAction(product.id, user.uid, { previews: finalPreviews });
+            const result = await updateProductMediaAction(await getIdToken(), product.id, user.uid, { previews: finalPreviews });
             if(result.success) setOpen(false); else throw new Error(result.message);
         } catch (error: any) {
             reportClientError('src/app/seller/products/page.tsx:242', error); toast({ variant: 'destructive', title: "Update Failed", description: error.message }); }
@@ -278,7 +279,7 @@ export default function SellerProductsPage() {
     const loadProductsFromServer = useCallback(async (uid: string) => {
         setIsServerLoading(true);
         try {
-            const res = await getSellerProductsAction(uid);
+            const res = await getSellerProductsAction(await getIdToken(), uid);
             if (res.success && res.data) {
                 setServerProducts(res.data);
             }
@@ -350,7 +351,7 @@ export default function SellerProductsPage() {
 
     const handleDeleteProduct = async (productId: string) => {
         if (!user?.uid) return;
-        const result = await deleteProductAction(productId, user.uid);
+        const result = await deleteProductAction(await getIdToken(), productId, user.uid);
         if (result.success) {
             toast({ title: 'Product Deleted' });
             setServerProducts(prev => prev.filter(p => p.id !== productId));

@@ -1,5 +1,7 @@
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import Razorpay from 'razorpay';
 import { initializeFirebase } from '@/firebase/server';
 import { sendToTelegram } from '@/lib/telegram-logger';
@@ -26,10 +28,12 @@ interface RazorpayOrderOutput {
   key_id: string;
 }
 
-export async function createOrderForCart(
+export async function createOrderForCart(idToken: string, 
     cartItems: ActionCartItem[],
     user: UserProfile
 ): Promise<{ success: true; order: RazorpayOrderOutput } | { success: false; error: string }> {
+    const guard = await requireSelfOrAdmin(idToken, user.uid);
+    if (!guard.ok) return { success: false, error: guard.message };
 
     if (!user) {
         return { success: false, error: "User not authenticated." };
@@ -115,10 +119,12 @@ export async function createOrderForCart(
 }
 
 
-export async function processFreeOrder(
+export async function processFreeOrder(idToken: string, 
     cartItems: ActionCartItem[],
     user: UserProfile
 ): Promise<{ success: boolean; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, user.uid);
+    if (!guard.ok) return { success: false, error: guard.message };
     if (!user) {
         return { success: false, error: "User not authenticated." };
     }
@@ -200,10 +206,12 @@ export async function processFreeOrder(
     }
 }
 
-export async function processCreditOrder(
+export async function processCreditOrder(idToken: string, 
     cartItems: ActionCartItem[],
     user: UserProfile
 ): Promise<{ success: boolean; newBalance?: number; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, user.uid);
+    if (!guard.ok) return { success: false, error: guard.message };
     if (!user) return { success: false, error: "User not authenticated." };
     if (cartItems.length === 0) return { success: false, error: 'Cart is empty.' };
 

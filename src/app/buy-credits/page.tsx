@@ -31,6 +31,7 @@ import { plans, type Plan } from '@/lib/plans';
 import { useRouter } from 'next/navigation';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const INR_TO_USD_RATE = 85;
 
 export default function BuyCreditsPage() {
@@ -126,7 +127,7 @@ export default function BuyCreditsPage() {
             const autoApply = async () => {
                 setIsApplyingCode(true);
                 try {
-                    const result = await applyPromoCode(upperCode, user.uid, user.email || '');
+                    const result = await applyPromoCode(await getIdToken(), upperCode, user.uid, user.email || '');
                     if (result.success) {
                         if (result.type === 'discount' && result.value) {
                             setAppliedDiscount({ type: result.discountType || 'percentage', value: result.value });
@@ -174,7 +175,7 @@ export default function BuyCreditsPage() {
 
     setIsApplyingCode(true);
     try {
-        const result = await applyPromoCode(promoCode, user.uid, user.email || '');
+        const result = await applyPromoCode(await getIdToken(), promoCode, user.uid, user.email || '');
 
         if (result.success) {
             if (result.type === 'discount' && result.value) {
@@ -210,7 +211,7 @@ export default function BuyCreditsPage() {
     setCreditPromoToConfirm(null);
     
     try {
-        const result = await applyPromoCode(codeToRedeem, user.uid, user.email || '', true);
+        const result = await applyPromoCode(await getIdToken(), codeToRedeem, user.uid, user.email || '', true);
 
         if (result.success && result.type === 'credit' && result.value) {
             toast({ title: 'Credits Redeemed!', description: result.message });
@@ -255,7 +256,7 @@ export default function BuyCreditsPage() {
     setLoadingPlan(plan.id);
     
     try {
-        const result = await handlePurchaseAction(
+        const result = await handlePurchaseAction(await getIdToken(), 
             plan.id,
             { uid: user.uid, name: user.name, email: user.email }, 
             currency,

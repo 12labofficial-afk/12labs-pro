@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { z } from 'zod';
 import { initializeFirebase as initializeAdminFirebase } from '@/firebase/server';
 import { sendToTelegram } from '@/lib/telegram-logger';
@@ -19,10 +21,12 @@ const UpdateSellerProfileSchema = z.object({
 
 type UpdateSellerProfileInput = z.infer<typeof UpdateSellerProfileSchema>;
 
-export async function updateSellerProfileAction(
+export async function updateSellerProfileAction(idToken: string, 
   userId: string,
   input: UpdateSellerProfileInput
 ): Promise<{ success: boolean; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     const validation = UpdateSellerProfileSchema.safeParse(input);
     if (!validation.success) {
         return { success: false, error: validation.error.flatten().formErrors.join(', ') };

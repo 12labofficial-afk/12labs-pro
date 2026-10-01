@@ -1,13 +1,17 @@
 
 'use server';
 
+import { requireAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import type { Product, StoreProduct } from '@/lib/types';
 import { FieldValue } from 'firebase-admin/firestore';
 import { reportServerError } from '@/lib/report-error';
 
-export async function adminDeleteProduct(productId: string): Promise<{ success: boolean; message: string }> {
+export async function adminDeleteProduct(idToken: string, productId: string): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
   const { firestore, database } = initializeFirebase();
 
   try {
@@ -29,7 +33,9 @@ export async function adminDeleteProduct(productId: string): Promise<{ success: 
   }
 }
 
-export async function adminCleanCorruptedProducts(): Promise<{ success: boolean; cleanedCount: number }> {
+export async function adminCleanCorruptedProducts(idToken: string): Promise<{ success: boolean; cleanedCount: number }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, cleanedCount: 0 };
   const { database } = initializeFirebase();
   try {
     const snap = await database.ref('storeProducts').get();
@@ -55,10 +61,12 @@ export async function adminCleanCorruptedProducts(): Promise<{ success: boolean;
   }
 }
 
-export async function adminToggleSellerVerification(
+export async function adminToggleSellerVerification(idToken: string, 
   sellerId: string,
   currentStatus: boolean
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
   const { database } = initializeFirebase();
   try {
     const newStatus = !currentStatus;
@@ -73,7 +81,7 @@ export async function adminToggleSellerVerification(
   }
 }
 
-export async function adminUpdateProduct(
+export async function adminUpdateProduct(idToken: string, 
     productId: string,
     updateData: {
         title: string;
@@ -106,6 +114,8 @@ export async function adminUpdateProduct(
         bgm?: string;
     }
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { firestore, database } = initializeFirebase();
 
     try {

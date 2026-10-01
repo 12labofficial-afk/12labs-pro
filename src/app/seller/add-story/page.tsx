@@ -31,6 +31,7 @@ import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const languages = ["Hindi", "English", "Hinglish", "Bengali", "Marathi", "Telugu", "Tamil", "Gujarati", "Punjabi", "Kannada", "Malayalam", "Bhojpuri"];
 const qualityOptions = ["Ultra HD (4K)", "Full HD (1080p)", "Standard HD (720p)", "High Compression (SD)"];
 const resolutionOptions = ["Vertical (9:16) - For Shorts/Reels", "Horizontal (16:9) - Standard", "Square (1:1)"];
@@ -155,7 +156,7 @@ export default function AddStoryPage() {
             imageUrls.push(url);
         }
         const duration = `${values.minutes}:${values.seconds} Min`; const videoSize = `${values.sizeValue} ${values.sizeUnit}`;
-        const res = await addStoryAction({ 
+        const res = await addStoryAction(await getIdToken(), { 
             ...values, duration, videoSize, isAiGenerated: values.isAiGenerated === 'yes', 
             previews: imageUrls.map(url => ({ type: 'image' as const, url })) 
         } as any, user.uid, user.name || 'Seller');

@@ -1,5 +1,7 @@
 'use server';
 
+import { requireAdmin, requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
@@ -10,7 +12,9 @@ import { reportServerError } from '@/lib/report-error';
  * 📂 DUAL-PATH DELETE ACTION
  * Automatically detects if project is in legacy, partitioned, or pro_projects path.
  */
-export async function adminDeleteProjectAction(projectId: string, adminUserId: string, targetUserId: string): Promise<{ success: boolean; message: string }> {
+export async function adminDeleteProjectAction(idToken: string, projectId: string, adminUserId: string, targetUserId: string): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     if (!projectId || !adminUserId || !targetUserId) {
         return { success: false, message: 'Missing identifiers for deletion.' };
     }
@@ -54,7 +58,9 @@ export async function adminDeleteProjectAction(projectId: string, adminUserId: s
 /**
  * 🗑️ USER DELETE PROJECT ACTION
  */
-export async function deleteUserProjectAction(projectId: string, userId: string): Promise<{ success: boolean; message: string }> {
+export async function deleteUserProjectAction(idToken: string, projectId: string, userId: string): Promise<{ success: boolean; message: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { firestore } = initializeFirebase();
     try {
         // Find in all possible partitions and mark as deleted for user
@@ -101,7 +107,9 @@ export async function deleteUserProjectAction(projectId: string, userId: string)
 /**
  * 🎙️ USER UPDATE PROJECT VOICES ACTION
  */
-export async function userUpdateProjectVoicesAction(projectId: string, userId: string, characters: any[]): Promise<{ success: boolean; message: string }> {
+export async function userUpdateProjectVoicesAction(idToken: string, projectId: string, userId: string, characters: any[]): Promise<{ success: boolean; message: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { firestore } = initializeFirebase();
     try {
         const partitionedRef = firestore.collection('projects').doc(userId).collection('userProjects').doc(projectId);
@@ -128,7 +136,9 @@ export async function userUpdateProjectVoicesAction(projectId: string, userId: s
 /**
  * 🗑️ DELETE USER THUMBNAIL ACTION
  */
-export async function deleteUserThumbnailAction(thumbnailId: string, userId: string): Promise<{ success: boolean; message: string }> {
+export async function deleteUserThumbnailAction(idToken: string, thumbnailId: string, userId: string): Promise<{ success: boolean; message: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { firestore } = initializeFirebase();
     try {
         // 🔎 MULTI-PATH DELETE: thumbnails live in one of several possible
@@ -190,11 +200,13 @@ const UpdateProjectSchema = z.object({
 /**
  * 📂 DUAL-PATH UPDATE ACTION
  */
-export async function adminUpdateProjectAction(
+export async function adminUpdateProjectAction(idToken: string, 
     projectId: string,
     updates: z.infer<typeof UpdateProjectSchema>,
     adminUserId: string
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     if (!projectId || !adminUserId) {
         return { success: false, message: 'Project ID and Admin User ID are required.' };
     }

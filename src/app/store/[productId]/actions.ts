@@ -1,5 +1,7 @@
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import type { Product, SellerProfile, DownloadableFile, StoreProduct } from '@/lib/types';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -221,7 +223,9 @@ export async function getSellerProducts(sellerId: string): Promise<{ success: bo
     }
 }
 
-export async function checkIfUserLiked(productId: string, userId: string): Promise<boolean> {
+export async function checkIfUserLiked(idToken: string, productId: string, userId: string): Promise<boolean> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return false;
     if (!userId) return false;
     try {
         const { database } = initializeFirebase();
@@ -235,7 +239,9 @@ export async function checkIfUserLiked(productId: string, userId: string): Promi
     }
 }
 
-export async function toggleLikeProduct(productId: string, userId: string): Promise<{ success: boolean; newLikeCount?: number; error?: string }> {
+export async function toggleLikeProduct(idToken: string, productId: string, userId: string): Promise<{ success: boolean; newLikeCount?: number; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     if (!userId) {
         return { success: false, error: 'User must be logged in.' };
     }
@@ -278,10 +284,12 @@ export async function toggleLikeProduct(productId: string, userId: string): Prom
     }
 }
 
-export async function getSecureDownloadUrls(
+export async function getSecureDownloadUrls(idToken: string, 
   productId: string,
   userId: string
 ): Promise<{ success: boolean; files?: DownloadableFile[]; fullScriptContent?: string; message: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, message: guard.message };
   if (!userId) return { success: false, message: 'User not authenticated.' };
 
   const { firestore } = initializeFirebase();
@@ -313,10 +321,12 @@ export async function getSecureDownloadUrls(
   }
 }
 
-export async function checkPurchaseStatus(
+export async function checkPurchaseStatus(idToken: string, 
   productId: string,
   userId: string
 ): Promise<boolean> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return false;
   if (!userId) return false;
   const { firestore } = initializeFirebase();
   try {

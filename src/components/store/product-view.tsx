@@ -132,7 +132,7 @@ function AdminEditDialog({ product, open, onOpenChange, onUpdate }: { product: S
                 ...formData,
                 videoSize: formData.sizeValue ? `${formData.sizeValue} ${formData.sizeUnit}` : undefined
             };
-            const result = await adminUpdateProduct(product.id, finalData as any);
+            const result = await adminUpdateProduct(await getIdToken(), product.id, finalData as any);
             if (result.success) { 
                 toast({ title: 'System Synchronized' });
                 onUpdate(); 
@@ -467,7 +467,7 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
             if (currentStatus === 'approved' || currentStatus === 'pending_update') { setAccessState('granted'); return; }
             if (currentStatus === 'sold') {
                 if (user) {
-                    const purchased = await checkPurchaseStatus(initialProduct.id, user.uid);
+                    const purchased = await checkPurchaseStatus(await getIdToken(), initialProduct.id, user.uid);
                     setHasPurchased(purchased); setAccessState(purchased ? 'granted' : 'restricted');
                 } else setAccessState('restricted');
                 return;
@@ -481,10 +481,10 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
         if (accessState !== 'granted' && accessState !== 'restricted') return;
         if (user) {
             setIsLikeLoading(true);
-            checkIfUserLiked(product.id, user.uid).then(val => { setIsLiked(val); setIsLikeLoading(false); }).catch((err) => {
+            getIdToken().then((t) => checkIfUserLiked(t, product.id, user.uid)).then(val => { setIsLiked(val); setIsLikeLoading(false); }).catch((err) => {
         reportClientError('src/components/store/product-view.tsx:482', err); console.error("[ProductView] checkIfUserLiked failed:", err); setIsLikeLoading(false); });
             setIsLoadingFollow(true);
-            checkFollowStatus(product.sellerId, user.uid).then(val => { setIsFollowing(val); setIsLoadingFollow(false); }).catch((err) => {
+            getIdToken().then((t) => checkFollowStatus(t, product.sellerId, user.uid)).then(val => { setIsFollowing(val); setIsLoadingFollow(false); }).catch((err) => {
         reportClientError('src/components/store/product-view.tsx:484', err); console.error("[ProductView] checkFollowStatus failed:", err); setIsLoadingFollow(false); });
         } else { setIsLikeLoading(false); setIsLoadingFollow(false); }
     }, [product.id, user, accessState, product.sellerId]);
@@ -543,7 +543,7 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
     };
 
     const handleDownloadTxt = async () => {
-        const result = await getSecureDownloadUrls(product.id, activeUid || '');
+        const result = await getSecureDownloadUrls(await getIdToken(), product.id, activeUid || '');
         if (result.success && result.fullScriptContent) {
             saveAs(new Blob([result.fullScriptContent], { type: 'text/plain;charset=utf-8' }), `12labs_${product.title.replace(/\s+/g, '_')}.txt`);
         }
@@ -557,7 +557,7 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
         if (user.uid === product.sellerId) return;
 
         setIsLoadingFollow(true);
-        const result = await toggleFollowSeller(product.sellerId, user.uid);
+        const result = await toggleFollowSeller(await getIdToken(), product.sellerId, user.uid);
         if (result.success) {
             setIsFollowing(result.isFollowing);
             toast({ title: result.isFollowing ? 'Subscribed to Creator!' : 'Unsubscribed' });

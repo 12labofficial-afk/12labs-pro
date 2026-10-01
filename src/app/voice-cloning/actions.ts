@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireSelfOrAdmin, requireUser, type AuthToken } from '@/lib/auth-guard';
+
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import { Client, handle_file } from '@gradio/client';
@@ -45,7 +47,9 @@ const SaveClonedVoiceInputSchema = z.object({
   generatedAudioUrl: z.string().url(),
 });
 
-export async function saveClonedVoiceProjectAction(input: z.infer<typeof SaveClonedVoiceInputSchema>): Promise<{ success: boolean; error?: string }> {
+export async function saveClonedVoiceProjectAction(idToken: string, input: z.infer<typeof SaveClonedVoiceInputSchema>): Promise<{ success: boolean; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, input.userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     const validation = SaveClonedVoiceInputSchema.safeParse(input);
     if (!validation.success) {
         return { success: false, error: validation.error.flatten().formErrors.join(', ') };
@@ -93,11 +97,13 @@ const URL_IMPORT_KNOWN_EXTS = ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'oga', 'opus',
  * R2, returning the same kind of storage pointer uploadFileDirectly
  * returns — the caller can treat it identically to a normal upload.
  */
-export async function importVoiceCloneReferenceFromUrlAction(input: {
+export async function importVoiceCloneReferenceFromUrlAction(idToken: string, input: {
     userId: string;
     userEmail: string;
     url: string;
 }): Promise<{ success: boolean; pointer?: string; fileName?: string; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, input.userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { userId, url } = input;
     if (!userId || !url?.trim()) return { success: false, error: 'Missing URL.' };
 
@@ -170,7 +176,7 @@ export async function importVoiceCloneReferenceFromUrlAction(input: {
  * Implements randomized rotation across multiple Hugging Face Spaces AND multiple Tokens.
  * Added HF_SUPERFAST for private space authentication.
  */
-export async function generateVoiceCloningAction(input: {
+export async function generateVoiceCloningAction(idToken: AuthToken, input: {
   text: string,
   language: string,
   refAudioBase64: string,
@@ -184,6 +190,8 @@ export async function generateVoiceCloningAction(input: {
   postprocessOutput: boolean,
   workerId?: number
 }): Promise<{ success: boolean; audioDataUri?: string; error?: string; usedToken?: string; usedPath?: string }> {
+    const guard = await requireUser(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     
     const { text, language, refAudioBase64, userEmail, numStep, guidanceScale, denoise, speed, preprocessPrompt, postprocessOutput } = input;
     const { database } = initializeFirebase();

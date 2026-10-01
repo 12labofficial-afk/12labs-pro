@@ -27,6 +27,7 @@ import { getDeviceFingerprint } from '@/lib/device-fingerprint';
 import { safeJsonStringify } from '@/lib/utils';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -168,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         const subMaxGrants = plans.find(p => p.id === targetUser.subscription!.planId)?.maxGrants ?? 4;
         if (now >= nextGrant && (targetUser.subscription.weeklyGrantCount || 0) < subMaxGrants) {
-            syncUserSubscriptionInstallments(targetUser.uid).then(res => {
+            getIdToken().then((t) => syncUserSubscriptionInstallments(t, targetUser.uid)).then(res => {
                 if (res.success && res.updatedProfile) {
                     if (isImpersonating) {
                         setImpersonatedUser(res.updatedProfile);
@@ -281,7 +282,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // 2. Fetch fresh profile from server
         let profile: UserProfile | null = null;
         try {
-          profile = await getUserProfileFromServer(firebaseUser.uid, deviceId);
+          profile = await getUserProfileFromServer(await getIdToken(), firebaseUser.uid, deviceId);
         } catch (serverErr) {
           // Non-fatal by design: the client-side Firestore fallback right
           // below covers this, so a flaky network blip here never blocks
@@ -311,7 +312,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // 5. Create new profile if user definitely does not exist
         if (!profile) {
           try {
-            const creationResult = await createNewUserProfileOnServer({
+            const creationResult = await createNewUserProfileOnServer(await getIdToken(), {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
                 displayName: firebaseUser.displayName,

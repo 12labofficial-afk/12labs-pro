@@ -32,6 +32,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const editProjectSchema = z.object({
   projectName: z.string().min(1, 'Project name is required.'),
   script: z.string().min(1, 'Script cannot be empty.'),
@@ -108,7 +109,7 @@ export function EditProjectDialog({ project, open, onOpenChange, onUpdate }: Edi
             syncData: syncDataJson.trim() ? JSON.parse(syncDataJson) : null
         };
 
-        const result = await adminUpdateProjectAction(project.id, finalData, adminUid);
+        const result = await adminUpdateProjectAction(await getIdToken(), project.id, finalData, adminUid);
         if (result.success) {
           toast({ title: 'Project Updated' });
           onUpdate();

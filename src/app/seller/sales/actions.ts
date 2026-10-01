@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import { z } from 'zod';
 import { sendToTelegram } from '@/lib/telegram-logger';
@@ -16,10 +18,12 @@ const PayoutDetailsSchema = z.object({
   paymentQrUrl: z.string().optional(),
 });
 
-export async function savePayoutDetailsAction(
+export async function savePayoutDetailsAction(idToken: string, 
   userId: string,
   details: z.infer<typeof PayoutDetailsSchema>
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, message: guard.message };
   const validation = PayoutDetailsSchema.safeParse(details);
   if (!validation.success) {
     return { success: false, message: validation.error.flatten().formErrors.join(', ') };
@@ -49,9 +53,11 @@ const WithdrawalRequestSchema = z.object({
   accountHolderName: z.string().min(2, "Account holder name is required."),
 });
 
-export async function requestWithdrawalAction(
+export async function requestWithdrawalAction(idToken: string, 
   input: z.infer<typeof WithdrawalRequestSchema>
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireSelfOrAdmin(idToken, input.sellerId);
+    if (!guard.ok) return { success: false, message: guard.message };
   const validation = WithdrawalRequestSchema.safeParse(input);
   if (!validation.success) {
     return { success: false, message: validation.error.flatten().formErrors.join(', ') };
@@ -105,9 +111,11 @@ export interface SalesData {
   pendingWithdrawalAmount: number;
 }
 
-export async function getSellerSalesData(
+export async function getSellerSalesData(idToken: string, 
   sellerId: string
 ): Promise<{ success: boolean; data?: SalesData; message: string }> {
+    const guard = await requireSelfOrAdmin(idToken, sellerId);
+    if (!guard.ok) return { success: false, message: guard.message };
   try {
     const { firestore } = initializeFirebase();
 

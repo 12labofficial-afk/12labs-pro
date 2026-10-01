@@ -1,5 +1,7 @@
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import { logSummaryEvent } from '@/lib/summary-logger';
@@ -30,9 +32,11 @@ export type SubmitThumbnailRequestInput = z.infer<typeof SubmitThumbnailRequestS
 /**
  * 🎨 SUBMIT THUMBNAIL GENERATION REQUEST (Realtime Hub + Firestore + Credit Engine)
  */
-export async function submitThumbnailRequestAction(
+export async function submitThumbnailRequestAction(idToken: string, 
   input: SubmitThumbnailRequestInput
 ): Promise<{ success: boolean; cost?: number; newCredits?: number; mappingId?: string; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, input.userId);
+    if (!guard.ok) return { success: false, error: guard.message };
   const validation = SubmitThumbnailRequestSchema.safeParse(input);
   if (!validation.success) {
     return { success: false, error: validation.error.flatten().formErrors.join(', ') };
@@ -197,10 +201,12 @@ ${referenceImageUrl ? `<b>Extracted YT / Reference Image:</b> ${referenceImageUr
 /**
  * 🗑️ CANCEL OR DELETE THUMBNAIL JOB
  */
-export async function removeThumbnailJobAction(
+export async function removeThumbnailJobAction(idToken: string, 
   userId: string,
   mappingId: string
 ): Promise<{ success: boolean; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, error: guard.message };
   try {
     const { database } = initializeFirebase();
     if (database) {
@@ -216,7 +222,7 @@ export async function removeThumbnailJobAction(
 /**
  * 💾 SAVE COMPLETED THUMBNAIL TO USER HISTORY
  */
-export async function saveCompletedThumbnailAction(input: {
+export async function saveCompletedThumbnailAction(idToken: string, input: {
   userId: string;
   userEmail: string;
   mappingId: string;
@@ -226,6 +232,8 @@ export async function saveCompletedThumbnailAction(input: {
   aspectRatio: string;
   style: string;
 }): Promise<{ success: boolean; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, input.userId);
+    if (!guard.ok) return { success: false, error: guard.message };
   try {
     const { firestore, database } = initializeFirebase();
     if (!firestore) return { success: false, error: 'Database unavailable' };

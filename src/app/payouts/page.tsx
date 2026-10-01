@@ -18,6 +18,7 @@ import type { AffiliateTransaction } from '@/lib/types';
 import { reportClientError } from '@/lib/report-client-error';
 
 
+import { getIdToken } from '@/lib/id-token';
 function StatCard({ title, value, isLoading }: { title: string, value: string | number, isLoading: boolean }) {
   const formattedValue = typeof value === 'number' ? `₹${value.toFixed(2)}` : value;
   return (
@@ -54,7 +55,7 @@ export default function PayoutsPage() {
 
     useEffect(() => {
         if (user?.uid) {
-            getAffiliateDashboardData(user.uid).then(result => {
+            getIdToken().then((t) => getAffiliateDashboardData(t, user.uid)).then(result => {
                 if (result.success && result.data) {
                     setData(result.data);
                 } else if (!result.success) {

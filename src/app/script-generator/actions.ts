@@ -1,5 +1,7 @@
 'use server';
 
+import { requireSelfOrAdmin, type AuthToken } from '@/lib/auth-guard';
+
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import { logSummaryEvent } from '@/lib/summary-logger';
@@ -29,7 +31,7 @@ import { reportServerError } from '@/lib/report-error';
  * need to be, since a bypass here just means slightly more load, never
  * a wrong charge.
  */
-export async function deductScriptCreditsAction(
+export async function deductScriptCreditsAction(idToken: AuthToken, 
     userId: string,
     userEmail: string,
     targetLength: number,
@@ -47,6 +49,8 @@ export async function deductScriptCreditsAction(
         scriptType?: string;
     }
 ): Promise<{ success: boolean; cost?: number; newCredits?: number; mappingId?: string; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { firestore, database } = initializeFirebase();
     const today = getISTDateString();
 
@@ -170,7 +174,7 @@ export async function deductScriptCreditsAction(
  * 🏁 FINALIZE SCRIPT ACTION
  * Saves the received script to Firestore history and cleans up RTDB.
  */
-export async function finalizeScriptSelectionAction(input: {
+export async function finalizeScriptSelectionAction(idToken: string, input: {
     userId: string;
     userEmail: string;
     userName: string;
@@ -179,6 +183,8 @@ export async function finalizeScriptSelectionAction(input: {
     mappingId: string;
     generationParams: any;
 }): Promise<{ success: boolean; projectId?: string; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, input.userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { userId, userEmail, script, scriptUrl, mappingId, generationParams } = input;
     
     try {

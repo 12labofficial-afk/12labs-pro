@@ -6,6 +6,7 @@ import { reportServerError } from '@/lib/report-error';
 import { withCors, corsPreflight } from '@/lib/cors';
 import crypto from 'node:crypto';
 
+import { SERVER_INTERNAL } from '@/lib/auth-guard';
 /**
  * 🌐 PUBLIC API — POST /api/v1/script
  * ----------------------------------------
@@ -78,6 +79,7 @@ async function handlePOST(request: NextRequest) {
     const userEmail = userDoc.exists ? (userDoc.data()?.email || 'N/A') : 'N/A';
 
     const res = await deductScriptCreditsAction(
+      SERVER_INTERNAL,
       keyRecord.userId,
       userEmail,
       targetLength,

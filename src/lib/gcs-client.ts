@@ -2,6 +2,7 @@ import { getSignedUploadUrlAction, logUploadFailureAction, logUploadSuccessActio
 import { reportServerError } from '@/lib/report-error';
 import { resolvePublicAudioUrl } from '@/lib/utils';
 
+import { getIdToken } from '@/lib/id-token';
 /**
  * 🔗 Builds the URL used in the Telegram "Storage Asset Uploaded" log —
  * NOT the value returned to callers of uploadFileDirectly (that stays the
@@ -137,7 +138,7 @@ export async function uploadFileDirectly(options: UploadOptions): Promise<string
 
     // 2. Primary Route: Direct Cloudflare R2 Presigned Upload (Bypasses Next.js 413 Payload Limit)
     try {
-        const signRes = await getSignedUploadUrlAction({
+        const signRes = await getSignedUploadUrlAction(await getIdToken(), {
             fileName: actualFileName,
             contentType,
             bucketType,
@@ -220,7 +221,7 @@ export async function uploadFileDirectly(options: UploadOptions): Promise<string
         formData.append('userId', effectiveUserId);
         formData.append('fileName', actualFileName);
 
-        const serverActionRes = await uploadToGCS(formData);
+        const serverActionRes = await uploadToGCS(await getIdToken(), formData);
         if (serverActionRes.success && serverActionRes.url) {
             if (onProgress) onProgress(100);
             logUploadSuccessAction({

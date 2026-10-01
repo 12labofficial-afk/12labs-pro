@@ -112,7 +112,7 @@ export async function getUserProfileFromServer(idToken: string, uid: string): Pr
                 const now = new Date();
                 const nextGrant = new Date(data.subscription.nextWeeklyGrantDate);
                 if (now >= nextGrant) {
-                    const syncResult = await syncUserSubscriptionInstallments(uid);
+                    const syncResult = await syncUserSubscriptionInstallments(idToken, uid);
                     if (syncResult.success && syncResult.updatedProfile) {
                         data = { ...syncResult.updatedProfile, uid };
                     }
@@ -992,7 +992,7 @@ export async function getActiveConsistencyPlanUsers(idToken: string): Promise<{ 
             ) {
                 const nextDate = new Date(sub.nextWeeklyGrantDate);
                 if (now >= nextDate) {
-                    const syncRes = await syncUserSubscriptionInstallments(uid);
+                    const syncRes = await syncUserSubscriptionInstallments(idToken, uid);
                     if (syncRes.success && syncRes.updatedProfile) {
                         p = { ...syncRes.updatedProfile, uid };
                     }

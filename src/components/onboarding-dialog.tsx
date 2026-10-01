@@ -11,6 +11,7 @@ import { completeUserOnboardingAction } from '@/app/actions';
 import Link from 'next/link';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 /**
  * 🚀 USER ONBOARDING HUB
  * ---------------------------------------
@@ -65,7 +66,7 @@ export function OnboardingDialog() {
 
         setIsSubmitting(true);
         try {
-            const result = await completeUserOnboardingAction(user.uid, finalName, finalAge);
+            const result = await completeUserOnboardingAction(await getIdToken(), user.uid, finalName, finalAge);
             if (result.success) {
                 toast({ title: "Identity Verified!", description: "Welcome to 12Labs Studio Hub." });
                 // Update local context to hide dialog

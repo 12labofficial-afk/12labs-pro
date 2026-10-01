@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import type { AffiliateTransaction } from '@/lib/types';
 import { format } from 'date-fns';
@@ -16,7 +18,9 @@ export interface AffiliateDashboardData {
   affiliateCode: string;
 }
 
-export async function getAffiliateDashboardData(userId: string): Promise<{ success: boolean; data?: AffiliateDashboardData, message: string }> {
+export async function getAffiliateDashboardData(idToken: string, userId: string): Promise<{ success: boolean; data?: AffiliateDashboardData, message: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, message: guard.message };
     const { firestore, database } = initializeFirebase();
 
     try {

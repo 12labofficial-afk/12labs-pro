@@ -74,6 +74,7 @@ import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+import { getIdToken } from '@/lib/id-token';
 interface VoiceEditorDialogProps {
     project: Project;
     children: React.ReactNode;
@@ -954,7 +955,7 @@ export function VoiceEditorDialog({ project, children }: VoiceEditorDialogProps)
         if (!voiceId) return;
         setIsRegeneratingIndex(index);
         try {
-            const result = await regenerateLineWithCreditsAction(user.uid, textToGen, voiceId);
+            const result = await regenerateLineWithCreditsAction(await getIdToken(), user.uid, textToGen, voiceId);
             if (result.success && result.audioDataUri) {
                 addToHistory(`Regenerated line ${index + 1}`);
                 const newDialogues = [...syncData.dialogues];

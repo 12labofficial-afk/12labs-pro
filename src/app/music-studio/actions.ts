@@ -1,5 +1,7 @@
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
@@ -10,7 +12,7 @@ import { reportServerError } from '@/lib/report-error';
 /**
  * 🎵 SUBMIT MUSIC PROJECT REQUEST (Firestore `music_project` submission)
  */
-export async function submitMusicProjectRequestAction(input: {
+export async function submitMusicProjectRequestAction(idToken: string, input: {
     userId: string;
     userName?: string;
     userEmail?: string;
@@ -27,6 +29,8 @@ export async function submitMusicProjectRequestAction(input: {
     instruments?: string[];
     clientTimestamp?: string;
 }): Promise<{ success: boolean; projectId?: string; newCredits?: number; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, input.userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { 
         userId, userName, userEmail, prompt, productionMode, 
         selectedLanguage, selectedTags, lyrics, mood, duration, 
@@ -158,7 +162,9 @@ export async function submitMusicProjectRequestAction(input: {
 /**
  * 🗑️ DELETE MUSIC PROJECT REQUEST
  */
-export async function deleteMusicProjectRequestAction(projectId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteMusicProjectRequestAction(idToken: string, projectId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     if (!projectId || !userId) {
         return { success: false, error: "Missing parameters." };
     }

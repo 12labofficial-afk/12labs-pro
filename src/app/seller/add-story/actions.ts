@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import type { Product, ProductPreview } from '@/lib/types';
@@ -30,11 +32,13 @@ const AddStorySchema = z.object({
   })).min(1, "At least one preview image is required."),
 });
 
-export async function addStoryAction(
+export async function addStoryAction(idToken: string, 
     input: z.infer<typeof AddStorySchema>,
     userId: string,
     sellerName: string,
 ): Promise<{ success: boolean; message: string; }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, message: guard.message };
   
   const validation = AddStorySchema.safeParse(input);
   if (!validation.success) {

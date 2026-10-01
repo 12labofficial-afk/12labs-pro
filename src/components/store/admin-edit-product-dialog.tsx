@@ -145,7 +145,7 @@ export function AdminEditProductDialog({ product, open, onOpenChange, onUpdate }
                 previews: updatedPreviews,
                 videoSize: formData.sizeValue ? `${formData.sizeValue} ${formData.sizeUnit}` : undefined
             };
-            const result = await adminUpdateProduct(product.id, finalData as any);
+            const result = await adminUpdateProduct(await getIdToken(), product.id, finalData as any);
             if (result.success) { 
                 toast({ title: 'Product Updated Successfully!' });
                 onUpdate(); 

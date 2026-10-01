@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireSelfOrAdmin, SERVER_INTERNAL, type AuthToken } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import type { UserProfile, UserSubscription } from '@/lib/types';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -56,7 +58,7 @@ function hashDeviceId(rawDeviceId: string): string {
 }
 
 // This function will be called from the client when a new user is detected.
-export async function createNewUserProfileOnServer(
+export async function createNewUserProfileOnServer(idToken: string, 
   user: {
     uid: string;
     email: string | null;
@@ -65,6 +67,8 @@ export async function createNewUserProfileOnServer(
   },
   deviceId: string
 ): Promise<{ success: boolean; profile?: UserProfile; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, user.uid);
+    if (!guard.ok) return { success: false, error: guard.message };
   if (!user.uid || !user.email) {
     return { success: false, error: 'User ID and email are required.' };
   }
@@ -230,11 +234,13 @@ export async function createNewUserProfileOnServer(
   }
 }
 
-export async function completeUserOnboardingAction(
+export async function completeUserOnboardingAction(idToken: string, 
     uid: string,
     name: string,
     age: string
 ): Promise<{ success: boolean; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, uid);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { firestore } = initializeFirebase();
     if (!firestore) return { success: false, error: 'Firebase Admin is not initialized.' };
     try {
@@ -251,7 +257,9 @@ export async function completeUserOnboardingAction(
     }
 }
 
-export async function getUserProfileFromServer(uid: string, deviceId?: string): Promise<UserProfile | null> {
+export async function getUserProfileFromServer(idToken: string, uid: string, deviceId?: string): Promise<UserProfile | null> {
+    const guard = await requireSelfOrAdmin(idToken, uid);
+    if (!guard.ok) return null;
     try {
         const { firestore } = initializeFirebase();
         if (!firestore) return null;
@@ -266,7 +274,7 @@ export async function getUserProfileFromServer(uid: string, deviceId?: string): 
             (profile.subscription.planId === 'autopay_pro' || profile.subscription.planId === 'test_sub') &&
             (profile.subscription.status === 'active' || profile.subscription.status === 'cancelled') &&
             (profile.subscription.weeklyGrantCount || 0) < (plans.find(p => p.id === profile.subscription!.planId)?.maxGrants ?? 4)) {
-            const syncResult = await syncUserSubscriptionInstallments(uid);
+            const syncResult = await syncUserSubscriptionInstallments(idToken, uid);
             if (syncResult.success && syncResult.updatedProfile) {
                 profile = syncResult.updatedProfile;
             }
@@ -295,7 +303,9 @@ function parseSubscriptionDate(value: any): Date {
  * Uses STRICT server-time and anchored 7-day gaps.
  * Awards all pending installments and DEACTIVATES the plan after the 4th grant.
  */
-export async function syncUserSubscriptionInstallments(userId: string): Promise<{ success: boolean; updatedProfile?: UserProfile }> {
+export async function syncUserSubscriptionInstallments(idToken: AuthToken, userId: string): Promise<{ success: boolean; updatedProfile?: UserProfile }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false };
     const { firestore, database } = initializeFirebase();
     if (!firestore) return { success: false };
 
@@ -486,7 +496,7 @@ export async function syncAllPendingSubscriptions(): Promise<{
                 (sub.status === 'active' || sub.status === 'cancelled') &&
                 (sub.weeklyGrantCount || 0) < subMaxGrants
             ) {
-                const syncRes = await syncUserSubscriptionInstallments(doc.id);
+                const syncRes = await syncUserSubscriptionInstallments(SERVER_INTERNAL, doc.id);
                 if (syncRes.success && syncRes.updatedProfile) {
                     syncedUsers.push(`${data.email || doc.id} (Grant ${syncRes.updatedProfile.subscription?.weeklyGrantCount || subMaxGrants})`);
                 }

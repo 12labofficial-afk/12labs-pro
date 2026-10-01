@@ -21,6 +21,7 @@ import { initializeFirebase } from '@/firebase';
 import { ref, get } from 'firebase/database';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 declare const Razorpay: any;
 
 export default function CheckoutPage() {
@@ -130,7 +131,7 @@ export default function CheckoutPage() {
 
         try {
             if (cartTotal === 0) {
-                const result = await processFreeOrder(itemsForAction, cleanUser);
+                const result = await processFreeOrder(await getIdToken(), itemsForAction, cleanUser);
                 if (result.success) {
                     toast({ title: "Order Successful!", description: "Your free products are now in your history." });
                     clearCart();
@@ -139,7 +140,7 @@ export default function CheckoutPage() {
                     throw new Error(result.error);
                 }
             } else {
-                const result = await createOrderForCart(itemsForAction, cleanUser);
+                const result = await createOrderForCart(await getIdToken(), itemsForAction, cleanUser);
 
                 if (!result.success) {
                     throw new Error(result.error || 'Failed to create order.');
@@ -221,7 +222,7 @@ export default function CheckoutPage() {
         
         setIsProcessingCredits(true);
         try {
-            const result = await processCreditOrder(
+            const result = await processCreditOrder(await getIdToken(), 
                 cartItems.map(item => ({
                     id: item.id,
                     title: item.title,

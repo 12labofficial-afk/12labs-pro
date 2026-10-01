@@ -11,7 +11,7 @@ import { plans } from '@/lib/plans';
 import { reportServerError } from '@/lib/report-error';
 import { handleCreditPurchase } from '@/lib/credit-purchase';
 import { escapeHtml } from '@/lib/utils';
-import { requireUser } from '@/lib/auth-guard';
+import { requireUser, requireSelfOrAdmin } from '@/lib/auth-guard';
 
 interface RazorpayOrderOutput {
   id: string;
@@ -118,12 +118,14 @@ async function createRazorpayOrder(
 }
 
 
-export async function handlePurchaseAction(
+export async function handlePurchaseAction(idToken: string, 
     planId: string, 
     user: { uid: string, name: string | null, email: string | null },
     currency: 'INR' | 'USD',
     promoCode?: string
 ): Promise<{ success: true; order?: RazorpayOrderOutput; free_purchase?: boolean } | { success: false; error: string }> {
+    const guard = await requireSelfOrAdmin(idToken, user.uid);
+    if (!guard.ok) return { success: false, error: guard.message };
   
   // 🛡️ IDENTITY SYNC CHECK
   if (!user || !user.uid || !user.email) {
@@ -156,7 +158,7 @@ export async function handlePurchaseAction(
     // SECURITY: Re-verify the promo code on the server before creating any order
     // Note: Consistent Creator (isAutopay) plan has fixed pricing and credits. Promo codes do NOT apply to consistent plans.
     if (promoCode && promoCode.toLowerCase() !== 'yxsh' && !plan.isAutopay) {
-        const promoResult = await applyPromoCode(promoCode, user.uid, user.email || '');
+        const promoResult = await applyPromoCode(idToken, promoCode, user.uid, user.email || '');
         if (!promoResult.success) {
             return { success: false, error: `Promo Code Error: ${promoResult.message}` };
         }
@@ -189,7 +191,7 @@ export async function handlePurchaseAction(
         const userRef = firestore.collection('users').doc(user.uid);
         
         if (promoCode && promoCode.toLowerCase() !== 'yxsh') {
-            await applyPromoCode(promoCode, user.uid, user.email, true);
+            await applyPromoCode(idToken, promoCode, user.uid, user.email, true);
         }
 
         const historyEntry = {
@@ -291,10 +293,12 @@ function calculateTopupCredits(amountInRupees: number): { baseCredits: number; g
  * Used for topping up the account's live credit balance, which API keys draw
  * from as well (see /developer).
  */
-export async function handleCustomTopupAction(
+export async function handleCustomTopupAction(idToken: string, 
     amountInRupees: number,
     user: { uid: string, name: string | null, email: string | null },
 ): Promise<{ success: true; order?: RazorpayOrderOutput; breakdown: { baseCredits: number; giftCredits: number; giftPercent: number; totalCredits: number } } | { success: false; error: string }> {
+    const guard = await requireSelfOrAdmin(idToken, user.uid);
+    if (!guard.ok) return { success: false, error: guard.message };
 
     if (!user || !user.uid || !user.email) {
         return { success: false, error: 'Identity node missing. Please sign in again.' };

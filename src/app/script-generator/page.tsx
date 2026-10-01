@@ -63,6 +63,7 @@ import { downloadScriptAsPdf, downloadScriptAsTxt, downloadScriptAsDocx } from '
 import { format } from 'date-fns';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const genres = ["Moral", "Horror", "Comedy", "Drama", "Thriller", "Sci-Fi", "Fantasy", "Romance", "Mystery", "Action", "Documentary", "Educational", "Motivational", "Mythological", "Short Story"];
 const scriptTypes = [
     "YouTube Story Script",
@@ -913,7 +914,7 @@ export default function ScriptGeneratorPage() {
                     // script (fetched from R2 via scriptUrl above).
                     (async () => {
                         try {
-                            const finalizeRes = await finalizeScriptSelectionAction({
+                            const finalizeRes = await finalizeScriptSelectionAction(await getIdToken(), {
                                 userId: activeUid,
                                 userEmail: user?.email || 'N/A',
                                 userName: user?.name || 'User',
@@ -1000,7 +1001,7 @@ export default function ScriptGeneratorPage() {
     setIsGenerating(true); setGenerationProgress(0);
     try {
         const targetLength = wordCountMapping[formState.wordCount] || 13000;
-        const hubRes = await deductScriptCreditsAction(
+        const hubRes = await deductScriptCreditsAction(await getIdToken(), 
             activeUid, 
             user.email, 
             targetLength, 

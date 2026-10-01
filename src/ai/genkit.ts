@@ -15,6 +15,7 @@ import { callDeepSeek } from './engines/deepseek';
 import { generateVoiceCloningAction } from '@/app/voice-cloning/actions';
 import { reportServerError } from '@/lib/report-error';
 
+import { SERVER_INTERNAL } from '@/lib/auth-guard';
 /**
  * 🧠 NEURAL JSON EXTRACTOR & REPAIR ENGINE (v5.1 - ULTRA ROBUST)
  * NOTE: intermediate parse attempts below are EXPECTED to fail often (e.g. AI
@@ -216,7 +217,7 @@ async function generateWithRotation<OutputSchema extends ZodTypeAny, CustomOptio
       }
       
       // Fallback to internal Voice Cloning node with rotation
-      const cloningRes = await generateVoiceCloningAction({
+      const cloningRes = await generateVoiceCloningAction(SERVER_INTERNAL, {
           text: request.metadata?.generationParams?.text || String(request.prompt),
           language: request.metadata?.generationParams?.language || 'hi',
           refAudioBase64: request.metadata?.generationParams?.refAudioBase64 || '',

@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import { FieldValue, Transaction } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
@@ -11,10 +13,12 @@ import { reportServerError } from '@/lib/report-error';
  * Atomically updates follower/following counts and relationships in Firestore.
  * Also updates the denormalized follower count in Realtime Database.
  */
-export async function toggleFollowSeller(
+export async function toggleFollowSeller(idToken: string, 
   sellerId: string,
   userId: string
 ): Promise<{ success: boolean; isFollowing: boolean; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, isFollowing: false, error: guard.message };
   if (!userId) {
     return { success: false, isFollowing: false, error: 'User not logged in.' };
   }
@@ -70,10 +74,12 @@ export async function toggleFollowSeller(
 /**
  * Checks if a given user is following a seller.
  */
-export async function checkFollowStatus(
+export async function checkFollowStatus(idToken: string, 
   sellerId: string,
   userId: string
 ): Promise<boolean> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return false;
   if (!userId) return false;
   try {
     const { firestore } = initializeFirebase();

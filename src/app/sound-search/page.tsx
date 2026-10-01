@@ -13,6 +13,7 @@ import { searchSoundEffects, type SearchSoundEffectsOutput } from '@/ai/flows/se
 import { cn } from '@/lib/utils';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const suggestions = ["wind", "walk", "rain", "explosion", "magic", "door creak"];
 
 // Extracting the sound type from the new output schema
@@ -83,7 +84,7 @@ function SoundSearchContent() {
         }
 
         try {
-            const results = await searchSoundEffects({ query: searchQuery, userEmail: user.email, page });
+            const results = await searchSoundEffects(await getIdToken(), { query: searchQuery, userEmail: user.email, page });
             
             if (isNewSearch) {
                 setSearchResults(results.sounds);

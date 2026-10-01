@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import type { Product, ProductPreview } from '@/lib/types';
@@ -29,11 +31,13 @@ const EditProductSchema = z.object({
   bgm: z.string().optional(),
 });
 
-export async function updateProductAction(
+export async function updateProductAction(idToken: string, 
   productId: string,
   sellerId: string,
   newData: z.infer<typeof EditProductSchema>
 ): Promise<{ success: boolean; message: string; }> {
+    const guard = await requireSelfOrAdmin(idToken, sellerId);
+    if (!guard.ok) return { success: false, message: guard.message };
   const validation = EditProductSchema.safeParse(newData);
   if (!validation.success) {
     return { success: false, message: validation.error.flatten().formErrors.join(', ') };
@@ -90,10 +94,12 @@ export async function updateProductAction(
   }
 }
 
-export async function deleteProductAction(
+export async function deleteProductAction(idToken: string, 
   productId: string,
   sellerId: string,
 ): Promise<{ success: boolean; message: string; }> {
+    const guard = await requireSelfOrAdmin(idToken, sellerId);
+    if (!guard.ok) return { success: false, message: guard.message };
   const { firestore, database } = initializeFirebase();
 
   try {
@@ -137,11 +143,13 @@ const UpdateProductMediaSchema = z.object({
   })),
 });
 
-export async function updateProductMediaAction(
+export async function updateProductMediaAction(idToken: string, 
   productId: string,
   sellerId: string,
   newData: z.infer<typeof UpdateProductMediaSchema>
 ): Promise<{ success: boolean; message: string; }> {
+    const guard = await requireSelfOrAdmin(idToken, sellerId);
+    if (!guard.ok) return { success: false, message: guard.message };
   const validation = UpdateProductMediaSchema.safeParse(newData);
   if (!validation.success) {
     return { success: false, message: validation.error.flatten().formErrors.join(', ') };
@@ -192,7 +200,9 @@ export async function updateProductMediaAction(
   }
 }
 
-export async function getSellerProductsAction(sellerId: string): Promise<{ success: boolean; data: Product[]; message: string }> {
+export async function getSellerProductsAction(idToken: string, sellerId: string): Promise<{ success: boolean; data: Product[]; message: string }> {
+    const guard = await requireSelfOrAdmin(idToken, sellerId);
+    if (!guard.ok) return { success: false, data: [], message: guard.message };
   try {
     if (!sellerId) return { success: false, data: [], message: 'Seller ID is required' };
     const { firestore, database } = initializeFirebase();

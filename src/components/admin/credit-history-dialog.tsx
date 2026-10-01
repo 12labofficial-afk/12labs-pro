@@ -41,6 +41,7 @@ import { syncUserSubscriptionInstallments } from '@/app/actions';
 import { plans } from '@/lib/plans';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const safeFormatDate = (dateVal: any, formatStr: string): string => {
   if (!dateVal) return 'N/A';
   try {
@@ -226,7 +227,7 @@ export function CreditHistoryDialog({ user, open, onOpenChange, showBuyButton = 
         const nextDate = new Date(user.subscription.nextWeeklyGrantDate);
         const maxGrants = plans.find(p => p.id === user.subscription?.planId)?.maxGrants ?? 4;
         if (new Date() >= nextDate && (user.subscription.weeklyGrantCount || 0) < maxGrants) {
-          syncUserSubscriptionInstallments(user.uid)
+          getIdToken().then((t) => syncUserSubscriptionInstallments(t, user.uid))
             .then(() => fetchLegacyHistory(true))
             .catch(() => fetchLegacyHistory(true));
           return;

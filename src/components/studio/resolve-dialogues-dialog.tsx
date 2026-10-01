@@ -16,6 +16,7 @@ import { expandDialogueWithAiAction } from '@/app/studio/ai-fix-actions';
 import { reportClientError } from '@/lib/report-client-error';
 import { AlertTriangle, Sparkles, Loader2, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
+import { getIdToken } from '@/lib/id-token';
 interface ResolveDialoguesDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -134,7 +135,7 @@ export function ResolveDialoguesDialog({ open, onOpenChange, onGenerateAnyway, o
                 .slice(start, end)
                 .map((l) => (l.id === current.id ? `>>> ${l.characterName}: ${text} <<< (THIS IS THE LINE TO FIX)` : `${l.characterName}: ${l.dialogue}`))
                 .join('\n');
-            const result = await expandDialogueWithAiAction(activeUid, text, current.characterName, windowedContext);
+            const result = await expandDialogueWithAiAction(await getIdToken(), activeUid, text, current.characterName, windowedContext);
             if (!result.success || !result.expandedText) throw new Error(result.error);
             setText(result.expandedText);
             if (result.newCredits !== undefined) setUser({ ...user, credits: result.newCredits } as any);

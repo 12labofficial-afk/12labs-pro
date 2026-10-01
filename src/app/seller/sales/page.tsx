@@ -33,6 +33,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 function PayoutSettingsCard({
   payoutDetails,
   onSave,
@@ -251,7 +252,7 @@ export default function SellerSalesPage() {
             return;
         };
         setIsLoading(true);
-        const result = await getSellerSalesData(user.uid);
+        const result = await getSellerSalesData(await getIdToken(), user.uid);
         if (result.success && result.data) {
             setSalesData(result.data);
             setWithdrawAmount(result.data.withdrawableAmount.toString());
@@ -282,7 +283,7 @@ export default function SellerSalesPage() {
     const handleSavePayoutDetails = async (details: any) => {
       if (!user) return;
       setIsSavingDetails(true);
-      const result = await savePayoutDetailsAction(user.uid, details);
+      const result = await savePayoutDetailsAction(await getIdToken(), user.uid, details);
       if (result.success) {
           toast({ title: "Identity Updated", description: result.message });
       } else {
@@ -324,7 +325,7 @@ export default function SellerSalesPage() {
         }
 
         setIsRequestingWithdrawal(true);
-        const result = await requestWithdrawalAction({
+        const result = await requestWithdrawalAction(await getIdToken(), {
             sellerId: user.uid,
             sellerName: user.name,
             withdrawableAmount: amount,

@@ -1,5 +1,7 @@
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import type { Product, ProductPreview } from '@/lib/types';
@@ -23,11 +25,13 @@ const AddBackgroundInputSchema = z.object({
   assetFileName: z.string(),
 });
 
-export async function addBackgroundAction(
+export async function addBackgroundAction(idToken: string, 
     input: z.infer<typeof AddBackgroundInputSchema>,
     userId: string,
     sellerName: string,
 ): Promise<{ success: boolean; message: string; }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, message: guard.message };
   
   const validation = AddBackgroundInputSchema.safeParse(input);
   if (!validation.success) {

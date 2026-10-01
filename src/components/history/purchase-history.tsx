@@ -48,6 +48,7 @@ import { downloadScriptAsPdf, downloadScriptAsDocx, downloadScriptAsTxt } from '
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 function PurchaseCard({ order }: { order: Order }) {
     const { activeUid } = useAuth();
     const { toast } = useToast();
@@ -109,7 +110,7 @@ function PurchaseCard({ order }: { order: Order }) {
         setIsLoadingScript(true);
         try {
             // SECURE: Retrieve directly from Firestore string field via Server Action
-            const result = await getSecureDownloadUrls(order.productId, activeUid);
+            const result = await getSecureDownloadUrls(await getIdToken(), order.productId, activeUid);
             if (result.success) {
                 if (result.fullScriptContent) {
                     setFullScript(result.fullScriptContent);
@@ -246,7 +247,7 @@ function PurchaseCard({ order }: { order: Order }) {
         if (!activeUid) return;
 
         setIsLoadingFiles(true);
-        const result = await getSecureDownloadUrls(order.productId, activeUid);
+        const result = await getSecureDownloadUrls(await getIdToken(), order.productId, activeUid);
         if (result.success) {
             if (result.files) setDownloadableFiles(result.files);
             if (result.fullScriptContent) setFullScript(result.fullScriptContent);

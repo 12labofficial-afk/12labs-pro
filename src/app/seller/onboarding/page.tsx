@@ -28,6 +28,7 @@ import { ref, get } from 'firebase/database';
 import type { SellerProfile } from '@/lib/types';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB Raw, will be compressed
 
 const onboardingSchema = z.object({
@@ -235,7 +236,7 @@ export default function SellerOnboardingPage() {
             });
         }
 
-        const result = await completeOnboardingAction({
+        const result = await completeOnboardingAction(await getIdToken(), {
             userId: user.uid,
             storeName: values.storeName,
             description: values.description,

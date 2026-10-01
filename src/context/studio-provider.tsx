@@ -25,6 +25,7 @@ import { getSignedUploadUrlAction } from '@/lib/gcs-actions';
 import { subscribeToPushNotifications } from '@/components/push-subscription-handler';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 type ScriptState = 'pristine' | 'valid';
 type GenerationMode = 'fast' | 'high-quality';
 
@@ -648,7 +649,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         const contentType = 'audio/wav';
         
         const fileName = `master_${stateRef.current.currentFastGenProjectId}.wav`;
-        const signRes = await getSignedUploadUrlAction({
+        const signRes = await getSignedUploadUrlAction(await getIdToken(), {
             fileName,
             contentType,
             bucketType: 'private',
@@ -675,7 +676,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         
         const actualChars = stateRef.current.generatedLines.reduce((acc: number, l: any) => acc + l.dialogue.length, 0);
 
-        await completeFastGenerationAction(
+        await completeFastGenerationAction(await getIdToken(), 
             activeUid!, activeUser!.name || 'User', activeUser!.email || '', 
             stateRef.current.projectName, stateRef.current.cleanScript || stateRef.current.script, 
             storageUrl, characters.map(({id, ...c}) => c), actualChars, 
@@ -738,7 +739,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
                 const voiceId = line.voiceOverride || char?.voice;
                 if (!voiceId) throw new Error("Voice mapping failed.");
                 
-                const res = await generateTtsAudioAction(line.dialogue, voiceId, activeUser?.email);
+                const res = await generateTtsAudioAction(await getIdToken(), line.dialogue, voiceId, activeUser?.email);
                 if (res.success && res.audioDataUri) {
                     const audioRes = await fetch(res.audioDataUri);
                     const blob = await audioRes.blob();
@@ -890,7 +891,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
                 });
                 return;
             }
-            const res = await processHighQualityGenerationAndDeductCredits(
+            const res = await processHighQualityGenerationAndDeductCredits(await getIdToken(), 
               activeUid,
               activeUser.name || 'User', 
               activeUser.email || '', 
@@ -933,7 +934,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
                 const actualChars = generatedLines.reduce((acc: number, l: any) => acc + l.dialogue.length, 0);
                 const normalRate = rateForEngine();
                 const fastGenCost = Math.ceil(actualChars * normalRate);
-                const res = await deductFastGenCreditsAction(activeUid, actualChars, projectName || 'Production', currentFastGenProjectId, fastGenCost);
+                const res = await deductFastGenCreditsAction(await getIdToken(), activeUid, actualChars, projectName || 'Production', currentFastGenProjectId, fastGenCost);
                 if (!res.success) {
                     setIsGenerating(false);
                     throw new Error(res.error);
@@ -1597,13 +1598,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     try {
         let result;
         if (needsDeduction) {
-            const res = await (import('@/app/studio/actions').then(m => m.regenerateLineWithCreditsAction(activeUid!, promptWithEmotion, voiceId)));
+            const res = await (import('@/app/studio/actions').then(async m => m.regenerateLineWithCreditsAction(await getIdToken(), activeUid!, promptWithEmotion, voiceId)));
             if (res.success && res.audioDataUri) {
                 result = { success: true, audioDataUri: res.audioDataUri };
                 if (res.newCredits !== undefined) setUser({ ...user, credits: res.newCredits } as any);
             } else throw new Error(res.error);
         } else {
-            result = await generateTtsAudioAction(promptWithEmotion, voiceId, activeUser?.email);
+            result = await generateTtsAudioAction(await getIdToken(), promptWithEmotion, voiceId, activeUser?.email);
         }
 
         if (result.success && result.audioDataUri) {

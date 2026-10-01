@@ -9,6 +9,7 @@ import { initializeFirebase } from '@/firebase/server';
 import { reportServerError } from '@/lib/report-error';
 import { withCors, corsPreflight } from '@/lib/cors';
 
+import { SERVER_INTERNAL } from '@/lib/auth-guard';
 /**
  * 🌐 PUBLIC API — POST /api/v1/generate
  * -----------------------------------------
@@ -179,6 +180,7 @@ async function handlePOST(request: NextRequest) {
 
     // --- 4. Submit to the exact same pipeline the website uses ---
     const res = await processHighQualityGenerationAndDeductCredits(
+      SERVER_INTERNAL,
       keyRecord.userId,
       userData.name || keyRecord.username || 'API User',
       userData.email || '',

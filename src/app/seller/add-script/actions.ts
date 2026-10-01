@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import type { Product, ProductPreview, DbRecord } from '@/lib/types';
@@ -19,11 +21,13 @@ const AddScriptSchema = z.object({
   scriptPreview: z.array(z.string()).optional(),
 });
 
-export async function addScriptAction(
+export async function addScriptAction(idToken: string, 
     input: z.infer<typeof AddScriptSchema>,
     userId: string,
     sellerName: string,
 ): Promise<{ success: boolean; message: string; }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, message: guard.message };
   
   const validation = AddScriptSchema.safeParse(input);
   if (!validation.success) {

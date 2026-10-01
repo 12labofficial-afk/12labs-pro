@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireSelfOrAdmin, requireUser } from '@/lib/auth-guard';
+
 /**
  * 🛰️ R2 STORAGE DISPATCHER (v2.1 - ROBUST SYNC)
  * -----------------------------------------------------------
@@ -20,7 +22,7 @@ import { reportServerError } from '@/lib/report-error';
 /**
  * 🎫 R2 SIGNED URL GENERATOR
  */
-export async function getSignedUploadUrlAction(input: {
+export async function getSignedUploadUrlAction(idToken: string, input: {
     fileName: string;
     contentType?: string;
     bucketType: 'public' | 'private';
@@ -28,6 +30,8 @@ export async function getSignedUploadUrlAction(input: {
     userId: string;
     fileSize?: number;
 }): Promise<{ success: boolean; signedUrl?: string; gcsPath?: string; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, input.userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     const { fileName, folder, userId, bucketType, fileSize, contentType } = input;
 
     try {
@@ -78,10 +82,12 @@ export async function getSignedUploadUrlAction(input: {
 /**
  * 📦 DIRECT STORAGE DISPATCHER WITH LOCAL FALLBACK
  */
-export async function uploadToGCS(
+export async function uploadToGCS(idToken: string, 
     formData: FormData,
     options?: { bucketType?: 'public' | 'private', folder?: string }
 ): Promise<{ success: boolean; url?: string; error?: string }> {
+    const guard = await requireUser(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     const file = formData.get('file') as File;
     if (!file) return { success: false, error: 'No file provided.' };
 

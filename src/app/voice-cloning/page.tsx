@@ -58,6 +58,7 @@ import { onRtdbValue } from '@/lib/rtdb-listener';
 import { uploadFileDirectly } from '@/lib/gcs-client';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const DB_NAME = '12labs_cloning_hub_v3';
 const STORE_NAME = 'cloning_history';
 
@@ -498,7 +499,7 @@ export default function VoiceCloningPage() {
         if (!importUrl.trim() || !user) return;
         setIsImportingUrl(true);
         try {
-            const result = await importVoiceCloneReferenceFromUrlAction({
+            const result = await importVoiceCloneReferenceFromUrlAction(await getIdToken(), {
                 userId: user.uid,
                 userEmail: user.email || 'N/A',
                 url: importUrl.trim(),

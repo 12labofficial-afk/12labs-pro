@@ -1,5 +1,7 @@
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { wholeCredits } from '@/lib/utils';
 import { initializeFirebase } from '@/firebase/server';
 import { callOpenRouterText } from '@/ai/engines/openrouter';
@@ -18,12 +20,14 @@ const DEFAULT_AI_FIX_COST = 50;
  * reached through the existing OpenRouter integration (src/ai/engines/openrouter.ts)
  * already used elsewhere in this app as an analysis fallback.
  */
-export async function expandDialogueWithAiAction(
+export async function expandDialogueWithAiAction(idToken: string, 
     userId: string,
     dialogueText: string,
     characterName: string,
     fullScriptContext: string
 ): Promise<{ success: boolean; expandedText?: string; newCredits?: number; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     if (!userId) return { success: false, error: 'User ID required.' };
     if (!dialogueText.trim()) return { success: false, error: 'Empty dialogue line.' };
 

@@ -31,6 +31,7 @@ import { VerifiedBadge } from '@/components/verified-badge';
 import { Badge } from '@/components/ui/badge';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 function ProductCardPlaceholder() {
     return (
         <div className="flex flex-col w-full mb-8">
@@ -170,7 +171,7 @@ function ProductCard({ product, seller, onUpdate }: { product: StoreProduct; sel
                                             onClick={async (e) => { 
                                                 e.stopPropagation(); 
                                                 if(window.confirm('Delete product?')) { 
-                                                    await adminDeleteProduct(product.id); 
+                                                    await adminDeleteProduct(await getIdToken(), product.id); 
                                                     if (onUpdate) onUpdate(); 
                                                 } 
                                             }} 
@@ -316,7 +317,7 @@ export default function SellerPublicProfilePage() {
     useEffect(() => {
         if (user && sellerId) {
             setIsLoadingFollow(true);
-            checkFollowStatus(sellerId, user.uid).then(status => {
+            getIdToken().then((t) => checkFollowStatus(t, sellerId, user.uid)).then(status => {
                 setIsFollowing(status);
                 setIsLoadingFollow(false);
             }).catch((err) => {
@@ -337,7 +338,7 @@ export default function SellerPublicProfilePage() {
         if (user.uid === sellerId) return;
     
         setIsLoadingFollow(true);
-        const result = await toggleFollowSeller(sellerId, user.uid);
+        const result = await toggleFollowSeller(await getIdToken(), sellerId, user.uid);
         if (result.success) {
             setIsFollowing(result.isFollowing);
             setFollowerCount(prev => {
@@ -356,7 +357,7 @@ export default function SellerPublicProfilePage() {
       const handleTogglePartner = async () => {
           if (!profile) return;
           setIsTogglingPartner(true);
-          const result = await adminToggleSellerVerification(sellerId, !!profile.isVerified);
+          const result = await adminToggleSellerVerification(await getIdToken(), sellerId, !!profile.isVerified);
           if (result.success) {
               toast({ title: 'Status Updated' });
           } else {

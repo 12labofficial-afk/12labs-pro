@@ -61,6 +61,7 @@ import { createOrderForMusicTrack, confirmMusicTrackPurchaseAction } from './act
 import { getSecureDownloadUrl } from '@/app/admin/music-manager/actions';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
+import { getIdToken } from '@/lib/id-token';
 const CATEGORIES = ['ALL', 'CINEMATIC', 'EMOTIONAL', 'HORROR', 'COMEDY', 'LO-FI', 'ACTION', 'SUSPENSE', 'INSPIRATIONAL', 'DEVOTIONAL'];
 
 const iconGradients = [
@@ -347,7 +348,7 @@ export default function MusicLibraryPage() {
 
         setPurchasingTrackId(track.id);
         try {
-            const result = await createOrderForMusicTrack(track.id, { uid: user.uid, email: user.email, name: user.name });
+            const result = await createOrderForMusicTrack(await getIdToken(), track.id, { uid: user.uid, email: user.email, name: user.name });
             if (!result.success) throw new Error(result.error);
 
             const order = result.order;

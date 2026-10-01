@@ -34,11 +34,20 @@ const ADMIN_EMAILS = [
   '12labofficial@gmail.com',
 ].map((e) => e.toLowerCase());
 
+/**
+ * Passed instead of an ID token by trusted server code (API routes that did
+ * their own API-key auth, cron, other guarded actions). A local Symbol can't
+ * be serialized into a server action call, so a browser can never send it.
+ */
+export const SERVER_INTERNAL: unique symbol = Symbol('server-internal');
+export type AuthToken = string | typeof SERVER_INTERNAL | undefined | null;
+
 type GuardResult =
   | { ok: true; uid: string; email: string | null }
   | { ok: false; message: string };
 
-export async function requireUser(idToken: string | undefined | null): Promise<GuardResult> {
+export async function requireUser(idToken: AuthToken): Promise<GuardResult> {
+  if (idToken === SERVER_INTERNAL) return { ok: true, uid: '__server__', email: null };
   if (!idToken) return { ok: false, message: 'Not signed in.' };
   try {
     const { auth } = initializeFirebase();
@@ -50,9 +59,10 @@ export async function requireUser(idToken: string | undefined | null): Promise<G
   }
 }
 
-export async function requireAdmin(idToken: string | undefined | null): Promise<GuardResult> {
+export async function requireAdmin(idToken: AuthToken): Promise<GuardResult> {
   const result = await requireUser(idToken);
   if (!result.ok) return result;
+  if (idToken === SERVER_INTERNAL) return result;
 
   try {
     const { auth } = initializeFirebase();
@@ -72,9 +82,9 @@ export async function requireAdmin(idToken: string | undefined | null): Promise<
 }
 
 /** The caller must be `userId` themselves, or an admin acting on their behalf. */
-export async function requireSelfOrAdmin(idToken: string | undefined | null, userId: string): Promise<GuardResult> {
+export async function requireSelfOrAdmin(idToken: AuthToken, userId: string): Promise<GuardResult> {
   const result = await requireUser(idToken);
   if (!result.ok) return result;
-  if (result.uid === userId) return result;
+  if (idToken === SERVER_INTERNAL || result.uid === userId) return result;
   return requireAdmin(idToken);
 }

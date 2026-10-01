@@ -29,6 +29,7 @@ import { uploadFileDirectly } from '@/lib/gcs-client';
 import { cn, getDisplayUrl } from '@/lib/utils';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const settingsSchema = z.object({
   storeName: z.string().min(3, { message: "Store name must be at least 3 characters." }),
   description: z.string().min(20, { message: "Description must be at least 20 characters." }),
@@ -195,7 +196,7 @@ export default function SellerSettingsPage() {
             finalImageUrl = cloudUrl;
         }
         
-        const result = await updateSellerProfileAction(user.uid, {
+        const result = await updateSellerProfileAction(await getIdToken(), user.uid, {
             storeName: values.storeName,
             description: values.description,
             profileImageUrl: finalImageUrl,

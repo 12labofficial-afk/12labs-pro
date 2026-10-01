@@ -29,6 +29,7 @@ import { AdminEditProductDialog } from '@/components/store/admin-edit-product-di
 import { PurchaseHistory } from '@/components/history/purchase-history';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 /**
  * Optimized Product Overlay Component for Zero-Lag Interaction
  */
@@ -355,7 +356,7 @@ function ProductCard({
                                             onClick={async (e) => { 
                                                 e.stopPropagation(); 
                                                 if(window.confirm('Delete this product?')) { 
-                                                    await adminDeleteProduct(product.id); 
+                                                    await adminDeleteProduct(await getIdToken(), product.id); 
                                                     onAdminAction(); 
                                                 } 
                                             }} 
@@ -545,7 +546,7 @@ export default function StoreHomePage() {
 
             // Auto-clean corrupted ghost nodes in the background if found
             if (hasCorrupted) {
-                adminCleanCorruptedProducts().catch((e: any) => { reportClientError('src/app/store/page.tsx:548', e); return null; });
+                adminCleanCorruptedProducts(await getIdToken()).catch((e: any) => { reportClientError('src/app/store/page.tsx:548', e); return null; });
             }
         } catch (err) {
         reportClientError('src/app/store/page.tsx:546', err);

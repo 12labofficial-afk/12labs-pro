@@ -1,6 +1,8 @@
 
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { z } from 'zod';
 import { initializeFirebase as initializeAdminFirebase } from '@/firebase/server';
 import { sendToTelegram } from '@/lib/telegram-logger';
@@ -25,7 +27,9 @@ const OnboardingActionInputSchema = z.object({
 
 type OnboardingActionInput = z.infer<typeof OnboardingActionInputSchema>;
 
-export async function completeOnboardingAction(input: OnboardingActionInput): Promise<{ success: boolean; error?: string }> {
+export async function completeOnboardingAction(idToken: string, input: OnboardingActionInput): Promise<{ success: boolean; error?: string }> {
+    const guard = await requireSelfOrAdmin(idToken, input.userId);
+    if (!guard.ok) return { success: false, error: guard.message };
     const validation = OnboardingActionInputSchema.safeParse(input);
     if (!validation.success) {
         return { success: false, error: validation.error.flatten().formErrors.join(', ') };

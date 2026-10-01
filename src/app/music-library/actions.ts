@@ -1,5 +1,7 @@
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { initializeFirebase } from '@/firebase/server';
@@ -22,10 +24,12 @@ interface RazorpayOrderOutput {
  * `notes`. The webhook (src/app/api/webhook/razorpay/route.ts) reads those
  * same notes to know which user unlocked which track once payment clears.
  */
-export async function createOrderForMusicTrack(
+export async function createOrderForMusicTrack(idToken: string, 
   trackId: string,
   user: { uid: string; email: string; name?: string }
 ): Promise<{ success: true; order: RazorpayOrderOutput } | { success: false; error: string }> {
+    const guard = await requireSelfOrAdmin(idToken, user.uid);
+    if (!guard.ok) return { success: false, error: guard.message };
   try {
     if (!user?.uid || !user?.email) {
       return { success: false, error: 'Sign in required to purchase a track.' };

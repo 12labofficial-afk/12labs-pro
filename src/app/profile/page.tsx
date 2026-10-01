@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+import { getIdToken } from '@/lib/id-token';
 export default function ProfilePage() {
     const { user, loading: authLoading } = useAuth();
     const router = useRouter();
@@ -64,7 +65,7 @@ export default function ProfilePage() {
 
     useEffect(() => {
         if (!user?.uid) return;
-        getAccountSummaryAction(user.uid).then((s) => {
+        getIdToken().then((t) => getAccountSummaryAction(t, user.uid)).then((s) => {
             setSummary(s);
             setIsLoadingSummary(false);
         }).catch((e) => {
@@ -121,7 +122,7 @@ export default function ProfilePage() {
         if (!isReauthed || confirmText !== 'DELETE') return;
         setIsDeleting(true);
         try {
-            const result = await deleteMyAccountAction(user.uid, user.email || '', keepProducts === 'keep', googleAccessTokenRef.current || undefined);
+            const result = await deleteMyAccountAction(await getIdToken(), user.uid, user.email || '', keepProducts === 'keep', googleAccessTokenRef.current || undefined);
             if (!result.success) throw new Error(result.message);
 
             const { auth } = initializeFirebase();

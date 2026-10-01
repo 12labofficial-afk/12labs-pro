@@ -1,5 +1,7 @@
 'use server';
 
+import { requireUser } from '@/lib/auth-guard';
+
 /**
  * @fileOverview A flow for searching copyright-free sound effects from FreeSound.org.
  *
@@ -43,7 +45,9 @@ const SearchSoundEffectsOutputSchema = z.object({
 });
 export type SearchSoundEffectsOutput = z.infer<typeof SearchSoundEffectsOutputSchema>;
 
-export async function searchSoundEffects(input: SearchSoundEffectsInput): Promise<SearchSoundEffectsOutput> {
+export async function searchSoundEffects(idToken: string, input: SearchSoundEffectsInput): Promise<SearchSoundEffectsOutput> {
+    const guard = await requireUser(idToken);
+    if (!guard.ok) throw new Error(guard.message);
     try {
         return await searchSoundEffectsFlow(input);
     } catch (error: any) {

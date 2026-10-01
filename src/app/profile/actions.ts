@@ -1,5 +1,7 @@
 'use server';
 
+import { requireSelfOrAdmin } from '@/lib/auth-guard';
+
 import { initializeFirebase } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { sendToTelegram } from '@/lib/telegram-logger';
@@ -21,7 +23,9 @@ export interface AccountSummary {
  * /purchases), just enough for the user to see what deletion will affect
  * before they commit to it.
  */
-export async function getAccountSummaryAction(uid: string): Promise<AccountSummary> {
+export async function getAccountSummaryAction(idToken: string, uid: string): Promise<AccountSummary> {
+    const guard = await requireSelfOrAdmin(idToken, uid);
+    if (!guard.ok) return { projectCount: 0, purchaseCount: 0, productCount: 0, isSeller: false };
     const { firestore } = initializeFirebase();
     let projectCount = 0;
     let purchaseCount = 0;
@@ -73,12 +77,14 @@ export async function getAccountSummaryAction(uid: string): Promise<AccountSumma
  * /profile) and this is the destructive step that runs only after that
  * succeeds.
  */
-export async function deleteMyAccountAction(
+export async function deleteMyAccountAction(idToken: string, 
     uid: string,
     email: string,
     keepProductsUnderPlatform: boolean,
     googleAccessToken?: string
 ): Promise<{ success: boolean; message: string }> {
+    const guard = await requireSelfOrAdmin(idToken, uid);
+    if (!guard.ok) return { success: false, message: guard.message };
     if (!uid) return { success: false, message: 'Missing user ID.' };
 
     const { firestore, database, auth } = initializeFirebase();
@@ -115,7 +121,7 @@ export async function deleteMyAccountAction(
                 }
             } else {
                 for (const doc of productsSnap.docs) {
-                    await deleteProductAction(doc.id, uid).catch((e: any) => { reportServerError('src/app/profile/actions.ts:deleteProductAction', e); return null; });
+                    await deleteProductAction(idToken, doc.id, uid).catch((e: any) => { reportServerError('src/app/profile/actions.ts:deleteProductAction', e); return null; });
                 }
             }
 

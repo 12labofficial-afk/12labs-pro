@@ -1,12 +1,16 @@
 'use server';
 
+import { requireUser } from '@/lib/auth-guard';
+
 import { reportServerError } from '@/lib/report-error';
 
 /**
  * Server action to upload files to the Telegram storage channel.
  * Strictly uses the "cloud-bot" for all storage operations.
  */
-export async function uploadToTelegramAction(formData: FormData): Promise<{ success: boolean; fileId?: string; error?: string }> {
+export async function uploadToTelegramAction(idToken: string, formData: FormData): Promise<{ success: boolean; fileId?: string; error?: string }> {
+    const guard = await requireUser(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
     const file = formData.get('file') as File;
     
     // Explicitly use ONLY the storage bot token

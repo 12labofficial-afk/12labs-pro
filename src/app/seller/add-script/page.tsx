@@ -28,6 +28,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 const formSchema = z.object({
   title: z.string().min(5, { message: "Title must be at least 5 characters." }),
   description: z.string().min(20, { message: "Description must be at least 20 characters." }).max(1000, "Description cannot be more than 1000 characters."),
@@ -164,7 +165,7 @@ export default function AddScriptPage() {
         const scriptBlob = new Blob([values.scriptContent], { type: 'text/plain' });
         const scriptUrl = await uploadFileDirectly(scriptBlob, scriptFileName, 'private', 'store/scripts/masters', user.uid, user.email || 'N/A', setUploadProgress);
 
-        const res = await addScriptAction({ 
+        const res = await addScriptAction(await getIdToken(), { 
             ...values, 
             thumbnailUrl: thumbUrl, 
             scriptFileUrl: scriptUrl,

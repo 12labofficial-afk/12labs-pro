@@ -63,6 +63,7 @@ import { onRtdbValue } from '@/lib/rtdb-listener';
 import { initializeFirebase } from '@/firebase';
 import { reportClientError } from '@/lib/report-client-error';
 
+import { getIdToken } from '@/lib/id-token';
 interface ApiKeyItem {
   id: string;
   apiKey?: string;
@@ -117,7 +118,7 @@ export default function DeveloperDashboardPage() {
 
     setIsToppingUp(true);
     try {
-        const result = await handleCustomTopupAction(
+        const result = await handleCustomTopupAction(await getIdToken(), 
             topupAmountNum,
             { uid: user.uid, name: user.name, email: user.email },
         );
