@@ -48,7 +48,12 @@ function ProductCardPlaceholder() {
     )
 }
 
+function isSoldProduct(p: any): boolean {
+    return p?.status === 'sold' || p?.isSold === true || Boolean(p?.buyerUid);
+}
+
 function ProductCard({ product, seller, onUpdate }: { product: StoreProduct; seller?: SellerProfile; onUpdate?: () => void }) {
+    const isSold = isSoldProduct(product);
     const { toast } = useToast();
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
@@ -90,9 +95,17 @@ function ProductCard({ product, seller, onUpdate }: { product: StoreProduct; sel
                 <img
                     src={displayImageUrl || 'https://res.cloudinary.com/dptryoeis/image/upload/v1772590885/c10h0lknqblj7kfxp5qr.png'}
                     alt={product.title}
-                    className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105 disable-long-press-download"
+                    className={cn("w-full h-full object-contain transition-transform duration-700 group-hover:scale-105 disable-long-press-download", isSold && "grayscale opacity-60")}
                     loading="lazy"
                 />
+
+                {isSold && (
+                    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/35 pointer-events-none">
+                        <span className="-rotate-12 rounded-xl border-[5px] border-red-500 bg-red-500/10 px-6 py-2 text-3xl sm:text-4xl font-black uppercase tracking-[0.15em] text-red-500 shadow-2xl backdrop-blur-[1px]">
+                            Sold Out
+                        </span>
+                    </div>
+                )}
 
                 {isStory && (
                     <div className="absolute inset-0 bg-black/10 flex items-center justify-center pointer-events-none z-10">
@@ -294,11 +307,10 @@ export default function SellerPublicProfilePage() {
                     .filter(([_, val]: [string, any]) => {
                         if (!val || typeof val !== 'object' || !val.title || !val.productType) return false;
                         if (val.sellerId !== sellerId) return false;
-                        // Same rule as the store: a sold exclusive isn't a live listing for
-                        // anyone (admins included) and doesn't count toward "Assets Live".
-                        // Buyers find it in Purchase History, sellers in their dashboard.
-                        const isSold = val.status === 'sold' || val.isSold === true || Boolean(val.buyerUid);
-                        return !isSold;
+                        // Sold exclusives aren't live listings: hidden from everyone except
+                        // admins, who see them stamped SOLD OUT (see ProductCard).
+                        if (!isSoldProduct(val)) return true;
+                        return user?.role === 'admin';
                     })
                     .map(([id, val]: [string, any]) => ({
                         ...val,
@@ -313,7 +325,7 @@ export default function SellerPublicProfilePage() {
         });
 
         return () => unsubscribe();
-    }, [sellerId, database]);
+    }, [sellerId, database, user?.role]);
 
     useEffect(() => {
         if (user && sellerId) {
@@ -474,7 +486,7 @@ export default function SellerPublicProfilePage() {
                                     {followerCount !== null ? `${followerCount.toLocaleString()} Subscribers` : '...'}
                                 </Badge>
                                 <Badge variant="outline" className="font-black uppercase text-[10px] px-3 h-6 tracking-widest border-primary/10">
-                                    {(products?.length || 0)} Assets Live
+                                    {(products || []).filter(p => !isSoldProduct(p)).length} Assets Live
                                 </Badge>
                             </div>
                             <div className="mt-6 border-l-4 border-primary/10 pl-6 py-1">

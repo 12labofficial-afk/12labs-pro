@@ -165,3 +165,54 @@ export async function setAnalysisExecutionModeAction(idToken: string, mode: 'rea
     }
 }
 
+
+export type ActionItemGroup = {
+    key: 'withdrawals' | 'sellerProfiles' | 'products' | 'chats' | 'payments';
+    count: number;
+    preview: string[];
+};
+
+/**
+ * Everything that is waiting on an admin, in one call, for the Action
+ * Center at the top of /admin. Each source fails independently so one bad
+ * query can't hide the others.
+ */
+export async function getAdminActionItems(idToken: string): Promise<{ success: boolean; groups: ActionItemGroup[]; error?: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, groups: [], error: guard.message };
+    const { firestore, database } = initializeFirebase();
+    const groups: ActionItemGroup[] = [];
+    const inr = (n: any) => `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+    await Promise.all([
+        (async () => {
+            const snap = await firestore.collection('withdrawalRequests').where('status', '==', 'pending').limit(50).get();
+            const rows = snap.docs.map((d: any) => d.data()).sort((a: any, b: any) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+            groups.push({ key: 'withdrawals', count: snap.size, preview: rows.slice(0, 3).map((r: any) => `${r.sellerName || 'Seller'} — ${inr(r.amount)}`) });
+        })().catch((e) => reportServerError('src/app/admin/actions.ts:actionItems:withdrawals', e)),
+        (async () => {
+            const val = (await database.ref('pendingSellerProfiles').get()).val() || {};
+            const rows = Object.values(val) as any[];
+            groups.push({ key: 'sellerProfiles', count: rows.length, preview: rows.slice(0, 3).map((r) => r?.storeName || 'Unnamed store') });
+        })().catch((e) => reportServerError('src/app/admin/actions.ts:actionItems:sellers', e)),
+        (async () => {
+            const val = (await database.ref('pendingProducts').get()).val() || {};
+            const rows = Object.values(val) as any[];
+            groups.push({ key: 'products', count: rows.length, preview: rows.slice(0, 3).map((r) => `${r?.title || 'Untitled'}${r?.sellerName ? ` · ${r.sellerName}` : ''}`) });
+        })().catch((e) => reportServerError('src/app/admin/actions.ts:actionItems:products', e)),
+        (async () => {
+            const val = (await database.ref('chats').orderByChild('isReadByAdmin').equalTo(false).get()).val() || {};
+            const rows = Object.values(val) as any[];
+            groups.push({ key: 'chats', count: rows.length, preview: rows.slice(0, 3).map((r) => r?.userName || r?.userEmail || 'User') });
+        })().catch((e) => reportServerError('src/app/admin/actions.ts:actionItems:chats', e)),
+        (async () => {
+            // Webhook events we gave up on (acked to Razorpay after retries) — need a manual grant.
+            const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+            const snap = await firestore.collection('webhookFailures').where('attempts', '>=', 3).limit(50).get();
+            const rows = snap.docs.map((d: any) => d.data()).filter((r: any) => String(r.lastAttemptAt || '') >= since && !r.resolved);
+            groups.push({ key: 'payments', count: rows.length, preview: rows.slice(0, 3).map((r: any) => String(r.lastError || 'Payment not credited').slice(0, 60)) });
+        })().catch((e) => reportServerError('src/app/admin/actions.ts:actionItems:payments', e)),
+    ]);
+
+    return { success: true, groups: groups.filter((g) => g.count > 0) };
+}

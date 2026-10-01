@@ -30,6 +30,8 @@ import { PurchaseHistory } from '@/components/history/purchase-history';
 import { reportClientError } from '@/lib/report-client-error';
 
 import { getIdToken } from '@/lib/id-token';
+import { rankStoreProducts, buildCategoryAffinity } from '@/lib/store-ranking';
+import { getMyFollowedSellerIds } from '@/app/seller/actions';
 /**
  * Optimized Product Overlay Component for Zero-Lag Interaction
  */
@@ -424,30 +426,6 @@ function formatDistanceToNowShort(dateInput: any) {
     return `${Math.floor(diffInDays / 7)}w ago`;
 }
 
-// Ranking score: newer + more engaged + verified-seller products surface first.
-// Replaces the old pure-random shuffle so the store actually ranks listings
-// instead of showing them in a random order every load.
-const rankProducts = (items: StoreProduct[]): StoreProduct[] => {
-  const now = Date.now();
-  const scored = items.map((item) => {
-    const created = item.createdAt ? new Date(item.createdAt).getTime() : now;
-    const ageInDays = Math.max(0, (now - created) / (1000 * 60 * 60 * 24));
-    // Freshness decays over ~14 days so new listings get a fair initial push
-    // without permanently outranking popular older ones.
-    const freshnessScore = Math.max(0, 14 - ageInDays) * 4;
-    const likesScore = (item.likes || 0) * 3;
-    const viewsScore = (item.views || 0) * 0.5;
-    const verifiedBoost = item.sellerIsVerified ? 15 : 0;
-    // Small deterministic jitter (based on id) so items with an identical
-    // score don't always render in the same tie-broken order.
-    const jitter = (item.id ? item.id.charCodeAt(0) % 5 : 0);
-    const score = freshnessScore + likesScore + viewsScore + verifiedBoost + jitter;
-    return { item, score };
-  });
-  scored.sort((a, b) => b.score - a.score);
-  return scored.map((s) => s.item);
-};
-
 const shuffleArray = <T,>(array: T[]): T[] => {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
@@ -472,6 +450,15 @@ export default function StoreHomePage() {
   const [activeSeller, setActiveSeller] = useState<SellerProfile | null>(null);
   const [isOverlayLoading, setIsOverlayLoading] = useState(false);
   const [purchasedProductIds, setPurchasedProductIds] = useState<Set<string>>(new Set());
+  const [followedSellerIds, setFollowedSellerIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!user?.uid) { setFollowedSellerIds(new Set()); return; }
+    getIdToken()
+      .then((t) => getMyFollowedSellerIds(t))
+      .then((ids) => setFollowedSellerIds(new Set(ids)))
+      .catch((e: any) => reportClientError('src/app/store/page.tsx:followed', e));
+  }, [user?.uid]);
   const [globalDiscount, setGlobalDiscount] = useState(0);
   // 🛍️ Lets a logged-in user view "what I've bought" right here in the
   // store, in a slide-up sheet, instead of navigating to a separate page.
@@ -541,7 +528,7 @@ export default function StoreHomePage() {
                 }
             }
 
-            setProducts(rankProducts(validProducts));
+            setProducts(validProducts);
             setSellers(sellersMap);
 
             // Auto-clean corrupted ghost nodes in the background if found
@@ -597,9 +584,18 @@ export default function StoreHomePage() {
       return true;
     });
 
-    if (selectedType === 'All') return visibleProducts; 
-    return visibleProducts.filter(product => product.productType === selectedType); 
-  }, [products, selectedType, user, purchasedProductIds]);
+    const purchasedTypes = products
+      .filter(p => purchasedProductIds.has(p.id))
+      .map(p => p.productType as string);
+    const ranked = rankStoreProducts(visibleProducts, {
+      sellers,
+      followedSellerIds,
+      categoryAffinity: buildCategoryAffinity(purchasedTypes),
+      viewerKey: user?.uid || 'anon',
+    });
+    if (selectedType === 'All') return ranked;
+    return ranked.filter(product => product.productType === selectedType);
+  }, [products, selectedType, user, purchasedProductIds, sellers, followedSellerIds]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { 
     ShoppingCart, Package, Gem, ShieldAlert, CheckCircle, Lock, FileText, 
-    Clock, Coins, Sparkles, Verified, Loader2, ThumbsUp, Calendar, Heart, 
+    Clock, Coins, Sparkles, Verified, Loader2, ThumbsUp, Calendar, Heart, Bell, 
     Video, Play, Zap, MonitorPlay, Cpu, MicVocal, Info, Youtube, Link2, 
     Check, ShieldCheck, IndianRupee, Download, Award, 
     FileDown, Printer, Eye, X, RefreshCw, Save, Trash2, Edit, ImageIcon, 
@@ -48,6 +48,7 @@ import { reportClientError } from '@/lib/report-client-error';
 
 import { getIdToken } from '@/lib/id-token';
 import { userFacingError } from '@/lib/user-error';
+import { recordProductView } from '@/lib/store-ranking';
 const languages = ["Hindi", "English", "Hinglish", "Bengali", "Marathi", "Telugu", "Tamil", "Gujarati", "Punjabi", "Kannada", "Malayalam", "Bhojpuri"];
 const qualityOptions = ["Ultra HD (4K)", "Full HD (1080p)", "Standard HD (720p)", "High Compression (SD)"];
 const resolutionOptions = ["Vertical (9:16) - For Shorts/Reels", "Horizontal (16:9) - Standard", "Square (1:1)"];
@@ -361,6 +362,8 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
     const [currentLikes, setCurrentLikes] = useState(product.likes || 0);
     const [isLikeLoading, setIsLikeLoading] = useState(true);
     const [isFollowing, setIsFollowing] = useState(false);
+    // Feeds the store's category affinity (local to this device).
+    useEffect(() => { recordProductView(product?.productType as string); }, [product?.id]);
     const [isLoadingFollow, setIsLoadingFollow] = useState(true);
     const [accessState, setAccessState] = useState<'verifying' | 'granted' | 'restricted'>('verifying');
     const [hasPurchased, setHasPurchased] = useState(false);
@@ -749,12 +752,30 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
                                                 <div className="min-w-0">
                                                     <div className="flex items-center gap-1"><p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Creator</p>{isVerifiedPartner && <VerifiedBadge className="h-3 w-3" />}</div>
                                                     <p className="font-black text-sm truncate">{seller.storeName}</p>
+                                                    {typeof seller.followerCount === 'number' && (
+                                                        <p className="text-[11px] text-muted-foreground">{seller.followerCount.toLocaleString()} {seller.followerCount === 1 ? 'subscriber' : 'subscribers'}</p>
+                                                    )}
                                                 </div>
                                             </div>
                                         </Link>
-                                        {user && user.uid !== product.sellerId && (
-                                            <Button onClick={handleFollowToggle} disabled={isLoadingFollow} variant="ghost" size="icon" className="h-10 w-10 shrink-0 rounded-full hover:bg-primary/10 hover:text-primary transition-all active:scale-90">
-                                                {isLoadingFollow ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Heart className={cn("h-5 w-5", isFollowing && "fill-current text-primary")}/>}
+                                        {user?.uid !== product.sellerId && (
+                                            <Button
+                                                onClick={handleFollowToggle}
+                                                disabled={isLoadingFollow}
+                                                className={cn(
+                                                    "h-9 shrink-0 rounded-full px-4 text-xs font-bold",
+                                                    isFollowing
+                                                        ? "bg-muted text-foreground hover:bg-muted/80"
+                                                        : "bg-foreground text-background hover:bg-foreground/90"
+                                                )}
+                                            >
+                                                {isLoadingFollow ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : isFollowing ? (
+                                                    <><Bell className="mr-1.5 h-3.5 w-3.5" /> Subscribed</>
+                                                ) : (
+                                                    'Subscribe'
+                                                )}
                                             </Button>
                                         )}
                                     </div>

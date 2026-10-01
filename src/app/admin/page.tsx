@@ -68,6 +68,7 @@ import { PricingSettingsManager } from '@/components/admin/pricing-settings-mana
 import { QuotesManager } from '@/components/admin/quotes-manager';
 
 import { getIdToken } from '@/lib/id-token';
+import { ActionCenter } from '@/components/admin/action-center';
 function LiveUsers() {
     const { database } = initializeFirebase();
     const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
@@ -683,6 +684,8 @@ export default function AdminPage() {
           <h1 className="text-4xl font-black tracking-tighter uppercase leading-none">COMMAND <span className="text-primary italic">CENTER</span></h1>
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Neural Network Hub</p>
       </div>
+
+      <ActionCenter />
 
       <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
         <LiveUsers />

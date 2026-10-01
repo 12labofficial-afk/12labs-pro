@@ -1,7 +1,7 @@
 
 'use server';
 
-import { requireSelfOrAdmin } from '@/lib/auth-guard';
+import { requireSelfOrAdmin, requireUser } from '@/lib/auth-guard';
 
 import { initializeFirebase } from '@/firebase/server';
 import { FieldValue, Transaction } from 'firebase-admin/firestore';
@@ -91,5 +91,19 @@ export async function checkFollowStatus(idToken: string,
     reportServerError('src/app/seller/actions.ts#2', error);
     console.error('Failed to check follow status:', error);
     return false;
+  }
+}
+
+/** Seller ids the signed-in user subscribes to (store feed personalisation). */
+export async function getMyFollowedSellerIds(idToken: string): Promise<string[]> {
+  const guard = await requireUser(idToken);
+  if (!guard.ok) return [];
+  try {
+    const { firestore } = initializeFirebase();
+    const snap = await firestore.collection('users').doc(guard.uid).collection('following').select().limit(500).get();
+    return snap.docs.map((d: any) => d.id);
+  } catch (error) {
+    reportServerError('src/app/seller/actions.ts:getMyFollowedSellerIds', error);
+    return [];
   }
 }
