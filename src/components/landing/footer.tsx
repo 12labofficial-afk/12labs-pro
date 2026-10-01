@@ -2,13 +2,16 @@
 
 import Link from 'next/link';
 import { IndianFlagIcon } from '@/components/icons';
-import { cn, getDisplayUrl } from '@/lib/utils';
-import Image from 'next/image';
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeFirebase } from '@/firebase';
-import { ref, onValue } from 'firebase/database';
+import { ref } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import { useAuth } from '@/context/auth-provider';
+import { Instagram, Youtube, Mail, Send, MessageCircle, ArrowUpRight } from 'lucide-react';
+
+const DEFAULT_WHATSAPP = 'https://chat.whatsapp.com/CbWx44GhFyt49jCiHteGSe';
+const TELEGRAM = 'https://t.me/twelvelab';
+const SUPPORT_EMAIL = 'mailto:12labofficial@gmail.com';
 
 const mainTools = [
     { title: 'AI Voice Studio', link: '/studio' },
@@ -19,31 +22,51 @@ const mainTools = [
 const otherToolsBase = [
     { title: 'Voice Cloning', link: '/voice-cloning' },
     { title: 'Seller Hub', link: '/seller' },
-]
+];
+
+const companyLinks = [
+    { title: 'Ecosystem & Docs', link: '/docs' },
+    { title: 'Contact & Support', link: '/contact' },
+    { title: 'Terms of Service', link: '/terms' },
+    { title: 'Privacy Policy', link: '/privacy' },
+];
+
+function FooterColumn({ title, links }: { title: string; links: { title: string; link: string }[] }) {
+    return (
+        <div>
+            <h4 className="mb-3 text-xs font-black uppercase tracking-widest text-foreground">{title}</h4>
+            <ul className="space-y-2.5">
+                {links.map((l) => (
+                    <li key={l.title}>
+                        <Link href={l.link} prefetch={false} className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                            {l.title}
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
 
 export function Footer() {
     const { user } = useAuth();
     const { database } = initializeFirebase();
-    const [logoUrl, setLogoUrl] = useState('https://drive.google.com/uc?export=view&id=1L4bdnz6omnNmW-DtduORKYdpBfeMhW3r');
     const [developerApiLocked, setDeveloperApiLocked] = useState(false);
+    const [whatsappLink, setWhatsappLink] = useState(DEFAULT_WHATSAPP);
 
     useEffect(() => {
         if (!database) return;
-        const logoRef = ref(database, 'settings/landingPage/masterLogoUrl');
-        const unsubscribe = onRtdbValue(logoRef, (snapshot) => {
-            const url = snapshot.val();
-            if (url) setLogoUrl(getDisplayUrl(url));
+        return onRtdbValue(ref(database, 'toolSettings/developer-api/locked'), (snapshot) => {
+            setDeveloperApiLocked(snapshot.val() === true);
         });
-        return () => unsubscribe();
     }, [database]);
 
     useEffect(() => {
         if (!database) return;
-        const lockRef = ref(database, 'toolSettings/developer-api/locked');
-        const unsubscribe = onRtdbValue(lockRef, (snapshot) => {
-            setDeveloperApiLocked(snapshot.val() === true);
+        return onRtdbValue(ref(database, 'settings/app/whatsappSupportLink'), (snapshot) => {
+            const link = snapshot.val();
+            if (typeof link === 'string' && link.startsWith('http')) setWhatsappLink(link);
         });
-        return () => unsubscribe();
     }, [database]);
 
     const otherTools = useMemo(() => {
@@ -52,9 +75,8 @@ export function Footer() {
         if (!isAdmin && !user?.isSeller) {
             tools = tools.filter(t => t.title !== 'Seller Hub');
         }
-        // Regular users follow the admin lock. Avuna/admin keeps the API
-        // console and documentation visible for maintenance and testing even
-        // while the public API is disabled.
+        // Regular users follow the admin lock; admins keep the API console
+        // and docs visible for maintenance while the public API is off.
         if (isAdmin || !developerApiLocked) {
             tools.push({ title: 'Developer Platform', link: '/developer' });
             tools.push({ title: 'API Documentation', link: '/api-docs' });
@@ -63,89 +85,72 @@ export function Footer() {
     }, [user, developerApiLocked]);
 
     return (
-        <footer className="relative bg-secondary border-t overflow-hidden">
-            {/* Background Decorative Elements */}
-            <div className="absolute inset-0 pointer-events-none select-none overflow-hidden opacity-50">
-                {/* Floating Emojis */}
-                <span className="absolute text-8xl top-10 left-10 rotate-12">🎙️</span>
-                <span className="absolute text-6xl bottom-20 left-[20%] -rotate-12">📝</span>
-                <span className="absolute text-9xl top-20 left-[45%] rotate-6">🛍️</span>
-                <span className="absolute text-5xl top-40 right-[30%] -rotate-6">🚀</span>
-                <span className="absolute text-7xl bottom-10 right-20 rotate-12">🎬</span>
-                <span className="absolute text-6xl top-[60%] left-[10%] rotate-45">🎨</span>
-                <span className="absolute text-8xl bottom-[40%] right-[15%] -rotate-12">📢</span>
-                
-                {/* Master Logo Watermark */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] opacity-20">
-                    <img 
-                        src={logoUrl} 
-                        alt="Background Logo" 
-                        className="w-full h-full object-contain"
-                    />
+        <footer className="border-t bg-background">
+            <div className="container px-4 py-10 md:px-6 md:py-14">
+                {/* Community strip — same order as the support page: WhatsApp, Telegram, Email */}
+                <div className="mb-10 flex flex-col gap-4 rounded-3xl border bg-gradient-to-br from-primary/10 via-background to-background p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                    <div>
+                        <p className="text-lg font-black tracking-tight">Join 12Labs creators</p>
+                        <p className="text-sm text-muted-foreground">Updates, help and new drops — talk to us anytime.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center gap-2 rounded-full bg-[#25D366] px-4 text-sm font-bold text-white shadow-sm transition-transform active:scale-95">
+                            <MessageCircle className="h-4 w-4" /> WhatsApp
+                        </a>
+                        <a href={TELEGRAM} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center gap-2 rounded-full bg-[#229ED9] px-4 text-sm font-bold text-white shadow-sm transition-transform active:scale-95">
+                            <Send className="h-4 w-4" /> Telegram
+                        </a>
+                        <a href={SUPPORT_EMAIL} className="inline-flex h-10 items-center gap-2 rounded-full border bg-background px-4 text-sm font-bold transition-transform active:scale-95">
+                            <Mail className="h-4 w-4" /> Email
+                        </a>
+                    </div>
                 </div>
-            </div>
 
-            <div className="container relative z-10 px-4 md:px-6 py-12">
-                <div className="grid gap-12 grid-cols-2 md:grid-cols-4">
-                    <div className="space-y-4 col-span-2 md:col-span-1">
-                        <Link href="/" className="flex items-baseline space-x-1" prefetch={false}>
-                            <span className="font-bold sm:inline-block font-headline text-3xl text-logo-blue">12</span>
-                            <span className="font-bold sm:inline-block font-headline text-3xl text-black dark:text-white">Labs</span>
+                <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
+                    <div className="col-span-2 space-y-4">
+                        <Link href="/" className="flex items-baseline gap-1" prefetch={false}>
+                            <span className="font-logo text-3xl font-bold text-primary">12</span>
+                            <span className="font-logo text-3xl font-bold text-foreground">Labs</span>
                         </Link>
-                        <p className="text-sm text-muted-foreground font-medium leading-relaxed">
-                            Empowering Indian creators with next-generation AI tools. 
+                        <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
+                            Empowering Indian creators with next-generation AI tools.
                             Build your audience with the speed of light.
                         </p>
-                        <div className="flex items-center text-sm font-bold text-muted-foreground pt-2">
-                            PROUDLY BUILT IN INDIA 
-                            <IndianFlagIcon className="h-6 w-auto ml-2 grayscale hover:grayscale-0 transition-all cursor-help" />
+                        <div className="flex items-center gap-2">
+                            <a href="https://www.instagram.com/12labofficial" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="flex h-9 w-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:border-pink-500/40 hover:text-pink-600">
+                                <Instagram className="h-4 w-4" />
+                            </a>
+                            <a href="https://www.youtube.com/@12labofficial" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="flex h-9 w-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:border-red-500/40 hover:text-red-600">
+                                <Youtube className="h-4 w-4" />
+                            </a>
+                            <a href={whatsappLink} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className="flex h-9 w-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:border-green-500/40 hover:text-green-600">
+                                <MessageCircle className="h-4 w-4" />
+                            </a>
+                            <a href={TELEGRAM} target="_blank" rel="noopener noreferrer" aria-label="Telegram" className="flex h-9 w-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:border-sky-500/40 hover:text-sky-600">
+                                <Send className="h-4 w-4" />
+                            </a>
                         </div>
                     </div>
-                    <div className="space-y-4">
-                        <h4 className="font-bold text-foreground tracking-widest uppercase text-xs">Main Tools</h4>
-                        <ul className="space-y-2">
-                            {mainTools.map(tool => (
-                                <li key={tool.title}>
-                                    <Link href={tool.link} className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium" prefetch={false}>
-                                        {tool.title}
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                     <div className="space-y-4">
-                        <h4 className="font-bold text-foreground tracking-widest uppercase text-xs">More Tools</h4>
-                        <ul className="space-y-2">
-                            {otherTools.map(tool => (
-                                <li key={tool.title}>
-                                    <Link href={tool.link} className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium" prefetch={false}>
-                                        {tool.title}
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                     <div className="space-y-4">
-                        <h4 className="font-bold text-foreground tracking-widest uppercase text-xs">Company</h4>
-                        <ul className="space-y-2">
-                            <li><Link href="/docs" className="text-sm text-indigo-400 hover:text-primary font-black transition-colors" prefetch={false}>Ecosystem & Docs 🎙️</Link></li>
-                            <li><Link href="/contact" className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium" prefetch={false}>Contact & Support</Link></li>
-                            <li><Link href="https://t.me/twelvelab" className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium" target="_blank" prefetch={false}>Telegram Community</Link></li>
-                            <li><Link href="/terms" className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium" prefetch={false}>Terms of Service</Link></li>
-                            <li><Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium" prefetch={false}>Privacy Policy</Link></li>
-                        </ul>
+                    <FooterColumn title="Main Tools" links={mainTools} />
+                    <FooterColumn title="More Tools" links={otherTools} />
+                    <div className="col-span-2 md:col-span-1">
+                        <FooterColumn title="Company" links={companyLinks} />
+                        <Link href="/store" prefetch={false} className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-primary">
+                            Browse the store <ArrowUpRight className="h-4 w-4" />
+                        </Link>
                     </div>
                 </div>
-                <div className="mt-12 border-t border-border/50 pt-8 flex flex-col gap-6 text-[10px] text-muted-foreground font-medium">
-                    <p className="leading-relaxed opacity-60">
-                        &copy; 2026 12Labs. All Rights Reserved. 12Labs operates as a child company of Green Group Manufacturing. Green Group Manufacturing is the parent company of 12Labs. All intellectual property, including designs, content, branding, and source code, is protected by applicable laws. Unauthorized use, copying, or reproduction may result in legal action.
-                    </p>
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-4 border-t border-border/5">
-                        <p>Proudly Built for the Indian Creative Economy</p>
-                        <div className="flex items-center gap-6">
-                            <span>Made by 12Labs Indian Team</span>
-                        </div>
+
+                <div className="mt-10 space-y-4 border-t pt-6">
+                    <div className="flex flex-col items-start justify-between gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center">
+                        <p>&copy; {new Date().getFullYear()} 12Labs. All rights reserved.</p>
+                        <p className="flex items-center gap-2 font-semibold">
+                            Proudly built in India <IndianFlagIcon className="h-4 w-auto" />
+                        </p>
                     </div>
+                    <p className="text-[10px] leading-relaxed text-muted-foreground/70">
+                        12Labs operates as a child company of Green Group Manufacturing. Green Group Manufacturing is the parent company of 12Labs. All intellectual property, including designs, content, branding, and source code, is protected by applicable laws. Unauthorized use, copying, or reproduction may result in legal action.
+                    </p>
                 </div>
             </div>
         </footer>

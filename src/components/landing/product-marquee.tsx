@@ -1,33 +1,31 @@
-
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { initializeFirebase } from '@/firebase';
 import { ref, get, query, limitToLast } from 'firebase/database';
-import type { StoreProduct } from '@/lib/types';
+import { ArrowRight, Flame, Sparkles } from 'lucide-react';
+import type { StoreProduct, SellerProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn, getDisplayUrl } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
-import Autoplay from "embla-carousel-autoplay";
+import { Shelf, CATEGORY_LABELS, trendingIds } from '@/components/store/store-discovery';
+import { rankStoreProducts } from '@/lib/store-ranking';
+import { getPublicSellerProfilesMap } from '@/app/store/[productId]/actions';
+import { onRtdbValue } from '@/lib/rtdb-listener';
 import { reportClientError } from '@/lib/report-client-error';
 
-const shuffleArray = <T,>(array: T[]): T[] => {
-  const newArray = [...array];
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-  }
-  return newArray;
-};
+const DAY_MS = 24 * 60 * 60 * 1000;
+const SHELF_SIZE = 12;
+const productHref = (id: string) => `/store/${id}`;
 
+/**
+ * Landing-page window into the store: the same cards as the store shelves
+ * (category label, featured-style price pill, Trending/New/% OFF badges),
+ * ranked with the store algorithm. Loads only when scrolled near.
+ */
 export function ProductMarquee() {
   const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [sellers, setSellers] = useState<Record<string, SellerProfile>>({});
+  const [globalDiscount, setGlobalDiscount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [hasStartedLoading, setHasStartedLoading] = useState(false);
   const { database } = initializeFirebase();
@@ -43,60 +41,73 @@ export function ProductMarquee() {
       },
       { rootMargin: '200px' }
     );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
+    if (sectionRef.current) observer.observe(sectionRef.current);
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (!database || !hasStartedLoading) {
-      return;
-    }
+    if (!database || !hasStartedLoading) return;
+    return onRtdbValue(ref(database, 'settings/pricing'), (snap) => {
+      setGlobalDiscount(Number(snap.val()?.verifiedSellerGlobalDiscount || 0));
+    });
+  }, [database, hasStartedLoading]);
 
-    const fetchProducts = async () => {
+  useEffect(() => {
+    if (!database || !hasStartedLoading) return;
+    (async () => {
       try {
-        const storeProductsRef = ref(database, 'storeProducts');
-        const q = rtdbQuery(storeProductsRef, limitToLast(50));
-        
-        const snapshot = await get(q);
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          // Ensure every product has a unique ID from the RTDB key
-          const productsArray: StoreProduct[] = Object.entries(data)
-            .filter(([_, val]: [string, any]) => val && typeof val === 'object' && val.title && val.productType)
-            .map(([id, val]: [string, any]) => ({
-              ...val,
-              id: val.id || id
-            }))
-            .filter((p: any) => p.status !== 'sold' && !p.isSold && !p.buyerUid);
-          const shuffled = shuffleArray(productsArray);
-          setProducts(shuffled.slice(0, 15));
-        }
+        const [snapshot, sellersMap] = await Promise.all([
+          get(query(ref(database, 'storeProducts'), limitToLast(80))),
+          getPublicSellerProfilesMap().catch(() => ({} as Record<string, SellerProfile>)),
+        ]);
+        const data = snapshot.val() || {};
+        const list: StoreProduct[] = Object.entries(data)
+          .filter(([, val]: [string, any]) => val && typeof val === 'object' && val.title && val.productType)
+          .map(([id, val]: [string, any]) => ({ ...val, id: val.id || id }))
+          .filter((p: any) => p.status !== 'sold' && !p.isSold && !p.buyerUid);
+        setProducts(list);
+        setSellers(sellersMap);
       } catch (error) {
-        reportClientError('src/components/landing/product-marquee.tsx:77', error);
-        console.error("Failed to fetch products for marquee:", error);
+        reportClientError('src/components/landing/product-marquee.tsx', error);
       } finally {
         setIsLoading(false);
       }
-    };
-
-    const rtdbQuery = (ref: any, ...args: any[]) => query(ref, ...args);
-    fetchProducts();
+    })();
   }, [database, hasStartedLoading]);
 
-  if (!hasStartedLoading && products.length === 0) {
-    return <section ref={sectionRef} className="w-full h-40 bg-muted/5 border-y" />;
+  const { trendingShelf, freshShelf, trending, categories } = useMemo(() => {
+    const ranked = rankStoreProducts(products, { sellers, viewerKey: 'landing' });
+    const now = Date.now();
+    const trendingShelf = ranked.slice(0, SHELF_SIZE);
+    const shown = new Set(trendingShelf.map((p) => p.id));
+    const freshShelf = [...products]
+      .filter((p) => !shown.has(p.id))
+      .filter((p) => {
+        const t = p.createdAt ? new Date(p.createdAt as any).getTime() : 0;
+        return t > 0 && now - t < 14 * DAY_MS;
+      })
+      .sort((a, b) => new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime())
+      .slice(0, SHELF_SIZE);
+    const counts: Record<string, number> = {};
+    for (const p of products) counts[p.productType as string] = (counts[p.productType as string] || 0) + 1;
+    const categories = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    return { trendingShelf, freshShelf: freshShelf.length >= 3 ? freshShelf : [], trending: trendingIds(products), categories };
+  }, [products, sellers]);
+
+  if (!hasStartedLoading) {
+    return <section ref={sectionRef} className="h-72 w-full" />;
   }
 
   if (isLoading) {
     return (
-      <section ref={sectionRef} className="w-full py-8 bg-muted/20 border-y">
-        <div className="container flex gap-4 overflow-hidden px-4">
+      <section ref={sectionRef} className="w-full py-8">
+        <div className="container flex gap-3 overflow-hidden px-4">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-40 w-full sm:w-60 rounded-[1.5rem] flex-shrink-0" />
+            <div key={i} className="w-[68vw] max-w-[300px] shrink-0 space-y-2 sm:w-[280px]">
+              <Skeleton className="aspect-video w-full rounded-2xl" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
           ))}
         </div>
       </section>
@@ -105,58 +116,44 @@ export function ProductMarquee() {
 
   if (products.length === 0) return null;
 
+  const common = { sellers, globalDiscount, trending, onSelect: () => {}, hrefFor: productHref };
+
   return (
-    <section ref={sectionRef} className="w-full py-8 bg-muted/20 border-y overflow-hidden group">
-      <div className="container px-4">
-        <Carousel
-          opts={{
-            align: "start",
-            loop: true,
-          }}
-          plugins={[
-            Autoplay({
-              delay: 3000,
-              stopOnInteraction: false,
-            }),
-          ]}
-          className="w-full"
-        >
-          <CarouselContent className="-ml-2">
-            {products.map((product) => (
-              <CarouselItem key={product.id} className="pl-2 basis-[60%] sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
-                <Link 
-                  href={`/store/${product.id}`} 
-                  prefetch={false}
-                  className="block h-full group/link"
-                >
-                  <div className="bg-card border rounded-[1.5rem] overflow-hidden shadow-sm hover:shadow-xl hover:border-primary/30 transition-all duration-500 h-full flex flex-col">
-                    <div className="relative aspect-video w-full bg-muted">
-                      <img 
-                        src={getDisplayUrl(product.previewImage) || 'https://res.cloudinary.com/dptryoeis/image/upload/v1772590885/c10h0lknqblj7kfxp5qr.png'} 
-                        alt={product.title}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover/link:scale-105"
-                        loading="lazy"
-                      />
-                      <div className="absolute top-2 right-2">
-                         <Badge className="bg-background/90 backdrop-blur-md text-foreground font-black text-[10px] px-2 h-6 border-none shadow-lg">
-                            ₹{product.price}
-                         </Badge>
-                      </div>
-                    </div>
-                    <div className="p-3 flex flex-col flex-1 gap-1">
-                      <h4 className="font-bold text-xs line-clamp-1 group-hover/link:text-primary transition-colors">{product.title}</h4>
-                      <div className="flex items-center justify-between mt-auto pt-1">
-                        <p className="text-[8px] text-muted-foreground font-black uppercase tracking-[0.1em] opacity-60">
-                            {product.productType}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              </CarouselItem>
+    <section ref={sectionRef} className="w-full overflow-hidden py-8 md:py-12">
+      <div className="container px-0 md:px-6">
+        <div className="mb-4 flex flex-col gap-3 px-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest text-primary">12Labs Store</p>
+            <h2 className="text-2xl font-black tracking-tight sm:text-3xl">Ready-made assets from creators</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Videos, scripts, characters and backgrounds — buy once, use right away.</p>
+          </div>
+          <Link
+            href="/store"
+            prefetch={false}
+            className="inline-flex h-10 w-fit items-center gap-2 rounded-full bg-primary px-5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-transform active:scale-95"
+          >
+            Open store <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        {categories.length > 1 && (
+          <div className="mb-2 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {categories.map(([type, n]) => (
+              <Link
+                key={type}
+                href={`/store?category=${encodeURIComponent(type)}`}
+                prefetch={false}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-bold transition-colors hover:border-primary/40"
+              >
+                {CATEGORY_LABELS[type] || type}
+                <span className="rounded-full bg-muted px-1.5 text-[10px] text-muted-foreground">{n}</span>
+              </Link>
             ))}
-          </CarouselContent>
-        </Carousel>
+          </div>
+        )}
+
+        <Shelf title="Trending in Store" icon={<Flame className="h-5 w-5" />} items={trendingShelf} seeAllHref="/store" {...common} />
+        <Shelf title="Fresh drops" icon={<Sparkles className="h-5 w-5" />} items={freshShelf} seeAllHref="/store" {...common} />
       </div>
     </section>
   );

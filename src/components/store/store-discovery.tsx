@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Autoplay from 'embla-carousel-autoplay';
 import { ChevronRight, Flame, Play, Sparkles, Tag, Users, Heart, Clapperboard, FileText, UserRound, ImageIcon } from 'lucide-react';
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { StoreProduct, SellerProfile } from '@/lib/types';
 import { cn, generateAvatarColor, getDisplayUrl } from '@/lib/utils';
 import { VerifiedBadge } from '@/components/verified-badge';
+import { pickFeatured, recordHeroImpressions } from '@/lib/store-ranking';
 
 const FALLBACK_IMG = 'https://res.cloudinary.com/dptryoeis/image/upload/v1772590885/c10h0lknqblj7kfxp5qr.png';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -66,17 +67,24 @@ interface CommonProps {
   globalDiscount: number;
   trending: Set<string>;
   onSelect: (id: string) => void;
+  /** When set, cards are real links (crawlable) instead of buttons. */
+  hrefFor?: (id: string) => string;
 }
 
-function ShelfCard({ product, sellers, globalDiscount, trending, onSelect }: CommonProps & { product: StoreProduct }) {
+function CardShell({ href, onClick, className, children }: { href?: string; onClick: () => void; className: string; children: React.ReactNode }) {
+  if (href) return <Link href={href} prefetch={false} className={cn('block', className)}>{children}</Link>;
+  return <button type="button" onClick={onClick} className={className}>{children}</button>;
+}
+
+function ShelfCard({ product, sellers, globalDiscount, trending, onSelect, hrefFor }: CommonProps & { product: StoreProduct }) {
   const seller = sellers[product.sellerId];
   const isVerified = !!seller?.isVerified;
   const { effective, original, discountPct } = priceInfo(product, isVerified, globalDiscount);
   const now = Date.now();
   const isStory = product.productType === 'YouTube Story';
   return (
-    <button
-      type="button"
+    <CardShell
+      href={hrefFor?.(product.id)}
       onClick={() => onSelect(product.id)}
       className="group w-[68vw] max-w-[300px] shrink-0 snap-start text-left sm:w-[280px]"
     >
@@ -93,21 +101,21 @@ function ShelfCard({ product, sellers, globalDiscount, trending, onSelect }: Com
             <span className="rounded-full bg-black/40 p-2.5 backdrop-blur-sm"><Play className="h-5 w-5 fill-white text-white" /></span>
           </span>
         )}
-        <span className="absolute bottom-2 right-2 flex items-center gap-1">
-          {original > effective && <span className="rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] text-white/80 line-through">₹{original}</span>}
-          <span className="rounded-lg bg-primary px-2 py-1 text-xs font-black text-white shadow">₹{effective}</span>
+        <span className="absolute bottom-2 right-2 rounded-xl bg-white px-2.5 py-1 text-xs font-black text-black shadow-lg">
+          {original > effective && <span className="mr-1 text-[10px] font-medium text-black/50 line-through">₹{original}</span>}₹{effective}
         </span>
       </div>
       <p className="mt-2 line-clamp-2 text-sm font-bold leading-snug">{product.title}</p>
-      <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
-        {seller?.storeName || product.sellerName}
-        {isVerified && <VerifiedBadge className="h-3 w-3" />}
+      <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+        <span className="truncate">{seller?.storeName || product.sellerName}</span>
+        {isVerified && <VerifiedBadge className="h-3 w-3 shrink-0" />}
+        <span className="shrink-0 opacity-70">· {CATEGORY_LABELS[product.productType as string] || product.productType}</span>
       </p>
-    </button>
+    </CardShell>
   );
 }
 
-function Shelf({ title, icon, items, seeAllHref, ...common }: CommonProps & { title: string; icon: React.ReactNode; items: StoreProduct[]; seeAllHref?: string }) {
+export function Shelf({ title, icon, items, seeAllHref, ...common }: CommonProps & { title: string; icon: React.ReactNode; items: StoreProduct[]; seeAllHref?: string }) {
   if (items.length === 0) return null;
   return (
     <section className="py-3">
@@ -184,7 +192,7 @@ function Hero({ items, sellers, globalDiscount, onSelect }: CommonProps & { item
  * Expects `ranked` already ordered by rankStoreProducts.
  */
 export function StoreDiscovery({
-  ranked, sellers, globalDiscount, followedSellerIds, topCategory, onSelect,
+  ranked, sellers, globalDiscount, followedSellerIds, topCategory, onSelect, ownedIds,
 }: {
   ranked: StoreProduct[];
   sellers: Record<string, SellerProfile>;
@@ -192,6 +200,8 @@ export function StoreDiscovery({
   followedSellerIds: Set<string>;
   topCategory?: string;
   onSelect: (id: string) => void;
+  /** Items the viewer already bought — kept out of the hero. */
+  ownedIds?: Set<string>;
 }) {
   const trending = useMemo(() => trendingIds(ranked), [ranked]);
   const common = { sellers, globalDiscount, trending, onSelect };
@@ -207,7 +217,23 @@ export function StoreDiscovery({
     return { byEngagement, newest: fresh.length >= 4 ? fresh : newest, deals, following, forYou };
   }, [ranked, sellers, globalDiscount, followedSellerIds, topCategory]);
 
-  const hero = ranked.slice(0, 5);
+  // New hero on every visit (seed fixed per mount so re-renders don't reshuffle).
+  const [heroSeed] = useState(() => Math.floor(Math.random() * 2 ** 32));
+  // Freeze the picks once made: follows/purchases load a moment later and
+  // re-rank the list, which must not swap slides under the viewer.
+  const frozenHero = useRef<string[] | null>(null);
+  const hero = useMemo(() => {
+    const byId = new Map(ranked.map((p) => [p.id, p]));
+    const kept = (frozenHero.current || []).map((id) => byId.get(id)).filter((p): p is StoreProduct => !!p);
+    if (kept.length > 0) return kept;
+    const picks = pickFeatured(ranked, { seed: heroSeed, excludeIds: ownedIds });
+    if (picks.length > 0) frozenHero.current = picks.map((p) => p.id);
+    return picks;
+  }, [ranked, heroSeed, ownedIds]);
+  const heroKey = hero.map((p) => p.id).join(',');
+  useEffect(() => {
+    if (heroKey) recordHeroImpressions(heroKey.split(','));
+  }, [heroKey]);
   const heroIds = new Set(hero.map((p) => p.id));
   // Skip hero items in Trending only when the catalogue is big enough that
   // the shelf still has real trending items left.

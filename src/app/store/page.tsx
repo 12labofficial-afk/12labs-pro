@@ -314,12 +314,9 @@ function ProductCard({
                             SOLD OUT
                         </Badge>
                     ) : (
-                        <div className="flex flex-col items-end gap-1">
-                            {isVerified && globalDiscount > 0 && (
-                                <Badge variant="outline" className="bg-white/90 dark:bg-black/90 text-primary border-primary/20 font-black text-[8px] px-2 h-5 rounded-lg shadow-sm line-through opacity-60">₹{product.price}</Badge>
-                            )}
-                            <Badge className="bg-primary text-white font-black text-[12px] px-3 h-8 border-none rounded-xl shadow-2xl leading-none">₹{effectivePrice}</Badge>
-                        </div>
+                        <span className="rounded-xl bg-white px-3 py-1.5 text-sm font-black text-black shadow-lg">
+                            {hasDiscount && <span className="mr-1 text-xs font-medium text-black/50 line-through">₹{originalPrice}</span>}₹{effectivePrice}
+                        </span>
                     )}
                 </div>
                 {isStory && product.duration && (
@@ -683,6 +680,7 @@ export default function StoreHomePage() {
                             followedSellerIds={followedSellerIds}
                             topCategory={rankedAll.topCategory}
                             onSelect={handleProductSelect}
+                            ownedIds={purchasedProductIds}
                         />
                         <div className="flex items-center gap-2 px-4 pt-4 pb-2">
                             <Gem className="h-4 w-4 text-primary" />
