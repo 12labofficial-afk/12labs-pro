@@ -14,6 +14,7 @@ import { plans } from '@/lib/plans';
 import { syncUserSubscriptionInstallments, syncAllPendingSubscriptions } from '@/app/actions';
 import { reportServerError } from '@/lib/report-error';
 import { requireAdmin } from '@/lib/auth-guard';
+import Razorpay from 'razorpay';
 
 export type SimpleAuthUser = {
   uid: string;
@@ -223,15 +224,36 @@ export async function updateUserSubscription(
         if (sub) {
             await userRef.update({ subscription: sub, hasMadeFirstPurchase: true });
         } else {
-            // Log deactivation
-            // 🔴 FIX: this used to interpolate the admin's own personal
-            // email straight into the `reason` string — creditHistory is
-            // the SAME ledger the end user's own account reads (their
-            // Credit History / notifications view), not an admin-only
-            // log, so the admin's personal Gmail was leaking directly
-            // into a user-facing screen. Full admin attribution (which IS
-            // meant to be admin-only) already goes to the Telegram alert
-            // below — this entry just says it was an admin action.
+            const beforeDoc = await userRef.get();
+            const beforeData = beforeDoc.data() || {};
+            const prevSub = beforeData.subscription || {};
+            const rzpSubId: string = prevSub.subscriptionId || '';
+            const hasRazorpayMandate = !!rzpSubId && !rzpSubId.startsWith('test_sub_') && !prevSub.manuallyGranted;
+
+            // Ending the plan only in the app left the Razorpay mandate
+            // live: the user kept getting charged every month while the
+            // cancelled status blocked the grant. Cancel it on Razorpay
+            // first, and leave everything untouched if that fails.
+            if (hasRazorpayMandate) {
+                const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+                const keySecret = process.env.RAZORPAY_KEY_SECRET;
+                if (!keyId || !keySecret) return { success: false, error: 'Razorpay keys are not configured — plan not ended.' };
+                const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+                try {
+                    await razorpay.subscriptions.cancel(rzpSubId);
+                } catch (rzpErr: any) {
+                    const msg = rzpErr?.error?.description || rzpErr?.message || '';
+                    // Already over on Razorpay is fine — nothing left to stop.
+                    const current: any = await razorpay.subscriptions.fetch(rzpSubId).catch(() => null);
+                    if (!['cancelled', 'completed', 'expired'].includes(current?.status)) {
+                        reportServerError('src/app/admin/users/actions.ts:cancelMandate', rzpErr, { userId });
+                        return { success: false, error: `Razorpay could not cancel the mandate: ${msg || 'unknown error'}. Plan not ended.` };
+                    }
+                }
+            }
+
+            // Generic on purpose: creditHistory is the user's own ledger, so
+            // no admin identity goes here (full attribution is in Telegram).
             if (database) {
                 await database.ref(`creditHistory/${userId}`).push({
                     amount: 0,
@@ -243,26 +265,19 @@ export async function updateUserSubscription(
             // Keep the subscription record with a cancelled status so the
             // user can see that it was cancelled and the scheduler can honor
             // the already-paid current cycle without creating a new one.
-            const beforeDoc = await userRef.get();
-            const beforeData = beforeDoc.data() || {};
-            const prevSub = beforeData.subscription || {};
-
             await userRef.update({
                 'subscription.status': 'cancelled',
                 'subscription.cancelledAt': new Date().toISOString(),
             });
 
-            // Always logged (it used to be skipped whenever adminEmail was missing).
-            const rzpSubId: string = prevSub.subscriptionId || '';
-            const hasRazorpayMandate = !!rzpSubId && !rzpSubId.startsWith('test_sub_') && !prevSub.manuallyGranted;
             await sendToTelegram(
                 `🔴 <b>SUBSCRIPTION CANCELLED</b>\n\n` +
-                `<b>By:</b> Admin${adminEmail ? ` (${escapeHtml(adminEmail)})` : ''}\n` +
+                `<b>By:</b> Admin (${escapeHtml(guard.email || adminEmail || guard.uid)})\n` +
                 `<b>User:</b> ${escapeHtml(beforeData.name || 'N/A')} (${escapeHtml(beforeData.email || userId)})\n` +
                 `<b>Plan:</b> ${escapeHtml(prevSub.planId || 'N/A')}\n` +
                 `<b>Grants given:</b> ${Number(prevSub.weeklyGrantCount || 0)}\n` +
-                `<b>Subscription ID:</b> <code>${escapeHtml(rzpSubId || 'None')}</code>` +
-                (hasRazorpayMandate ? `\n⚠️ <b>Razorpay mandate NOT cancelled</b> — admin deactivate only stops grants in the app. Cancel it in the Razorpay dashboard or the user keeps getting charged.` : '')
+                `<b>Subscription ID:</b> <code>${escapeHtml(rzpSubId || 'None')}</code>\n` +
+                `<b>Razorpay mandate:</b> ${hasRazorpayMandate ? 'Cancelled' : 'None (app-only plan)'}`
             ).catch(() => null);
         }
         

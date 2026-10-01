@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { reportClientError } from '@/lib/report-client-error';
+import { useAuth } from '@/context/auth-provider';
 
 const LOCAL_STORAGE_KEY = 'email_campaign_v2';
 const BATCH_SIZE = 50;
@@ -86,6 +87,7 @@ const formSchema = z.object({
 });
 
 export default function SendEmailPage() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [state, setState] = useState<CampaignState>({ recipients: '', sentEmails: [] });
   const [isSending, setIsSending] = useState(false);
@@ -171,7 +173,8 @@ export default function SendEmailPage() {
 
     setIsSending(true);
     try {
-        const result = await sendEmailAction({
+        if (!user) throw new Error('Not signed in.');
+        const result = await sendEmailAction(await user.getIdToken(), {
             from: '12Labs <info@12labs.in>',
             to: batchToSend.join(','),
             subject,

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
+import { requireAdmin, requireUser } from '@/lib/auth-guard';
 
 /**
  * 🎵 PUBLIC MUSIC DISPATCHER (v2.1 - UNIFIED FORM)
@@ -19,12 +20,14 @@ export async function addMusicToLibraryAction(input: {
     url: string;
     privateUrl?: string;
     imageUrl?: string;
-    adminEmail: string;
-    adminUid: string;
+    idToken: string;
 }) {
+    const guard = await requireAdmin(input.idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
+    const adminEmail = guard.email || guard.uid;
     try {
         const { database } = initializeFirebase();
-        const { prompt, category, price, url, privateUrl, imageUrl, adminEmail, adminUid } = input;
+        const { prompt, category, price, url, privateUrl, imageUrl } = input;
 
         if (!url) {
             throw new Error("Missing preview URL for dispatch.");
@@ -89,7 +92,10 @@ export async function addMusicToLibraryAction(input: {
  * 🗑️ ASSET DESTRUCTION NODE (v3.2 - R2 SYNC)
  * Updated: Removed GCS bucket references to fix TS errors.
  */
-export async function deleteLibraryMusicAction(id: string, url: string, privateUrl: string | undefined, adminEmail: string, imageUrl?: string) {
+export async function deleteLibraryMusicAction(id: string, url: string, privateUrl: string | undefined, idToken: string, imageUrl?: string) {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
+    const adminEmail = guard.email || guard.uid;
     const { database } = initializeFirebase();
     try {
         // 🔴 FIX: privateUrl no longer lives on the client-readable track
@@ -145,11 +151,14 @@ export async function updateLibraryMusicAction(input: {
     privateUrl?: string;
     imageUrl?: string;
     isOff?: boolean;
-    adminEmail: string;
+    idToken: string;
 }) {
+    const guard = await requireAdmin(input.idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
+    const adminEmail = guard.email || guard.uid;
     const { database } = initializeFirebase();
     try {
-        const { id, prompt, category, price, url, privateUrl, imageUrl, isOff, adminEmail } = input;
+        const { id, prompt, category, price, url, privateUrl, imageUrl, isOff } = input;
         
         const updates: any = {
             prompt,
@@ -194,7 +203,7 @@ export async function updateLibraryMusicAction(input: {
  */
 export async function getSecureDownloadUrl(
     trackId: string,
-    uid: string | null
+    idToken: string | null
 ): Promise<{ success: true; url: string; isMaster: boolean } | { success: false; error: string }> {
     try {
         const { database } = initializeFirebase();
@@ -208,9 +217,13 @@ export async function getSecureDownloadUrl(
             return { success: true, url: track.url, isMaster: false };
         }
 
-        if (!uid) {
+        // uid comes from the verified token, never a client-passed string —
+        // otherwise anyone could pass a buyer's uid and get the master.
+        const guard = await requireUser(idToken);
+        if (!guard.ok) {
             return { success: false, error: 'Sign in required to download this track.' };
         }
+        const uid = guard.uid;
 
         const purchasedSnap = await database.ref(`musicPurchases/${uid}/${trackId}`).get();
         if (!purchasedSnap.exists()) {
@@ -237,7 +250,10 @@ export async function getSecureDownloadUrl(
 /**
  * 🔘 TOGGLE MUSIC ASSET VISIBILITY STATUS (ON / OFF)
  */
-export async function toggleMusicStatusAction(id: string, isOff: boolean, adminEmail: string) {
+export async function toggleMusicStatusAction(id: string, isOff: boolean, idToken: string) {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
+    const adminEmail = guard.email || guard.uid;
     const { database } = initializeFirebase();
     try {
         await database.ref(`publicMusicLibrary/${id}`).update({

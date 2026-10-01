@@ -105,11 +105,11 @@ export function UserReachOutDialog({
 
     if (sendEmail && user?.email) {
       try {
-        const res = await sendTargetedNotificationByEmail({
+        if (!adminUser) throw new Error('Not signed in.');
+        const res = await sendTargetedNotificationByEmail(await adminUser.getIdToken(), {
           email: user.email,
           title: title.trim() || 'A message from 12Labs',
           message: message.trim(),
-          adminEmail: adminUser?.email || 'admin',
           url: 'https://www.12labs.in',
           logToTelegram: true,
         });

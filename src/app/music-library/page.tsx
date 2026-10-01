@@ -424,7 +424,7 @@ export default function MusicLibraryPage() {
             // this user purchased a paid track, or the public preview for
             // free tracks. It never trusts the client with the master URL
             // directly (see musicMasters' `.read: false` RTDB rule).
-            const resolved = await getSecureDownloadUrl(track.id, user?.uid || null);
+            const resolved = await getSecureDownloadUrl(track.id, user ? await user.getIdToken() : null);
             if (!resolved.success) throw new Error(resolved.error);
 
             const cleanTitle = (track.prompt || '12labs_music').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase().slice(0, 40);
@@ -582,7 +582,7 @@ export default function MusicLibraryPage() {
             try {
                 const apiFetch = await fetch('/api/admin/music-library', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await user!.getIdToken()}` },
                     body: JSON.stringify({
                         prompt: newTrack.prompt.trim(),
                         category: newTrack.category || 'Cinematic',
@@ -590,8 +590,6 @@ export default function MusicLibraryPage() {
                         url: previewUrl,
                         privateUrl: privateUrl || undefined,
                         imageUrl: imageUrl || undefined,
-                        adminEmail: effectiveEmail,
-                        adminUid: effectiveUid
                     })
                 });
                 res = await apiFetch.json();
@@ -605,8 +603,7 @@ export default function MusicLibraryPage() {
                     url: previewUrl,
                     privateUrl: privateUrl || undefined,
                     imageUrl: imageUrl || undefined,
-                    adminEmail: effectiveEmail,
-                    adminUid: effectiveUid
+                    idToken: await user!.getIdToken(),
                 });
             }
 
@@ -640,7 +637,7 @@ export default function MusicLibraryPage() {
                 prompt: editForm.prompt,
                 category: editForm.category,
                 price: editForm.price,
-                adminEmail: user.email
+                idToken: await user.getIdToken(),
             });
 
             if (res.success) {
@@ -661,7 +658,8 @@ export default function MusicLibraryPage() {
         if (e) e.stopPropagation();
         if (!window.confirm("Delete this track from music library?")) return;
         
-        const res = await deleteLibraryMusicAction(track.id, track.url, track.privateUrl, user?.email || 'Admin', track.imageUrl);
+        if (!user) return;
+        const res = await deleteLibraryMusicAction(track.id, track.url, track.privateUrl, await user.getIdToken(), track.imageUrl);
         if (res.success) {
             toast({ title: 'Track Removed' });
             if (currentTrack?.id === track.id) {

@@ -265,9 +265,8 @@ export function MusicLibraryManager() {
                 category: newTrack.category || 'Cinematic',
                 price: Number(newTrack.price) || 0,
                 url: previewUrl,
-                adminEmail: effectiveEmail,
-                adminUid: effectiveUid
             };
+            const idToken = adminUser ? await adminUser.getIdToken() : '';
             if (privateUrl && typeof privateUrl === 'string' && privateUrl.trim() !== '') {
                 payload.privateUrl = privateUrl.trim();
             }
@@ -280,7 +279,7 @@ export function MusicLibraryManager() {
             try {
                 const apiFetch = await fetch('/api/admin/music-library', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
                     body: JSON.stringify(payload)
                 });
                 res = await apiFetch.json();
@@ -294,8 +293,7 @@ export function MusicLibraryManager() {
                     url: payload.url,
                     privateUrl: payload.privateUrl,
                     imageUrl: payload.imageUrl,
-                    adminEmail: payload.adminEmail,
-                    adminUid: payload.adminUid
+                    idToken,
                 });
             }
 
@@ -322,9 +320,12 @@ export function MusicLibraryManager() {
 
     const handleDelete = async (track: any) => {
         if (!window.confirm("Purge this track and its master from all nodes?")) return;
+        if (!adminUser) return;
+        const idToken = await adminUser.getIdToken();
         try {
-            const apiRes = await fetch(`/api/admin/music-library?id=${track.id}&url=${encodeURIComponent(track.url || '')}&privateUrl=${encodeURIComponent(track.privateUrl || '')}&adminEmail=${encodeURIComponent(adminUser?.email || 'Admin')}`, {
-                method: 'DELETE'
+            const apiRes = await fetch(`/api/admin/music-library?id=${track.id}&url=${encodeURIComponent(track.url || '')}&privateUrl=${encodeURIComponent(track.privateUrl || '')}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${idToken}` },
             });
             const data = await apiRes.json();
             if (data.success) {
@@ -334,7 +335,7 @@ export function MusicLibraryManager() {
         } catch (e) {
             reportClientError('src/components/admin/music-library-manager.tsx:278', e);}
         
-        const res = await deleteLibraryMusicAction(track.id, track.url, track.privateUrl, adminUser?.email || 'Admin', track.imageUrl);
+        const res = await deleteLibraryMusicAction(track.id, track.url, track.privateUrl, idToken, track.imageUrl);
         if (res.success) toast({ title: 'Tracks Deleted' });
         else toast({ variant: 'destructive', title: 'Delete Failed' });
     };
@@ -343,17 +344,17 @@ export function MusicLibraryManager() {
         if (!editingTrack || !adminUser?.email) return;
         setIsSubmitting(true);
         try {
+            const idToken = await adminUser.getIdToken();
             let res: any = { success: false };
             try {
                 const apiRes = await fetch('/api/admin/music-library', {
                     method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
                     body: JSON.stringify({
                         id: editingTrack.id,
                         prompt: editForm.prompt,
                         category: editForm.category,
                         price: editForm.price,
-                        adminEmail: adminUser.email
                     })
                 });
                 res = await apiRes.json();
@@ -366,7 +367,7 @@ export function MusicLibraryManager() {
                     prompt: editForm.prompt,
                     category: editForm.category,
                     price: editForm.price,
-                    adminEmail: adminUser.email
+                    idToken,
                 });
             }
 

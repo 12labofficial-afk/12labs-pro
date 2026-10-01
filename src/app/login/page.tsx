@@ -20,6 +20,7 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   
   const [isAdminDialogOpen, setIsAdminDialogOpen] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
@@ -37,13 +38,14 @@ function LoginPageContent() {
   };
   
   const handleAdminLogin = async () => {
-    if (!adminPassword) {
-      toast({ variant: 'destructive', title: 'Password Required' });
+    if (!adminEmail.trim() || !adminPassword) {
+      toast({ variant: 'destructive', title: 'Email and Password Required' });
       return;
     }
     setIsLoggingIn(true);
     try {
-      await loginWithEmail('toonday378@gmail.com', adminPassword);
+      // Never hardcode an admin address here — this file ships to every visitor's browser.
+      await loginWithEmail(adminEmail.trim(), adminPassword);
       toast({ title: 'Admin Login Successful' });
       setIsAdminDialogOpen(false);
     } catch (error: any) {
@@ -120,7 +122,15 @@ function LoginPageContent() {
                   Secure administrator access. Please verify credentials.
               </DialogDescription>
             </DialogHeader>
-            <div className="py-6">
+            <div className="py-6 space-y-3">
+              <Input
+                type="email"
+                autoComplete="username"
+                placeholder="Admin Email..."
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                className="h-14 bg-muted/20 border-primary/10 rounded-2xl font-mono text-center text-lg"
+              />
               <Input 
                 type="password"
                 placeholder="Admin Cipher..."

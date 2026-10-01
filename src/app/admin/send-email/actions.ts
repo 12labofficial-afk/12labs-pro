@@ -7,6 +7,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { initializeFirebase } from '@/firebase/server';
 import { reportServerError } from '@/lib/report-error';
+import { requireAdmin } from '@/lib/auth-guard';
 
 const sendEmailSchema = z.object({
   from: z.string().min(1, 'From address is required.'),
@@ -18,8 +19,12 @@ const sendEmailSchema = z.object({
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function sendEmailAction(
+  idToken: string,
   input: z.infer<typeof sendEmailSchema>
 ): Promise<{ success: boolean; message: string }> {
+  // Unauthenticated, this let anyone send arbitrary HTML from our domain.
+  const guard = await requireAdmin(idToken);
+  if (!guard.ok) return { success: false, message: guard.message };
   const validation = sendEmailSchema.safeParse(input);
   if (!validation.success) {
     return { success: false, message: validation.error.flatten().formErrors.join(', ') };
@@ -74,14 +79,15 @@ export async function sendEmailAction(
  * Sends a specific notification email to a single user.
  * Used primarily by the Live Chat system to notify users of admin replies.
  */
-export async function sendTargetedNotificationByEmail(input: {
+export async function sendTargetedNotificationByEmail(idToken: string, input: {
   email: string;
   title: string;
   message: string;
-  adminEmail: string;
   url: string;
   logToTelegram: boolean;
 }): Promise<{ success: boolean; message?: string }> {
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, message: guard.message };
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
         return { success: false, message: 'Email service not configured.' };
@@ -96,13 +102,13 @@ export async function sendTargetedNotificationByEmail(input: {
             subject: input.title,
             html: `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-                    <h2 style="color: #4f46e5;">${input.title}</h2>
-                    <p style="font-size: 16px; line-height: 1.6;">${input.message}</p>
+                    <h2 style="color: #4f46e5;">${escapeHtml(input.title)}</h2>
+                    <p style="font-size: 16px; line-height: 1.6; white-space: pre-line;">${escapeHtml(input.message)}</p>
                     <div style="margin-top: 30px; text-align: center;">
-                        <a href="${input.url}" style="display: inline-block; padding: 12px 24px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">View Message on 12Labs</a>
+                        <a href="${escapeHtml(input.url)}" style="display: inline-block; padding: 12px 24px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">View Message on 12Labs</a>
                     </div>
                     <hr style="margin-top: 40px; border: 0; border-top: 1px solid #eee;" />
-                    <p style="font-size: 12px; color: #999;">Sent by 12Labs AI Studio. Replied by: ${input.adminEmail}</p>
+                    <p style="font-size: 12px; color: #999;">Sent by the 12Labs AI Studio team.</p>
                 </div>
             `,
             replyTo: '12labofficial@gmail.com',
@@ -111,7 +117,7 @@ export async function sendTargetedNotificationByEmail(input: {
         if (error) throw error;
         
         if (input.logToTelegram) {
-            await sendToTelegram(`📧 <b>Targeted Email Sent</b>\n<b>To:</b> ${input.email}\n<b>Subject:</b> ${input.title}`);
+            await sendToTelegram(`📧 <b>Targeted Email Sent</b>\n<b>Admin:</b> ${escapeHtml(guard.email || guard.uid)}\n<b>To:</b> ${escapeHtml(input.email)}\n<b>Subject:</b> ${escapeHtml(input.title)}`);
         }
 
         return { success: true };

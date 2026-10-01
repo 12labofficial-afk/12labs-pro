@@ -5,14 +5,26 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
 import { reportServerError } from '@/lib/report-error';
+import { requireAdmin } from '@/lib/auth-guard';
 
 export const dynamic = 'force-dynamic';
 
+// Every handler here edits the public music catalogue (prices, files,
+// masters) — admin token required, never trust a body/query adminEmail.
+async function guardAdmin(request: NextRequest) {
+    const header = request.headers.get('authorization') || '';
+    const idToken = header.startsWith('Bearer ') ? header.slice(7) : null;
+    return requireAdmin(idToken);
+}
+
 // POST: Add new music asset
 export async function POST(request: NextRequest) {
+    const guard = await guardAdmin(request);
+    if (!guard.ok) return NextResponse.json({ success: false, error: guard.message }, { status: 401 });
+    const adminEmail = guard.email || guard.uid;
     try {
         const body = await request.json();
-        const { prompt, category, price, url, privateUrl, imageUrl, adminEmail, adminUid } = body;
+        const { prompt, category, price, url, privateUrl, imageUrl } = body;
 
         if (!url) {
             return NextResponse.json({ success: false, error: "Missing audio preview URL." }, { status: 400 });
@@ -71,13 +83,15 @@ export async function POST(request: NextRequest) {
 
 // DELETE: Remove music asset
 export async function DELETE(request: NextRequest) {
+    const guard = await guardAdmin(request);
+    if (!guard.ok) return NextResponse.json({ success: false, error: guard.message }, { status: 401 });
+    const adminEmail = guard.email || guard.uid;
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
         const url = searchParams.get('url');
         const privateUrl = searchParams.get('privateUrl');
         const imageUrl = searchParams.get('imageUrl');
-        const adminEmail = searchParams.get('adminEmail') || 'Admin';
 
         if (!id) {
             return NextResponse.json({ success: false, error: "Missing asset ID." }, { status: 400 });
@@ -124,9 +138,11 @@ export async function DELETE(request: NextRequest) {
 
 // PATCH: Toggle / Update music entry
 export async function PATCH(request: NextRequest) {
+    const guard = await guardAdmin(request);
+    if (!guard.ok) return NextResponse.json({ success: false, error: guard.message }, { status: 401 });
     try {
         const body = await request.json();
-        const { id, isOff, prompt, category, price, url, privateUrl, imageUrl, adminEmail } = body;
+        const { id, isOff, prompt, category, price, url, privateUrl, imageUrl } = body;
 
         if (!id) {
             return NextResponse.json({ success: false, error: "Missing asset ID." }, { status: 400 });
