@@ -19,6 +19,8 @@ import {
     Package, 
     ShoppingCart, 
     BellDot,
+    BellOff,
+    CheckCircle2,
     Link2,
     Instagram,
     Youtube,
@@ -61,6 +63,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/context/cart-provider';
 import { CartSheet } from './cart-sheet';
 import { requestPushSubscription } from '@/context/studio-provider';
+import { usePushStatus, BLOCKED_HINT } from '@/components/push-subscription-handler';
 import { initializeFirebase } from '@/firebase';
 import { ref, onValue } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
@@ -83,6 +86,7 @@ export function Header() {
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [avatarColor, setAvatarColor] = useState({ bg: 'bg-muted', text: 'text-muted-foreground' });
   const { toast } = useToast();
+  const { status: pushStatus, refresh: refreshPushStatus } = usePushStatus();
   const { itemCount } = useCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { database } = initializeFirebase();
@@ -503,10 +507,22 @@ export function Header() {
                         </div>
                       )}
 
-                      <DropdownMenuItem className="rounded-lg h-11 cursor-pointer" onClick={() => requestPushSubscription(user, database, toast)}>
-                        <BellDot className="w-4 h-4 mr-3 text-primary/70" />
-                        <span className="font-medium">Get Notified</span>
-                      </DropdownMenuItem>
+                      {pushStatus === 'on' ? (
+                        <DropdownMenuItem className="rounded-lg h-11 cursor-pointer text-emerald-600 dark:text-emerald-400" onClick={() => toast({ title: 'Notifications are on', description: "You'll get alerts for payments, finished projects and support replies." })}>
+                          <CheckCircle2 className="w-4 h-4 mr-3" />
+                          <span className="font-medium">Notifications On</span>
+                        </DropdownMenuItem>
+                      ) : pushStatus === 'blocked' ? (
+                        <DropdownMenuItem className="rounded-lg h-11 cursor-pointer text-muted-foreground" onClick={() => toast({ variant: 'destructive', title: 'Notifications blocked', description: BLOCKED_HINT })}>
+                          <BellOff className="w-4 h-4 mr-3" />
+                          <span className="font-medium">Notifications Blocked</span>
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem className="rounded-lg h-11 cursor-pointer" onClick={async () => { await requestPushSubscription(user, database, toast); refreshPushStatus(); }}>
+                          <BellDot className="w-4 h-4 mr-3 text-primary/70" />
+                          <span className="font-medium">Get Notified</span>
+                        </DropdownMenuItem>
+                      )}
 
                       {(user.role === 'admin' || isImpersonating) && (
                         <>

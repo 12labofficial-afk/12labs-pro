@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/auth-provider';
 import { initializeFirebase } from '@/firebase';
 import { ref, set } from 'firebase/database';
 import { Button } from '@/components/ui/button';
-import { Bell } from 'lucide-react';
+import { Bell, BellOff, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { getActiveVapidPublicKey } from '@/app/admin/push-actions';
 import { reportClientError } from '@/lib/report-client-error';
@@ -167,6 +168,40 @@ export async function subscribeToPushNotifications(user: any, database: any, toa
   }
 }
 
+export type PushStatus = 'on' | 'off' | 'blocked';
+
+/** Live push state for this browser: permission granted AND an active subscription = 'on'. */
+export function usePushStatus() {
+  const [status, setStatus] = useState<PushStatus>('off');
+
+  const refresh = useCallback(async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return setStatus('off');
+    if (Notification.permission === 'denied') return setStatus('blocked');
+    if (Notification.permission !== 'granted' || !('serviceWorker' in navigator)) return setStatus('off');
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = await reg?.pushManager?.getSubscription();
+      setStatus(sub ? 'on' : 'off');
+    } catch {
+      setStatus('off');
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    // Re-check if the user flips the permission in site settings meanwhile.
+    let perm: PermissionStatus | null = null;
+    navigator.permissions?.query({ name: 'notifications' as PermissionName })
+      .then((p) => { perm = p; p.onchange = () => { refresh(); }; })
+      .catch(() => {});
+    return () => { if (perm) perm.onchange = null; };
+  }, [refresh]);
+
+  return { status, refresh };
+}
+
+export const BLOCKED_HINT = 'Notifications are blocked for this site. Allow them from your browser\'s site settings (tap the lock icon next to the address), then try again.';
+
 export function GetNotifiedButton({
   className,
   variant = 'default',
@@ -183,11 +218,42 @@ export function GetNotifiedButton({
   const { user } = useAuth();
   const { database } = initializeFirebase();
   const { toast } = useToast();
+  const { status, refresh } = usePushStatus();
 
   const handleClick = async () => {
+    if (status === 'on') {
+      toast({ title: 'Notifications are on', description: "You'll get alerts for payments, finished projects and support replies." });
+      return;
+    }
+    if (status === 'blocked') {
+      toast({ variant: 'destructive', title: 'Notifications blocked', description: BLOCKED_HINT });
+      return;
+    }
     const enabled = await subscribeToPushNotifications(user, database, toast);
+    await refresh();
     if (enabled) onEnabled?.();
   };
+
+  if (status === 'on') {
+    return (
+      <Button
+        variant="outline"
+        size={size}
+        onClick={handleClick}
+        className={cn(className, 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/15 hover:text-emerald-600 dark:text-emerald-400')}
+      >
+        <Check className="mr-1.5 h-4 w-4" /> Notifications On
+      </Button>
+    );
+  }
+
+  if (status === 'blocked') {
+    return (
+      <Button variant="outline" size={size} onClick={handleClick} className={cn(className, 'text-muted-foreground')}>
+        <BellOff className="mr-2 h-4 w-4" /> Blocked
+      </Button>
+    );
+  }
 
   return (
     <Button variant={variant} size={size} className={className} onClick={handleClick}>
