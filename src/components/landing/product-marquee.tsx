@@ -4,16 +4,16 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { initializeFirebase } from '@/firebase';
 import { ref, get, query, limitToLast } from 'firebase/database';
-import { ArrowRight, Flame, Sparkles } from 'lucide-react';
+import { ArrowRight, Flame } from 'lucide-react';
 import type { StoreProduct, SellerProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Shelf, CATEGORY_LABELS, trendingIds } from '@/components/store/store-discovery';
+import { Shelf, trendingIds } from '@/components/store/store-discovery';
+import { Reveal } from '@/components/landing/reveal';
 import { rankStoreProducts } from '@/lib/store-ranking';
 import { getPublicSellerProfilesMap } from '@/app/store/[productId]/actions';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import { reportClientError } from '@/lib/report-client-error';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const SHELF_SIZE = 12;
 const productHref = (id: string) => `/store/${id}`;
 
@@ -75,23 +75,9 @@ export function ProductMarquee() {
     })();
   }, [database, hasStartedLoading]);
 
-  const { trendingShelf, freshShelf, trending, categories } = useMemo(() => {
+  const { trendingShelf, trending } = useMemo(() => {
     const ranked = rankStoreProducts(products, { sellers, viewerKey: 'landing' });
-    const now = Date.now();
-    const trendingShelf = ranked.slice(0, SHELF_SIZE);
-    const shown = new Set(trendingShelf.map((p) => p.id));
-    const freshShelf = [...products]
-      .filter((p) => !shown.has(p.id))
-      .filter((p) => {
-        const t = p.createdAt ? new Date(p.createdAt as any).getTime() : 0;
-        return t > 0 && now - t < 14 * DAY_MS;
-      })
-      .sort((a, b) => new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime())
-      .slice(0, SHELF_SIZE);
-    const counts: Record<string, number> = {};
-    for (const p of products) counts[p.productType as string] = (counts[p.productType as string] || 0) + 1;
-    const categories = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    return { trendingShelf, freshShelf: freshShelf.length >= 3 ? freshShelf : [], trending: trendingIds(products), categories };
+    return { trendingShelf: ranked.slice(0, SHELF_SIZE), trending: trendingIds(products) };
   }, [products, sellers]);
 
   if (!hasStartedLoading) {
@@ -121,7 +107,7 @@ export function ProductMarquee() {
   return (
     <section ref={sectionRef} className="w-full overflow-hidden py-8 md:py-12">
       <div className="container px-0 md:px-6">
-        <div className="mb-4 flex flex-col gap-3 px-4 sm:flex-row sm:items-end sm:justify-between">
+        <Reveal animation="anim-in-blur-rise" className="mb-4 flex flex-col gap-3 px-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-primary">12Labs Store</p>
             <h2 className="text-2xl font-black tracking-tight sm:text-3xl">Ready-made assets from creators</h2>
@@ -134,26 +120,11 @@ export function ProductMarquee() {
           >
             Open store <ArrowRight className="h-4 w-4" />
           </Link>
-        </div>
+        </Reveal>
 
-        {categories.length > 1 && (
-          <div className="mb-2 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {categories.map(([type, n]) => (
-              <Link
-                key={type}
-                href={`/store?category=${encodeURIComponent(type)}`}
-                prefetch={false}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-bold transition-colors hover:border-primary/40"
-              >
-                {CATEGORY_LABELS[type] || type}
-                <span className="rounded-full bg-muted px-1.5 text-[10px] text-muted-foreground">{n}</span>
-              </Link>
-            ))}
-          </div>
-        )}
-
-        <Shelf title="Trending in Store" icon={<Flame className="h-5 w-5" />} items={trendingShelf} seeAllHref="/store" {...common} />
-        <Shelf title="Fresh drops" icon={<Sparkles className="h-5 w-5" />} items={freshShelf} seeAllHref="/store" {...common} />
+        <Reveal animation="anim-in-rise" delay={2}>
+          <Shelf title="Trending in Store" icon={<Flame className="h-5 w-5" />} items={trendingShelf} seeAllHref="/store" {...common} />
+        </Reveal>
       </div>
     </section>
   );

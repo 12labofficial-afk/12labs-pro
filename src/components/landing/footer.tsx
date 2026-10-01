@@ -7,6 +7,7 @@ import { initializeFirebase } from '@/firebase';
 import { ref } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import { useAuth } from '@/context/auth-provider';
+import { Reveal } from '@/components/landing/reveal';
 import { Instagram, Youtube, Mail, Send, MessageCircle, ArrowUpRight } from 'lucide-react';
 
 const DEFAULT_WHATSAPP = 'https://chat.whatsapp.com/CbWx44GhFyt49jCiHteGSe';
@@ -88,7 +89,7 @@ export function Footer() {
         <footer className="border-t bg-background">
             <div className="container px-4 py-10 md:px-6 md:py-14">
                 {/* Community strip — same order as the support page: WhatsApp, Telegram, Email */}
-                <div className="mb-10 flex flex-col gap-4 rounded-3xl border bg-gradient-to-br from-primary/10 via-background to-background p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                <Reveal animation="anim-in-rise-scale" className="mb-10 flex flex-col gap-4 rounded-3xl border bg-gradient-to-br from-primary/10 via-background to-background p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                     <div>
                         <p className="text-lg font-black tracking-tight">Join 12Labs creators</p>
                         <p className="text-sm text-muted-foreground">Updates, help and new drops — talk to us anytime.</p>
@@ -104,9 +105,9 @@ export function Footer() {
                             <Mail className="h-4 w-4" /> Email
                         </a>
                     </div>
-                </div>
+                </Reveal>
 
-                <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
+                <Reveal animation="anim-in-rise" delay={1} className="grid grid-cols-2 gap-8 md:grid-cols-5">
                     <div className="col-span-2 space-y-4">
                         <Link href="/" className="flex items-baseline gap-1" prefetch={false}>
                             <span className="font-logo text-3xl font-bold text-primary">12</span>
@@ -139,7 +140,7 @@ export function Footer() {
                             Browse the store <ArrowUpRight className="h-4 w-4" />
                         </Link>
                     </div>
-                </div>
+                </Reveal>
 
                 <div className="mt-10 space-y-4 border-t pt-6">
                     <div className="flex flex-col items-start justify-between gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center">

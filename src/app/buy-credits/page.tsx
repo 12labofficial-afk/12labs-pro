@@ -382,20 +382,20 @@ export default function BuyCreditsPage() {
             </div>
           </div>
         )}
-        <CardHeader className={cn("items-center text-center p-8 pb-4 relative", plan.bestValue && "pt-10")}>
+        <CardHeader className={cn("items-center text-center p-6 pb-3 relative", plan.bestValue && "pt-9")}>
           {plan.profitAmount && currency === 'INR' && !appliedDiscount && (
               <Badge className="absolute top-4 right-4 bg-green-600 text-white font-black uppercase text-[10px] h-6 px-3 shadow-lg animate-pulse border-none">
                   ₹{plan.profitAmount} PROFIT
               </Badge>
           )}
           <div className={cn(
-              "p-4 rounded-3xl mb-4 transition-transform duration-500 group-hover:scale-110 shadow-sm",
+              "p-3 rounded-2xl mb-3 transition-transform duration-500 group-hover:scale-110 shadow-sm",
               plan.isAutopay ? "bg-primary/5" : plan.bestValue ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-primary/10 text-primary"
           )}>
-            <plan.icon className={cn("h-8 w-8")} />
+            <plan.icon className={cn("h-7 w-7")} />
           </div>
           <CardTitle className={cn(
-            "text-3xl font-black tracking-tight uppercase",
+            "text-2xl font-black tracking-tight uppercase",
             plan.isAutopay && "text-indigo-600 dark:text-indigo-400",
             plan.bestValue && "text-amber-600 dark:text-amber-400"
           )}>{plan.name}</CardTitle>
@@ -411,9 +411,9 @@ export default function BuyCreditsPage() {
                 ₹{plan.originalPriceInRupees}
               </span>
             )}
-            <span className={cn("text-6xl font-black tracking-tighter", plan.isAutopay ? "text-indigo-600" : plan.bestValue ? "text-amber-600 dark:text-amber-400" : "text-primary")}>
+            <span className={cn("text-5xl font-black tracking-tighter", plan.isAutopay ? "text-indigo-600" : plan.bestValue ? "text-amber-600 dark:text-amber-400" : "text-primary")}>
                 {currencySymbol}{finalPrice.toFixed(0)}
-                {plan.isAutopay && <span className="text-xl font-bold">/mo</span>}
+                {plan.isAutopay && <span className="text-lg font-bold">/mo</span>}
             </span>
           </div>
 
@@ -425,15 +425,15 @@ export default function BuyCreditsPage() {
               )}
           </div>
 
-          <div className="pt-8 flex flex-col items-center gap-2">
+          <div className="pt-5 flex flex-col items-center gap-2">
               {bonusCreditPercentage && !plan.isAutopay ? (
                   <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200 py-1.5 px-4 font-black">
                       {totalCreditsWithBonus.toLocaleString()} CREDITS (+{bonusCreditPercentage}%)
                   </Badge>
               ) : (
                   <>
-                    <div className={cn("flex items-center justify-center gap-2 font-black text-2xl", plan.isAutopay ? "text-indigo-600" : plan.bestValue ? "text-amber-600 dark:text-amber-400" : "text-primary")}>
-                        <div className="flex items-center justify-center h-6 w-6">
+                    <div className={cn("flex items-center justify-center gap-2 font-black text-xl", plan.isAutopay ? "text-indigo-600" : plan.bestValue ? "text-amber-600 dark:text-amber-400" : "text-primary")}>
+                        <div className="flex items-center justify-center h-5 w-5">
                             <Coins className="h-full w-full" />
                         </div>
                         <span className="tracking-tight">
@@ -449,12 +449,12 @@ export default function BuyCreditsPage() {
               )}
           </div>
         </CardHeader>
-        <CardContent className="flex-grow p-8 pt-4">
-            <ul className="space-y-4">
+        <CardContent className="flex-grow p-6 pt-3">
+            <ul className="space-y-2.5">
                 {plan.features.map((feature: string, i: number) => {
                     return (
                         <li key={i} className="flex items-start gap-3">
-                            <CheckCircle className={cn("h-5 w-5 flex-shrink-0 mt-0.5", plan.isAutopay ? "text-indigo-500" : "text-green-500")} />
+                            <CheckCircle className={cn("h-4 w-4 flex-shrink-0 mt-0.5", plan.isAutopay ? "text-indigo-500" : "text-green-500")} />
                             <span className={cn(
                                 "text-muted-foreground font-semibold text-sm leading-snug", 
                                 (feature.includes('Full commercial') || feature.includes('Voice editing')) && "font-black text-indigo-600 dark:text-indigo-400",
@@ -465,10 +465,10 @@ export default function BuyCreditsPage() {
                 })}
             </ul>
         </CardContent>
-        <CardFooter className="p-8 pt-0">
+        <CardFooter className="p-6 pt-0">
           <Button 
             className={cn(
-              "w-full h-16 text-xl font-black rounded-2xl shadow-xl transition-all duration-300 active:scale-95 btn-shine",
+              "w-full h-14 text-lg font-black rounded-2xl shadow-xl transition-all duration-300 active:scale-95 btn-shine",
               plan.isAutopay ? "bg-indigo-600 hover:bg-indigo-700 text-white" : plan.bestValue ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-amber-500/30" : "bg-primary shadow-primary/20"
             )} 
             onClick={() => handlePurchase(plan)}
@@ -697,7 +697,7 @@ export default function BuyCreditsPage() {
                     Pick the pack that fits your production pace
                 </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6 items-stretch pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-5 items-stretch pt-4">
                 {standardPacks.map(renderPlanCard)}
             </div>
         </section>
@@ -712,7 +712,7 @@ export default function BuyCreditsPage() {
                         Maximize your success habit with weekly credit node grants.
                     </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 max-w-3xl mx-auto items-stretch px-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto items-stretch px-4">
                     {consistencyJourney.map(renderPlanCard)}
                 </div>
             </section>

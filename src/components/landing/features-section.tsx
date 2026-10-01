@@ -172,7 +172,9 @@ function ToolCardNode({
   const badgeText = discount || tool.badge;
 
   return (
-    <div className="flex flex-col items-center w-full">
+    // Tiles pop in one after another once settings have loaded (the grid
+    // only mounts then, so nothing animates in and then disappears).
+    <div className="flex flex-col items-center w-full anim-in-rise-scale" style={{ animationDelay: `${Math.min(index, 11) * 45}ms` }}>
       <Link 
         href={tool.link} 
         className={cn(
