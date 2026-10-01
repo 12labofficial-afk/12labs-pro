@@ -45,7 +45,7 @@ export const revalidate = 3600;
 export const viewport: Viewport = {
   // Matches manifest.webmanifest's theme_color — PWABuilder/TWA warns if
   // these disagree, and Android uses it for the status bar tint.
-  themeColor: '#14161b',
+  themeColor: '#ffffff',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -135,7 +135,7 @@ export default function RootLayout({
             the one-time value baked in from the manifest at install time.
             Having it emitted twice is harmless; missing it even once on some
             route would leave that shell on whatever color it last had. */}
-        <meta name="theme-color" content="#14161b" />
+        <meta name="theme-color" content="#ffffff" />
         {/* 🔴 STORAGE GUARD — must be the FIRST script to run. Some in-app
             webviews (Instagram / Telegram / Facebook browsers) and strict
             privacy modes block Web Storage so hard that even READING the

@@ -171,7 +171,7 @@ export function Header() {
   }, [router, isStoreDomain]);
 
   const isLoading = !isMounted || authLoading;
-  const currentTheme = resolvedTheme || 'dark';
+  const currentTheme = resolvedTheme || 'light';
 
   // backdrop-blur-lg (16px) on a `sticky` bar has to re-sample everything
   // scrolling underneath it on every single frame — one of the most

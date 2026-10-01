@@ -15,7 +15,6 @@ export const APP_VERSION = '2.2.7';
 // only as part of that prompt.
 export const APP_UPDATE_NOTES: string[] = [
   'New store: featured picks, trending shelves, search and badges',
-  'Dark mode is now the default',
   'Subscribe to creators from any product page',
   'Fresh landing page store section and footer',
 ];
