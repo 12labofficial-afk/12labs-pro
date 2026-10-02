@@ -50,6 +50,11 @@ export interface UserProfile {
   deviceRestricted?: boolean;
   deviceRestrictedReason?: string;
   registeredDeviceId?: string;
+  /** Store Tickets left — each unlocks one Verified Partner asset free. */
+  storeTickets?: number;
+  ticketsUsed?: number;
+  /** Total ₹ saved by spending tickets. */
+  ticketSavings?: number;
 }
 
 export type User = FirebaseUser & UserProfile;
@@ -296,7 +301,8 @@ export interface Order {
   amount: number; 
   currency: string;
   status: 'pending' | 'paid' | 'failed';
-  paymentMethod: 'cash' | 'credits' | 'free';
+  paymentMethod: 'cash' | 'credits' | 'free' | 'ticket';
+  savedAmount?: number;
   paymentId?: string;
   createdAt: string;
   productTitle?: string; 

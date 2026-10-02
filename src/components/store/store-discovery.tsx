@@ -10,6 +10,7 @@ import type { StoreProduct, SellerProfile } from '@/lib/types';
 import { cn, generateAvatarColor, getDisplayUrl } from '@/lib/utils';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { pickFeatured, recordHeroImpressions } from '@/lib/store-ranking';
+import { TicketPricePill, canUseTicket } from '@/components/store/store-ticket';
 
 const FALLBACK_IMG = 'https://res.cloudinary.com/dptryoeis/image/upload/v1772590885/c10h0lknqblj7kfxp5qr.png';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -69,6 +70,9 @@ interface CommonProps {
   onSelect: (id: string) => void;
   /** When set, cards are real links (crawlable) instead of buttons. */
   hrefFor?: (id: string) => string;
+  /** Viewer's Store Tickets; >0 shows Verified Partner items as FREE with a ticket. */
+  ticketCount?: number;
+  ownedIds?: Set<string>;
 }
 
 function CardShell({ href, onClick, className, children }: { href?: string; onClick: () => void; className: string; children: React.ReactNode }) {
@@ -76,12 +80,13 @@ function CardShell({ href, onClick, className, children }: { href?: string; onCl
   return <button type="button" onClick={onClick} className={className}>{children}</button>;
 }
 
-function ShelfCard({ product, sellers, globalDiscount, trending, onSelect, hrefFor }: CommonProps & { product: StoreProduct }) {
+function ShelfCard({ product, sellers, globalDiscount, trending, onSelect, hrefFor, ticketCount, ownedIds }: CommonProps & { product: StoreProduct }) {
   const seller = sellers[product.sellerId];
   const isVerified = !!seller?.isVerified;
   const { effective, original, discountPct } = priceInfo(product, isVerified, globalDiscount);
   const now = Date.now();
   const isStory = product.productType === 'YouTube Story';
+  const ticket = canUseTicket({ tickets: ticketCount, sellerVerified: isVerified, price: effective, owned: ownedIds?.has(product.id) });
   return (
     <CardShell
       href={hrefFor?.(product.id)}
@@ -101,9 +106,13 @@ function ShelfCard({ product, sellers, globalDiscount, trending, onSelect, hrefF
             <span className="rounded-full bg-black/40 p-2.5 backdrop-blur-sm"><Play className="h-5 w-5 fill-white text-white" /></span>
           </span>
         )}
-        <span className="absolute bottom-2 right-2 rounded-xl bg-white px-2.5 py-1 text-xs font-black text-black shadow-lg">
-          {original > effective && <span className="mr-1 text-[10px] font-medium text-black/50 line-through">₹{original}</span>}₹{effective}
-        </span>
+        {ticket ? (
+          <TicketPricePill price={effective} className="absolute bottom-2 right-2" />
+        ) : (
+          <span className="absolute bottom-2 right-2 rounded-xl bg-white px-2.5 py-1 text-xs font-black text-black shadow-lg">
+            {original > effective && <span className="mr-1 text-[10px] font-medium text-black/50 line-through">₹{original}</span>}₹{effective}
+          </span>
+        )}
       </div>
       <p className="mt-2 line-clamp-2 text-sm font-bold leading-snug">{product.title}</p>
       <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
@@ -135,7 +144,7 @@ export function Shelf({ title, icon, items, seeAllHref, ...common }: CommonProps
   );
 }
 
-function Hero({ items, sellers, globalDiscount, onSelect }: CommonProps & { items: StoreProduct[] }) {
+function Hero({ items, sellers, globalDiscount, onSelect, ticketCount, ownedIds }: CommonProps & { items: StoreProduct[] }) {
   const autoplay = useRef(Autoplay({ delay: 5000, stopOnInteraction: true }));
   if (items.length === 0) return null;
   return (
@@ -172,9 +181,13 @@ function Hero({ items, sellers, globalDiscount, onSelect }: CommonProps & { item
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
                     {discountPct > 0 && <span className="rounded-md bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">{discountPct}% OFF</span>}
-                    <span className="rounded-xl bg-white px-3 py-1.5 text-sm font-black text-black shadow-lg">
-                      {original > effective && <span className="mr-1 text-xs font-medium text-black/50 line-through">₹{original}</span>}₹{effective}
-                    </span>
+                    {canUseTicket({ tickets: ticketCount, sellerVerified: !!seller?.isVerified, price: effective, owned: ownedIds?.has(p.id) }) ? (
+                      <TicketPricePill price={effective} size="md" />
+                    ) : (
+                      <span className="rounded-xl bg-white px-3 py-1.5 text-sm font-black text-black shadow-lg">
+                        {original > effective && <span className="mr-1 text-xs font-medium text-black/50 line-through">₹{original}</span>}₹{effective}
+                      </span>
+                    )}
                   </span>
                 </span>
               </button>
@@ -192,7 +205,7 @@ function Hero({ items, sellers, globalDiscount, onSelect }: CommonProps & { item
  * Expects `ranked` already ordered by rankStoreProducts.
  */
 export function StoreDiscovery({
-  ranked, sellers, globalDiscount, followedSellerIds, topCategory, onSelect, ownedIds,
+  ranked, sellers, globalDiscount, followedSellerIds, topCategory, onSelect, ownedIds, ticketCount,
 }: {
   ranked: StoreProduct[];
   sellers: Record<string, SellerProfile>;
@@ -202,9 +215,10 @@ export function StoreDiscovery({
   onSelect: (id: string) => void;
   /** Items the viewer already bought — kept out of the hero. */
   ownedIds?: Set<string>;
+  ticketCount?: number;
 }) {
   const trending = useMemo(() => trendingIds(ranked), [ranked]);
-  const common = { sellers, globalDiscount, trending, onSelect };
+  const common = { sellers, globalDiscount, trending, onSelect, ticketCount, ownedIds };
 
   const shelves = useMemo(() => {
     const now = Date.now();

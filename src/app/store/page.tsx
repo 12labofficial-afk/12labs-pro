@@ -31,6 +31,7 @@ import { reportClientError } from '@/lib/report-client-error';
 
 import { getIdToken } from '@/lib/id-token';
 import { rankStoreProducts, buildCategoryAffinity } from '@/lib/store-ranking';
+import { TicketPricePill, canUseTicket } from '@/components/store/store-ticket';
 import { getMyFollowedSellerIds } from '@/app/seller/actions';
 import { StoreDiscovery, CATEGORY_LABELS, trendingIds } from '@/components/store/store-discovery';
 /**
@@ -313,6 +314,8 @@ function ProductCard({
                         <Badge variant="destructive" className="font-black text-[10px] px-3 h-8 border-none rounded-xl shadow-2xl leading-none uppercase">
                             SOLD OUT
                         </Badge>
+                    ) : canUseTicket({ tickets: user?.storeTickets, sellerVerified: isVerified, price: effectivePrice }) ? (
+                        <TicketPricePill price={effectivePrice} size="md" />
                     ) : (
                         <span className="rounded-xl bg-white px-3 py-1.5 text-sm font-black text-black shadow-lg">
                             {hasDiscount && <span className="mr-1 text-xs font-medium text-black/50 line-through">₹{originalPrice}</span>}₹{effectivePrice}
@@ -681,6 +684,7 @@ export default function StoreHomePage() {
                             topCategory={rankedAll.topCategory}
                             onSelect={handleProductSelect}
                             ownedIds={purchasedProductIds}
+                            ticketCount={user?.storeTickets || 0}
                         />
                         <div className="flex items-center gap-2 px-4 pt-4 pb-2">
                             <Gem className="h-4 w-4 text-primary" />

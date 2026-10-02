@@ -12,7 +12,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useMemo, useEffect } from 'react';
-import { createOrderForCart, processFreeOrder, processCreditOrder } from './actions';
+import { createOrderForCart, processFreeOrder, processCreditOrder, redeemTicketForProduct } from './actions';
+import { canUseTicket } from '@/components/store/store-ticket';
 import type { UserProfile, Product, CartItem } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { cn, getDisplayUrl, formatCredits } from '@/lib/utils';
@@ -211,6 +212,28 @@ export default function CheckoutPage() {
         }
     };
 
+    const [redeemingId, setRedeemingId] = useState<string | null>(null);
+    const ticketCount = Number(user?.storeTickets || 0);
+
+    const handleUseTicket = async (item: CartItem) => {
+        setRedeemingId(item.id);
+        try {
+            const res = await redeemTicketForProduct(await getIdToken(), item.id, {
+                tier: (item as any).selectedTier,
+                youtubeChannelLink: (item as any).youtubeChannelLink,
+            });
+            if (!res.success) throw new Error(res.error);
+            removeFromCart(item.id);
+            if (typeof res.ticketsLeft === 'number') setUser(prev => prev ? { ...prev, storeTickets: res.ticketsLeft } : null);
+            toast({ title: `🎟️ Ticket applied — you saved ₹${res.savedAmount}!`, description: `${item.title} is now in your purchases.` });
+        } catch (e: any) {
+            reportClientError('src/app/store/checkout/page.tsx:ticket', e);
+            toast({ variant: 'destructive', title: 'Ticket not applied', description: e?.message || 'Please try again.' });
+        } finally {
+            setRedeemingId(null);
+        }
+    };
+
     const handlePayWithCredits = async () => {
         if (hasSoldOutItems) {
             toast({ variant: 'destructive', title: 'Invalid Cart', description: 'Please remove sold-out items from your cart to proceed.' });
@@ -315,6 +338,16 @@ export default function CheckoutPage() {
                                             </div>
                                             <div className="flex flex-col items-end gap-2">
                                                 <p className={cn("font-black text-sm", isSoldOut && "line-through text-muted-foreground")}>₹{item.price}</p>
+                                                {!isSoldOut && canUseTicket({ tickets: ticketCount, sellerVerified: item.sellerIsVerified, price: item.price }) && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleUseTicket(item)}
+                                                        disabled={!!redeemingId || isLoading || isProcessingCredits}
+                                                        className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1.5 text-[11px] font-black uppercase text-amber-950 shadow-md transition-transform active:scale-95 disabled:opacity-60"
+                                                    >
+                                                        {redeemingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : '🎟️'} Use ticket · FREE
+                                                    </button>
+                                                )}
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-destructive" onClick={() => removeFromCart(item.id)}>
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>

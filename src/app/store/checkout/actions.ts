@@ -1,8 +1,9 @@
 'use server';
 
-import { requireSelfOrAdmin } from '@/lib/auth-guard';
+import { requireSelfOrAdmin, requireUser } from '@/lib/auth-guard';
 
 import Razorpay from 'razorpay';
+import { after } from 'next/server';
 import { initializeFirebase } from '@/firebase/server';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import type { UserProfile, Product, SellerProfile } from '@/lib/types';
@@ -339,5 +340,146 @@ export async function processCreditOrder(idToken: string,
     reportServerError('src/app/store/checkout/actions.ts#3', error);
         console.error("Credit order failed:", error);
         return { success: false, error: error.message || "An unknown error occurred." };
+    }
+}
+
+/**
+ * Spend ONE Store Ticket on ONE Verified Partner asset — free for the buyer,
+ * whatever the price. Price, seller and verification are all read here on
+ * the server; nothing about the product is trusted from the client. The
+ * seller is still credited the full (discounted) price in storeHistory.
+ */
+export async function redeemTicketForProduct(
+    idToken: string,
+    productId: string,
+    opts: { tier?: string; youtubeChannelLink?: string } = {},
+): Promise<{ success: boolean; savedAmount?: number; ticketsLeft?: number; error?: string }> {
+    const guard = await requireUser(idToken);
+    if (!guard.ok) return { success: false, error: guard.message };
+    const uid = guard.uid;
+    if (!(await rateLimit('ticket-order', uid, 10, 600))) return { success: false, error: RATE_LIMIT_MESSAGE };
+    if (!productId || typeof productId !== 'string') return { success: false, error: 'Invalid product.' };
+
+    const { firestore, database } = initializeFirebase();
+
+    try {
+        const [productSnap, pricingSnap] = await Promise.all([
+            database.ref(`storeProducts/${productId}`).get(),
+            database.ref('settings/pricing').get(),
+        ]);
+        const product = productSnap.exists() ? productSnap.val() : null;
+        if (!product?.title || !product?.sellerId) return { success: false, error: 'This item is no longer available.' };
+        if (product.status === 'sold' || product.isSold || product.buyerUid) {
+            return { success: false, error: 'This item has already been sold.' };
+        }
+        if (product.sellerId === uid) return { success: false, error: 'You cannot buy your own item.' };
+
+        const sellerSnap = await database.ref(`sellerProfiles/${product.sellerId}`).get();
+        const seller = sellerSnap.exists() ? sellerSnap.val() : null;
+        if (!seller?.isVerified) {
+            return { success: false, error: 'Tickets work only on Verified Partner items.' };
+        }
+
+        const tierPrice = opts.tier && product.tieredPricing ? Number(product.tieredPricing[opts.tier]) : NaN;
+        const basePrice = Number.isFinite(tierPrice) && tierPrice > 0 ? tierPrice : Number(product.price || 0);
+        if (product.requiresYoutubeLink && !String(opts.youtubeChannelLink || '').trim()) {
+            return { success: false, error: 'Please add your YouTube channel link first.' };
+        }
+        const globalDiscount = Number(pricingSnap.val()?.verifiedSellerGlobalDiscount || 0);
+        const effectivePrice = globalDiscount > 0 ? Math.floor(basePrice * (1 - globalDiscount / 100)) : basePrice;
+        if (effectivePrice <= 0) return { success: false, error: 'This item is already free — no ticket needed.' };
+
+        const owned = await firestore.collection('storeHistory')
+            .where('userId', '==', uid).where('productId', '==', productId).where('status', '==', 'paid')
+            .limit(1).get();
+        if (!owned.empty) return { success: false, error: 'You already own this item.' };
+
+        const userRef = firestore.collection('users').doc(uid);
+        const productRef = firestore.collection('products').doc(productId);
+        const orderRef = firestore.collection('storeHistory').doc();
+        let ticketsLeft = 0;
+        let buyerEmail = '';
+
+        await firestore.runTransaction(async (tx: any) => {
+            const [userDoc, productDoc] = await Promise.all([tx.get(userRef), tx.get(productRef)]);
+            if (!userDoc.exists) throw new Error('User profile not found.');
+            const tickets = Number(userDoc.data()?.storeTickets || 0);
+            if (tickets < 1) throw new Error("You don't have any Store Tickets left.");
+            const pData = productDoc.exists ? productDoc.data() : null;
+            if (pData && (pData.isSold || pData.status === 'sold')) throw new Error('This item has already been sold.');
+
+            ticketsLeft = tickets - 1;
+            buyerEmail = userDoc.data()?.email || '';
+            const now = new Date().toISOString();
+
+            tx.update(userRef, {
+                storeTickets: FieldValue.increment(-1),
+                ticketsUsed: FieldValue.increment(1),
+                ticketSavings: FieldValue.increment(effectivePrice),
+            });
+            tx.set(orderRef, {
+                userId: uid,
+                userEmail: buyerEmail,
+                productId,
+                productTitle: product.title,
+                sellerId: product.sellerId,
+                // Seller is paid the normal price; the buyer paid with a ticket.
+                amount: Math.round(effectivePrice * 100),
+                currency: 'INR',
+                status: 'paid',
+                paymentMethod: 'ticket',
+                paymentId: `ticket_${orderRef.id}`,
+                savedAmount: effectivePrice,
+                ...(opts.tier ? { selectedTier: String(opts.tier).slice(0, 40) } : {}),
+                ...(opts.youtubeChannelLink ? { youtubeChannelLink: String(opts.youtubeChannelLink).slice(0, 300) } : {}),
+                createdAt: now,
+                productSnapshot: pData || null,
+            });
+            if (product.isOneTimePurchase && productDoc.exists) {
+                tx.update(productRef, { status: 'sold', isSold: true, buyerUid: uid });
+            }
+        });
+
+        if (product.isOneTimePurchase) {
+            await database.ref(`storeProducts/${productId}`)
+                .update({ status: 'sold', isSold: true, buyerUid: uid })
+                .catch((e: any) => { reportServerError('src/app/store/checkout/actions.ts:ticket-sold', e); return null; });
+        }
+        await database.ref(`carts/${uid}/${productId}`).remove().catch(() => null);
+
+        after(async () => {
+            try {
+                const [buyerDoc, sellerUserDoc] = await Promise.all([
+                    firestore.collection('users').doc(uid).get(),
+                    firestore.collection('users').doc(product.sellerId).get(),
+                ]);
+                const b = buyerDoc.data() || {};
+                const sellerEmail = seller.email || sellerUserDoc.data()?.email || 'N/A';
+                const totalSaved = Number(b.ticketSavings || effectivePrice);
+                const totalUsed = Number(b.ticketsUsed || 1);
+                await sendToTelegram(
+                    `🎟️ <b>STORE PURCHASE VIA TICKET</b>\n\n` +
+                    `📦 <b>Item:</b> ${escapeHtml(product.title)}\n` +
+                    `🏷️ <b>Type:</b> ${escapeHtml(String(product.productType || 'N/A'))}${opts.tier ? ` (${escapeHtml(String(opts.tier))})` : ''}${product.isOneTimePurchase ? ' · Exclusive (now sold)' : ''}\n` +
+                    `🆔 <b>Product:</b> <code>${escapeHtml(productId)}</code>\n\n` +
+                    `👤 <b>Buyer:</b> ${escapeHtml(buyerEmail)}\n` +
+                    `🎫 <b>Tickets:</b> used 1 · ${ticketsLeft} left · ${totalUsed} used in total\n` +
+                    `💸 <b>Buyer saved:</b> ₹${effectivePrice} (₹${Math.round(totalSaved).toLocaleString('en-IN')} total with tickets)\n\n` +
+                    `🏪 <b>Seller:</b> ${escapeHtml(seller.storeName || 'N/A')} ✅ Verified\n` +
+                    `📧 <b>Seller email:</b> ${escapeHtml(sellerEmail)}\n` +
+                    `💰 <b>Seller credited:</b> ₹${effectivePrice}${globalDiscount > 0 ? ` (list ₹${basePrice}, ${globalDiscount}% partner discount)` : ''} — paid by 12Labs\n` +
+                    `🧾 <b>Order:</b> <code>ticket_${orderRef.id}</code>`
+                );
+            } catch (e: any) {
+                reportServerError('src/app/store/checkout/actions.ts:ticket-telegram', e);
+            }
+        });
+
+        return { success: true, savedAmount: effectivePrice, ticketsLeft };
+    } catch (error: any) {
+        reportServerError('src/app/store/checkout/actions.ts#ticket', error);
+        const msg = String(error?.message || '');
+        const safe = /ticket|sold|profile|own/i.test(msg) ? msg : 'Could not use the ticket. Please try again.';
+        return { success: false, error: safe };
     }
 }

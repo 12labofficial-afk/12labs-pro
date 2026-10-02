@@ -277,7 +277,7 @@ function PurchaseCard({ order }: { order: Order }) {
                             </div>
                             <div className="flex flex-wrap items-center justify-between gap-2 mt-2 pt-4 border-t border-border/50">
                                 <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                                    {order.paymentMethod === 'free' ? 'Free' : (order.paymentMethod === 'credits' ? `💎 ${order.amount / 100}` : `₹${order.amount / 100}`)}
+                                    {order.paymentMethod === 'free' ? 'Free' : order.paymentMethod === 'ticket' ? `🎟️ Ticket · saved ₹${(order as any).savedAmount ?? order.amount / 100}` : (order.paymentMethod === 'credits' ? `💎 ${order.amount / 100}` : `₹${order.amount / 100}`)}
                                 </Badge>
                                 <div className="text-xs text-muted-foreground flex items-center">
                                     <Clock className="w-3 h-3 mr-1" />

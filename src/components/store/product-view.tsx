@@ -20,6 +20,8 @@ import { checkIfUserLiked, toggleLikeProduct, checkPurchaseStatus, getSecureDown
 import { getCompleteProduct } from '@/app/admin/projects/actions';
 import { adminDeleteProduct, adminUpdateProduct } from '@/app/store/admin-actions';
 import { useAuth } from '@/context/auth-provider';
+import { redeemTicketForProduct } from '@/app/store/checkout/actions';
+import { TicketArt, TicketChip, canUseTicket } from '@/components/store/store-ticket';
 import { useToast } from '@/hooks/use-toast';
 import { cn, generateAvatarColor, getDisplayUrl } from '@/lib/utils';
 import { toggleFollowSeller, checkFollowStatus } from '@/app/seller/actions';
@@ -493,6 +495,41 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
         } else { setIsLikeLoading(false); setIsLoadingFollow(false); }
     }, [product.id, user, accessState, product.sellerId]);
 
+    const [isRedeemingTicket, setIsRedeemingTicket] = useState(false);
+    const ticketCount = Number((currentUser as any)?.storeTickets || 0);
+    const ticketUsable = canUseTicket({
+        tickets: ticketCount,
+        sellerVerified: isVerifiedPartner,
+        price: displayPrice,
+        owned: hasPurchased,
+        sold: product.status === 'sold',
+    });
+
+    const handleUseTicket = async () => {
+        if (product.requiresYoutubeLink && !youtubeLink.trim()) {
+            toast({ variant: 'destructive', title: 'Link Required', description: 'Add your YouTube channel link first.' }); return;
+        }
+        setIsRedeemingTicket(true);
+        try {
+            const res = await redeemTicketForProduct(await getIdToken(), product.id, {
+                tier: product.tieredPricing ? selectedTier : undefined,
+                youtubeChannelLink: youtubeLink.trim() || undefined,
+            });
+            if (!res.success) throw new Error(res.error);
+            setHasPurchased(true);
+            setAccessState('granted');
+            if (setUser && typeof res.ticketsLeft === 'number') {
+                setUser((prev: any) => (prev ? { ...prev, storeTickets: res.ticketsLeft } : prev));
+            }
+            toast({ title: `🎟️ Ticket applied — you saved ₹${res.savedAmount}!`, description: 'The item is yours. Find it in History → Purchases.' });
+        } catch (e: any) {
+            reportClientError('src/components/store/product-view.tsx:ticket', e);
+            toast({ variant: 'destructive', title: 'Ticket not applied', description: e?.message || 'Please try again.' });
+        } finally {
+            setIsRedeemingTicket(false);
+        }
+    };
+
     const handleAddToCart = () => {
         if (product.requiresYoutubeLink && !youtubeLink.trim()) {
             toast({ variant: 'destructive', title: 'Link Required' }); return;
@@ -693,7 +730,7 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
                     <div className="lg:col-span-1">
                         <Card className="sticky top-24 border-primary/10 shadow-2xl overflow-hidden rounded-[2.5rem]">
                             <CardHeader className="bg-primary/5 pb-6 border-b border-primary/10 text-center">
-                                {hasPurchased ? (<div className="space-y-1"><Badge className="bg-green-600 text-white font-black uppercase tracking-widest">OWNED BY YOU</Badge><CardTitle className="text-xl font-black mt-2">Secured Archive Active</CardTitle></div>) : isSoldOut ? (<div className="space-y-1"><Badge variant="destructive" className="font-black uppercase tracking-widest">SOLD OUT</Badge><CardTitle className="text-xl font-black mt-2">Exclusive Asset Sold</CardTitle></div>) : (<><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Standard Entry</p><CardTitle className="text-5xl font-black tracking-tighter">₹{displayPrice}</CardTitle></>)}
+                                {hasPurchased ? (<div className="space-y-1"><Badge className="bg-green-600 text-white font-black uppercase tracking-widest">OWNED BY YOU</Badge><CardTitle className="text-xl font-black mt-2">Secured Archive Active</CardTitle></div>) : isSoldOut ? (<div className="space-y-1"><Badge variant="destructive" className="font-black uppercase tracking-widest">SOLD OUT</Badge><CardTitle className="text-xl font-black mt-2">Exclusive Asset Sold</CardTitle></div>) : ticketUsable ? (<><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">With your ticket</p><div className="flex items-center justify-center gap-3"><span className="text-2xl font-bold text-muted-foreground line-through">₹{displayPrice}</span><CardTitle className="text-5xl font-black tracking-tighter text-emerald-600">FREE</CardTitle></div><div className="mt-2 flex justify-center"><TicketChip /></div></>) : (<><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Standard Entry</p><CardTitle className="text-5xl font-black tracking-tighter">₹{displayPrice}</CardTitle></>)}
                             </CardHeader>
                             <CardContent className="pt-8 space-y-8">
                                 {hasPurchased ? (
@@ -734,6 +771,26 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
                                                         <span className="font-black">₹{product.tieredPricing.multipleWorks}</span>
                                                     </Label>
                                                 </RadioGroup>
+                                            </div>
+                                        )}
+                                        {ticketUsable && (
+                                            <div className="space-y-3 rounded-3xl border-2 border-amber-400/50 bg-gradient-to-b from-amber-50 to-transparent p-4 dark:from-amber-500/10">
+                                                <div className="flex items-center gap-3">
+                                                    <TicketArt className="w-28 shrink-0 text-[10px]" />
+                                                    <div className="min-w-0 text-left">
+                                                        <p className="text-sm font-black">You have {ticketCount} Store Ticket{ticketCount > 1 ? 's' : ''}</p>
+                                                        <p className="text-xs text-muted-foreground">Use 1 ticket and get this Verified Partner item free.</p>
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    onClick={handleUseTicket}
+                                                    disabled={isRedeemingTicket}
+                                                    className="h-14 w-full rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-base font-black uppercase text-amber-950 shadow-lg shadow-amber-500/30 hover:from-amber-500 hover:to-orange-600"
+                                                >
+                                                    {isRedeemingTicket ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+                                                    Use 1 ticket · Save ₹{displayPrice}
+                                                </Button>
+                                                <p className="text-center text-[11px] font-semibold text-muted-foreground">Or pay normally below.</p>
                                             </div>
                                         )}
                                         {isInCart(product.id) ? (<Button className="w-full h-16 text-lg font-black rounded-2xl bg-green-600 hover:bg-green-700 uppercase" asChild><Link href="/store/checkout"><Check className="mr-3 h-6 w-6" /> GO TO CHECKOUT</Link></Button>) : (<Button className="w-full h-16 text-xl font-black rounded-2xl shadow-xl shadow-primary/30 btn-shine uppercase tracking-tight" onClick={handleAddToCart}><ShoppingCart className="mr-3 h-6 w-6" /> ADD TO CART</Button>)}

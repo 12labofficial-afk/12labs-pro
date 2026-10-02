@@ -13,6 +13,7 @@ import { rankStoreProducts } from '@/lib/store-ranking';
 import { getPublicSellerProfilesMap } from '@/app/store/[productId]/actions';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import { reportClientError } from '@/lib/report-client-error';
+import { useAuth } from '@/context/auth-provider';
 
 const SHELF_SIZE = 12;
 const productHref = (id: string) => `/store/${id}`;
@@ -30,6 +31,7 @@ export function ProductMarquee() {
   const [hasStartedLoading, setHasStartedLoading] = useState(false);
   const { database } = initializeFirebase();
   const sectionRef = useRef<HTMLElement>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -102,7 +104,7 @@ export function ProductMarquee() {
 
   if (products.length === 0) return null;
 
-  const common = { sellers, globalDiscount, trending, onSelect: () => {}, hrefFor: productHref };
+  const common = { sellers, globalDiscount, trending, onSelect: () => {}, hrefFor: productHref, ticketCount: user?.storeTickets || 0 };
 
   return (
     <section ref={sectionRef} className="w-full overflow-hidden py-8 md:py-12">

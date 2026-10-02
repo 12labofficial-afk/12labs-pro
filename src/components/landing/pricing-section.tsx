@@ -216,6 +216,7 @@ export function PricingSection() {
                                 feature.includes('Voice editing') ||
                                 feature.includes('Bonus')) &&
                                 "font-black text-indigo-600 dark:text-indigo-400",
+                                feature.includes('Store Ticket') && "rounded-lg bg-amber-400/15 px-1.5 py-0.5 font-black text-amber-700 dark:text-amber-400",
                               plan.isAutopay && "text-foreground/80"
                             )}
                           >

@@ -6,6 +6,7 @@ import { CheckCircle, Gem, Loader2, CreditCard, Tag, Coins, Briefcase, Rocket, S
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn, getDisplayUrl, formatCredits } from '@/lib/utils';
+import { TicketWallet } from '@/components/store/ticket-wallet';
 import { useAuth } from '@/context/auth-provider';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -458,6 +459,7 @@ export default function BuyCreditsPage() {
                             <span className={cn(
                                 "text-muted-foreground font-semibold text-sm leading-snug", 
                                 (feature.includes('Full commercial') || feature.includes('Voice editing')) && "font-black text-indigo-600 dark:text-indigo-400",
+                                feature.includes('Store Ticket') && "rounded-lg bg-amber-400/15 px-1.5 py-0.5 font-black text-amber-700 dark:text-amber-400",
                                 plan.isAutopay && "text-foreground/80"
                             )}>{feature}</span>
                         </li>
@@ -500,6 +502,10 @@ export default function BuyCreditsPage() {
             </div>
           )}
         </div>
+
+        {user && (
+          <TicketWallet tickets={user.storeTickets || 0} used={user.ticketsUsed || 0} saved={user.ticketSavings || 0} />
+        )}
 
         {user?.subscription && user.subscription.status === 'active' && (
             <div className="max-w-xl mx-auto mb-10">

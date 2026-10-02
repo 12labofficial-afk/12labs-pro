@@ -21,6 +21,8 @@ export interface Plan {
     grantIntervalDays?: number;
     /** Total number of installments before the plan auto-completes (default 4 if unset). */
     maxGrants?: number;
+    /** Store Tickets granted with the pack (each = one free Verified Partner asset). */
+    storeTickets?: number;
 }
 
 export const plans: Plan[] = [
@@ -81,6 +83,7 @@ export const plans: Plan[] = [
         // 30,000 + 1,000 bonus (the bonus moved here from Starter).
         credits: 31000,
         features: [
+            '🎟️ 1 Store Ticket — any Verified Partner asset FREE',
             '+ 1,000 Bonus Credits! 🎁',
             'Voice editing (Included)',
             'Access to all AI voices',
@@ -90,6 +93,7 @@ export const plans: Plan[] = [
             'MP3 & WAV lossless download',
             'ZIP audio dialogue bundle',
         ],
+        storeTickets: 1,
         icon: Gem,
     },
     {
@@ -100,6 +104,7 @@ export const plans: Plan[] = [
         originalPriceInUSD: 10,
         credits: 50000,
         features: [
+            '🎟️ 2 Store Tickets — any Verified Partner asset FREE',
             'Priority production node',
             'Voice editing (Included)',
             'Commercial usage rights',
@@ -108,6 +113,7 @@ export const plans: Plan[] = [
             'MP3 & WAV lossless download',
             'ZIP audio dialogue bundle',
         ],
+        storeTickets: 2,
         icon: Briefcase,
     },
     {
@@ -118,6 +124,7 @@ export const plans: Plan[] = [
         credits: 100000,
         profitAmount: 310, 
         features: [
+            '🎟️ 3 Store Tickets — any Verified Partner asset FREE',
             'Full commercial usage rights',
             'Voice editing (Included)',
             'Single dialogue extraction',
@@ -125,6 +132,7 @@ export const plans: Plan[] = [
             'MP3 & WAV lossless download',
             'ZIP audio dialogue bundle',
         ],
+        storeTickets: 3,
         icon: Rocket,
         bestValue: true,
     },

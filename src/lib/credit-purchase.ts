@@ -245,6 +245,11 @@ export async function handleCreditPurchase(
             totalInvestment: FieldValue.increment(paymentInInr) 
         };
 
+        const ticketsToAdd = !isAutopay && planSource?.storeTickets ? planSource.storeTickets : 0;
+        if (ticketsToAdd > 0) {
+            userUpdates.storeTickets = FieldValue.increment(ticketsToAdd);
+        }
+
         if (planSource) {
             const priceKey = String(planSource.priceInRupees);
             userUpdates[`purchasedPlans.${priceKey}`] = FieldValue.increment(1);
@@ -303,7 +308,7 @@ export async function handleCreditPurchase(
                 id: `pay-${paymentId}`, 
                 message: queueForNextCycle
                     ? `Payment successful! Your current plan is still running — this plan's credits will start right after it finishes.`
-                    : `Payment successful! ${creditsToAdd.toLocaleString()} credits added.`,
+                    : `Payment successful! ${creditsToAdd.toLocaleString()} credits added.${ticketsToAdd ? ` 🎟️ +${ticketsToAdd} Store Ticket${ticketsToAdd > 1 ? 's' : ''} — get any Verified Partner asset free.` : ''}`,
                 timestamp: now.toISOString(), 
                 read: false, 
                 type: 'credits' 
@@ -342,6 +347,7 @@ export async function handleCreditPurchase(
              grantCycle,
              isRecurring: isRecurringCharge,
             queued: queueForNextCycle,
+            ticketsToAdd,
             totalInvestment: newTotalInvestment
         };
     });
@@ -399,7 +405,7 @@ export async function handleCreditPurchase(
             const newRevenue = result.snapshot.val() || paymentInInr;
             const previousRevenue = newRevenue - paymentInInr;
             const todayEarningsText = `🤑 <b>Today:</b> ₹${Math.round(previousRevenue).toLocaleString('en-IN')} + ₹${Math.round(paymentInInr).toLocaleString('en-IN')} = ₹${Math.round(newRevenue).toLocaleString('en-IN')}`;
-            await sendToTelegram(`<b>💎 CREDIT PURCHASE SUCCESSFUL</b>\n\n<b>User:</b> ${tr.userEmail}\n<b>Amount:</b> ${currencySymbol}${amountInOriginalCurrency}\n<b>Credit Grant:</b> +${tr.creditsToAdd.toLocaleString()}${recurringGrantText}\n<b>Total Investment:</b> ${creditTotalInvestFormatted}\n\n${todayEarningsText}`);
+            await sendToTelegram(`<b>💎 CREDIT PURCHASE SUCCESSFUL</b>\n\n<b>User:</b> ${tr.userEmail}\n<b>Amount:</b> ${currencySymbol}${amountInOriginalCurrency}\n<b>Credit Grant:</b> +${tr.creditsToAdd.toLocaleString()}${tr.ticketsToAdd ? `\n<b>Store Tickets:</b> +${tr.ticketsToAdd} 🎟️` : ''}${recurringGrantText}\n<b>Total Investment:</b> ${creditTotalInvestFormatted}\n\n${todayEarningsText}`);
         } catch (e: any) {
             reportServerError('src/lib/credit-purchase.ts:telegram2', e);
         }
