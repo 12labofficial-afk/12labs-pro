@@ -215,6 +215,67 @@ export async function adjustUserCredits(
   }
 }
 
+/**
+ * Admin: add or remove Store Tickets (delta, + or -). Read-modify-write in a
+ * transaction so it can't race a ticket being redeemed at the same moment.
+ */
+export async function adjustUserTickets(
+  idToken: string,
+  userId: string,
+  delta: number,
+  reason?: string
+): Promise<{ success: boolean; newTickets?: number; error?: string }> {
+  const guard = await requireAdmin(idToken);
+  if (!guard.ok) return { success: false, error: guard.message };
+  if (!Number.isInteger(delta) || delta === 0) return { success: false, error: 'Enter a whole number, like +2 or -1.' };
+  if (Math.abs(delta) > 100) return { success: false, error: 'Change at most 100 tickets at a time.' };
+
+  const { firestore } = initializeFirebase();
+  if (!firestore) return { success: false, error: 'Database instance unavailable.' };
+  const userRef = firestore.collection('users').doc(userId);
+
+  try {
+    let before = 0;
+    let after = 0;
+    let target: any = {};
+    await firestore.runTransaction(async (tx: any) => {
+      const doc = await tx.get(userRef);
+      if (!doc.exists) throw new Error('User not found.');
+      target = doc.data() || {};
+      before = Math.max(0, Number(target.storeTickets || 0));
+      after = before + delta;
+      if (after < 0) throw new Error(`User only has ${before} ticket${before === 1 ? '' : 's'}.`);
+      tx.update(userRef, { storeTickets: after });
+      if (delta > 0) {
+        tx.set(userRef.collection('notifications').doc('user_notifications'), {
+          entries: FieldValue.arrayUnion({
+            id: `admin-ticket-${Date.now()}`,
+            message: `🎟️ You received ${delta} Store Ticket${delta > 1 ? 's' : ''} — get any Verified Partner asset free.`,
+            timestamp: new Date().toISOString(),
+            read: false,
+            type: 'credits' as const,
+          }),
+        }, { merge: true });
+      }
+    });
+
+    await sendToTelegram(
+      `🎟️ <b>STORE TICKETS EDITED BY ADMIN</b>\n\n` +
+      `<b>Admin:</b> ${escapeHtml(guard.email || guard.uid)}\n` +
+      `<b>User:</b> ${escapeHtml(target.name || 'N/A')} (${escapeHtml(target.email || userId)})\n` +
+      `<b>Change:</b> <code>${delta > 0 ? '+' : ''}${delta}</code> (${before} → <b>${after}</b>)\n` +
+      `<b>Reason:</b> <i>${escapeHtml(reason || 'Admin manual adjustment')}</i>\n` +
+      `<b>User ID:</b> <code>${escapeHtml(userId)}</code>`
+    ).catch(() => null);
+
+    revalidatePath('/admin/users');
+    return { success: true, newTickets: after };
+  } catch (e: any) {
+    reportServerError('src/app/admin/users/actions.ts:adjustTickets', e);
+    return { success: false, error: e?.message || 'Could not update tickets.' };
+  }
+}
+
 export async function updateUserSubscription(
     idToken: string,
     userId: string,

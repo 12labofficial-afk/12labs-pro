@@ -38,7 +38,7 @@ import {
     Activity, Gem, Save, Sliders, Edit, ChevronsUpDown, Store,
     IndianRupee, Award, Sparkles, ImageIcon, FilePenLine, ShoppingCart, Trophy, MonitorPlay, MicVocal,
     Gift, Undo2, Music, Download, MessageSquareText
-} from 'lucide-react';
+, Ticket } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,6 +67,7 @@ import {
     getUserProfileFromServer, 
     searchAuthUsers, 
     adjustUserCredits, 
+    adjustUserTickets,
     updateUserRole, 
     toggleSellerStatus,
     toggleSponsorStatus,
@@ -1757,6 +1758,9 @@ export function UserManagement() {
   // Real-time calculation state
   const [adjustmentAmount, setAdjustmentAmount] = useState('');
   const [creditReason, setCreditReason] = useState('Admin manual adjustment');
+  const [showTicketDialog, setShowTicketDialog] = useState(false);
+  const [ticketDelta, setTicketDelta] = useState('');
+  const [ticketReason, setTicketReason] = useState('Admin manual adjustment');
 
   const handleSearch = async () => {
       if (!searchQuery.trim()) return;
@@ -1824,6 +1828,29 @@ export function UserManagement() {
         reportClientError('src/components/admin/user-management.tsx:1806', e); toast({ variant: 'destructive', title: 'Update Failed', description: e.message }); }
     finally { setIsActionLoading(false); }
   };
+
+  const handleAdjustTickets = async () => {
+    if (!selectedProfile) return;
+    setIsActionLoading(true);
+    try {
+        const delta = parseInt(ticketDelta, 10);
+        const result = await adjustUserTickets(await getIdToken(), selectedProfile.uid, delta, ticketReason);
+        if (!result.success) throw new Error(result.error);
+        toast({ title: 'Tickets updated', description: `Now ${result.newTickets} ticket${result.newTickets === 1 ? '' : 's'}.` });
+        const updated = await getUserProfileFromServer(await getIdToken(), selectedProfile.uid);
+        setFirestoreProfiles(prev => ({ ...prev, [selectedProfile.uid]: updated }));
+        setShowTicketDialog(false);
+    } catch (e: any) {
+        reportClientError('src/components/admin/user-management.tsx:tickets', e);
+        toast({ variant: 'destructive', title: 'Ticket update failed', description: e.message });
+    } finally { setIsActionLoading(false); }
+  };
+
+  const projectedTickets = useMemo(() => {
+      const cur = Number((selectedProfile as any)?.storeTickets || 0);
+      const d = parseInt(ticketDelta, 10);
+      return Number.isNaN(d) ? cur : cur + d;
+  }, [selectedProfile, ticketDelta]);
 
   const projectedBalance = useMemo(() => {
       if (!selectedProfile) return 0;
@@ -1964,6 +1991,9 @@ export function UserManagement() {
                                                 <DropdownMenuItem className="h-10 rounded-lg cursor-pointer" onClick={() => { fetchProfile(user.uid).then(p => { if(p) { setSelectedProfile(p); setAdjustmentAmount(''); setShowCreditDialog(true); } }).catch((err) => console.error("[UserManagement] fetchProfile failed:", err)); }}>
                                                     <Coins className="mr-3 h-4 w-4 text-primary" /> Adjust Credits
                                                 </DropdownMenuItem>
+                                                <DropdownMenuItem className="h-10 rounded-lg cursor-pointer" onClick={async () => { try { const p = await getUserProfileFromServer(await getIdToken(), user.uid); if (p) { setFirestoreProfiles(prev => ({ ...prev, [user.uid]: p })); setSelectedProfile(p); setTicketDelta(''); setShowTicketDialog(true); } } catch (err) { console.error("[UserManagement] ticket profile fetch failed:", err); } }}>
+                                                    <Ticket className="mr-3 h-4 w-4 text-purple-600" /> Edit Tickets
+                                                </DropdownMenuItem>
                                                 {/* Reach one user directly — in-app notification, email, or
                                                     both. Uses the row data we already have, so no profile
                                                     fetch is needed just to open the dialog. */}
@@ -2039,6 +2069,47 @@ export function UserManagement() {
                   <Button onClick={handleAdjustCredits} disabled={isActionLoading || !adjustmentAmount} className="flex-1 h-12 rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl shadow-primary/20 btn-shine">
                       {isActionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                       SYNC TO USER
+                  </Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
+
+      <Dialog open={showTicketDialog} onOpenChange={setShowTicketDialog}>
+          <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none shadow-3xl bg-background">
+              <DialogHeader className="p-8 pb-4 bg-purple-500/5 border-b border-purple-500/10">
+                <DialogTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-3">
+                    <Ticket className="h-6 w-6 text-purple-600" />
+                    Edit Store Tickets
+                </DialogTitle>
+                <DialogDescription className="font-bold text-[10px] uppercase">1 ticket = 1 free Verified Partner item</DialogDescription>
+              </DialogHeader>
+              <div className="p-8 space-y-8">
+                  <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 rounded-2xl bg-muted/30 border border-primary/5">
+                          <p className="text-[9px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Current Tickets</p>
+                          <p className="text-xl font-black font-mono">{Number((selectedProfile as any)?.storeTickets || 0)}</p>
+                      </div>
+                      <div className={cn("p-4 rounded-2xl border", projectedTickets >= 0 ? "bg-purple-50 border-purple-200" : "bg-red-50 border-red-200")}>
+                          <p className={cn("text-[9px] font-black uppercase mb-1 tracking-widest", projectedTickets >= 0 ? "text-purple-600" : "text-red-600")}>New Tickets</p>
+                          <p className={cn("text-xl font-black font-mono", projectedTickets >= 0 ? "text-purple-700" : "text-red-700")}>{projectedTickets}</p>
+                      </div>
+                  </div>
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest px-1">Change (+ to add, - to remove)</Label>
+                        <Input type="text" inputMode="numeric" placeholder="e.g. +2 or -1" value={ticketDelta} onChange={(e) => setTicketDelta(e.target.value)} className="h-16 text-3xl font-black text-center rounded-2xl bg-muted/20 border-primary/10 shadow-inner" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest px-1">Reason</Label>
+                        <Input value={ticketReason} onChange={(e) => setTicketReason(e.target.value)} className="h-11 rounded-xl bg-muted/10 border-primary/5 font-bold" />
+                    </div>
+                  </div>
+              </div>
+              <DialogFooter className="p-8 pt-0 flex gap-3">
+                  <Button variant="ghost" onClick={() => setShowTicketDialog(false)} className="rounded-xl font-bold h-12">Cancel</Button>
+                  <Button onClick={handleAdjustTickets} disabled={isActionLoading || !ticketDelta || Number.isNaN(parseInt(ticketDelta, 10)) || projectedTickets < 0} className="flex-1 h-12 rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl btn-shine">
+                      {isActionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      SAVE TICKETS
                   </Button>
               </DialogFooter>
           </DialogContent>
