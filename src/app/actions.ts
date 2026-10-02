@@ -12,6 +12,7 @@ import { escapeHtml } from '@/lib/utils';
 import crypto from 'crypto';
 import { reportServerError } from '@/lib/report-error';
 import { ticketsForWeek } from '@/lib/tickets';
+import { formatGrantLog } from '@/lib/subscription-log';
 import { plans } from '@/lib/plans';
 import { hashEmailForAbuseCheck } from '@/lib/email-hash';
 
@@ -322,10 +323,12 @@ export async function syncUserSubscriptionInstallments(idToken: AuthToken, userI
     // Filled by the (last) transaction attempt; pushed to RTDB only after it
     // commits, so a retried transaction can't duplicate the ledger entries.
     let committedHistoryEntries: any[] = [];
+    let grantLog: any = null;
 
     try {
         const result = await firestore.runTransaction(async (transaction: any) => {
             committedHistoryEntries = [];
+            grantLog = null;
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists) return null;
             
@@ -350,6 +353,8 @@ export async function syncUserSubscriptionInstallments(idToken: AuthToken, userI
                 throw new Error('Invalid nextWeeklyGrantDate on subscription.');
             }
             let currentWeekCount = sub.weeklyGrantCount;
+            const startWeekCount = sub.weeklyGrantCount;
+            let installmentsPaid = 0;
             let totalCreditsToGrant = 0;
             let totalTicketsToGrant = 0;
             const newHistoryEntries = [];
@@ -371,6 +376,7 @@ export async function syncUserSubscriptionInstallments(idToken: AuthToken, userI
                 const scheduledTimestamp = currentNextGrantDate.toISOString();
                 
                 totalCreditsToGrant += grantAmount;
+                installmentsPaid++;
                 currentWeekCount++; // Moving to next installment tier
                 
                 newHistoryEntries.push({
@@ -426,6 +432,25 @@ export async function syncUserSubscriptionInstallments(idToken: AuthToken, userI
 
                 transaction.update(userRef, updateData);
 
+                grantLog = {
+                    source: 'App sync',
+                    name: userData.name,
+                    email: userData.email,
+                    userId,
+                    planName,
+                    unit: unitLabel,
+                    fromWeek: startWeekCount >= maxGrants ? 0 : startWeekCount,
+                    toWeek: currentWeekCount,
+                    maxGrants,
+                    credits: totalCreditsToGrant,
+                    tickets: totalTicketsToGrant,
+                    balanceAfter: (userData.credits || 0) + totalCreditsToGrant,
+                    finished: isPlanFinished,
+                    queuedLeft: queuedCycles,
+                    nextGrantAt: isPlanFinished ? null : currentNextGrantDate.toISOString(),
+                    caughtUp: installmentsPaid > 1,
+                };
+
                 // 1. Write to Firestore Ledger History Log
                 const historyLogRef = userRef.collection('creditHistory').doc('history_log');
                 transaction.set(historyLogRef, { entries: FieldValue.arrayUnion(...newHistoryEntries) }, { merge: true });
@@ -462,9 +487,7 @@ export async function syncUserSubscriptionInstallments(idToken: AuthToken, userI
         }
 
         if (result) {
-            const isDeactivated = !result.subscription;
-            const resultMaxGrants = plans.find(p => p.id === result.subscription?.planId)?.maxGrants ?? 4;
-            await sendToTelegram(`⚡ <b>Consistency Grants Synchronized</b>\n<b>User:</b> ${result.email}\n<b>Status:</b> ${isDeactivated ? 'Plan Completed (Deactivated)' : `Grant ${result.subscription?.weeklyGrantCount}/${resultMaxGrants}`}`);
+            if (grantLog) await sendToTelegram(formatGrantLog(grantLog));
             return { success: true, updatedProfile: serializeProfile(result) };
         }
 

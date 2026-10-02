@@ -220,6 +220,7 @@ export async function manuallyApprovePayment(
     let newCredits = 0;
     let historyUserId = '';
     let historyEntry: Record<string, any> | null = null;
+    let approveInfo: any = null;
 
     await firestore.runTransaction(async (transaction: any) => {
       const paymentDoc = await transaction.get(paymentRef);
@@ -277,6 +278,17 @@ export async function manuallyApprovePayment(
 
       transaction.update(userRef, userUpdates);
 
+      approveInfo = {
+        name: userDoc.data()?.name,
+        email: userDoc.data()?.email || paymentData.userEmail || paymentData.email,
+        userId: paymentData.userId,
+        plan: paymentData.planName || 'Credits',
+        credits: creditsToAdd,
+        tickets: ticketsToAdd,
+        queued: !!queueForNextCycle,
+        autopay: !!isAutopay,
+      };
+
       // 3. Credit history entry — written after the transaction commits
       // (below). Writing it in here pushed a duplicate on every retry.
       historyUserId = paymentData.userId;
@@ -314,8 +326,18 @@ export async function manuallyApprovePayment(
     }
 
     // Send Telegram log after successful transaction
+    const esc = (v: any) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     await sendToTelegram(
-      `✅ *Payment Manually Approved by Admin*\n*Payment ID:* ${paymentId}\n*New Balance:* ${formatCredits(newCredits)}`
+      `✅ <b>PAYMENT MANUALLY APPROVED BY ADMIN</b>\n\n` +
+      `<b>Admin:</b> ${esc(guard.email || guard.uid)}\n` +
+      (approveInfo
+        ? `<b>User:</b> ${esc(approveInfo.name || 'N/A')} (${esc(approveInfo.email || approveInfo.userId)})\n` +
+          `<b>Plan:</b> ${esc(approveInfo.plan)}\n` +
+          `<b>Credits:</b> +${Number(approveInfo.credits).toLocaleString('en-IN')}${approveInfo.tickets ? ` · +${approveInfo.tickets} 🎟️ ticket` : ''}\n` +
+          (approveInfo.autopay ? `<b>Consistent Plan:</b> ${approveInfo.queued ? 'already running — queued as next cycle (no credits now)' : 'Week 1 grant, plan started'}\n` : '')
+        : '') +
+      `<b>New balance:</b> ${formatCredits(newCredits)}\n` +
+      `<b>Payment ID:</b> <code>${esc(paymentId)}</code>`
     );
 
     revalidatePath('/admin/payments');

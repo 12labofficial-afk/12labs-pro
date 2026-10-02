@@ -7,6 +7,8 @@ import { logSummaryEvent } from '@/lib/summary-logger';
 import type { UserProfile, UserSubscription, CreditHistoryEntry, Order } from '@/lib/types';
 import type admin from 'firebase-admin';
 import { revalidatePath } from 'next/cache';
+import { ticketsForWeek } from '@/lib/tickets';
+import { formatManualChangeLog } from '@/lib/subscription-log';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml, formatCredits, wholeCredits } from '@/lib/utils';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -226,7 +228,17 @@ export async function updateUserSubscription(
         const userRef = firestore.collection('users').doc(userId);
         
         if (sub) {
+            const beforeDoc = await userRef.get();
+            const beforeUser = beforeDoc.data() || {};
             await userRef.update({ subscription: sub, hasMadeFirstPurchase: true });
+            await sendToTelegram(formatManualChangeLog({
+                admin: guard.email || adminEmail || guard.uid,
+                name: beforeUser.name,
+                email: beforeUser.email,
+                userId,
+                before: beforeUser.subscription || null,
+                after: sub as any,
+            })).catch(() => null);
         } else {
             const beforeDoc = await userRef.get();
             const beforeData = beforeDoc.data() || {};
@@ -327,8 +339,10 @@ export async function manuallyGrantAutopayAction(
                 throw new Error("User already has an active Consistency Plan. Please deactivate it first if you wish to reset.");
             }
 
+            const weekOneTickets = ticketsForWeek('autopay_pro', 1);
             transaction.update(userRef, { 
                 subscription: sub,
+                ...(weekOneTickets ? { storeTickets: FieldValue.increment(weekOneTickets) } : {}),
                 credits: FieldValue.increment(grantAmount),
                 totalInvestment: FieldValue.increment(700),
                 hasMadeFirstPurchase: true
@@ -356,7 +370,16 @@ export async function manuallyGrantAutopayAction(
             }).catch((e: any) => console.error("RTDB history error:", e));
         }
 
-        await sendToTelegram(`⚡ <b>Manual Consistency Plan Activated</b>\n<b>User ID:</b> <code>${userId}</code>\n<b>Admin:</b> ${adminEmail}\n<b>Cycle:</b> 28 Days (Week 1/4 Grant Complete)`);
+        const grantedTo = await firestore.collection('users').doc(userId).get().then((d: any) => d.data() || {}).catch(() => ({} as any));
+        await sendToTelegram(
+            `⚡ <b>MANUAL CONSISTENCY PLAN ACTIVATED</b>\n\n` +
+            `<b>Admin:</b> ${escapeHtml(guard.email || adminEmail || guard.uid)}\n` +
+            `<b>User:</b> ${escapeHtml(grantedTo.name || 'N/A')} (${escapeHtml(grantedTo.email || userId)})\n` +
+            `<b>Week 1/4 granted:</b> +${grantAmount.toLocaleString('en-IN')} credits${ticketsForWeek('autopay_pro', 1) ? ` · +${ticketsForWeek('autopay_pro', 1)} 🎟️ ticket` : ''}\n` +
+            `<b>Balance now:</b> ${Math.round(Number(grantedTo.credits || 0)).toLocaleString('en-IN')}\n` +
+            `<b>Next grant:</b> ${nextWeek.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' })} (cycle: 28 days)\n` +
+            `<b>User ID:</b> <code>${userId}</code>`
+        );
         
         revalidatePath('/admin/users');
         return { success: true, subscription: sub };

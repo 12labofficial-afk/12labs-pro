@@ -2,6 +2,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
+import { formatGrantLog } from './subscription-log';
 
 admin.initializeApp();
 
@@ -77,6 +78,12 @@ const GRANT_INTERVAL_DAYS: Record<string, number> = {
 
 // Total installments before the plan auto-completes and deactivates. Keep in
 // sync with `maxGrants` in src/lib/plans.ts.
+// Installment numbers that also hand out one Store Ticket. Keep in sync with
+// `ticketWeeks` in src/lib/plans.ts.
+const TICKET_WEEKS: Record<string, number[]> = {
+  autopay_pro: [1, 3],
+};
+
 const MAX_GRANTS: Record<string, number> = {
   autopay_pro: 4,
   test_sub: 7,
@@ -91,6 +98,7 @@ interface UserSubscription {
   weeklyGrantCount: number;
   currentCycleMonth: string;
   manuallyGranted?: boolean;
+  queuedCycles?: number;
 }
 
 function parseSubscriptionDate(value: any): Date {
@@ -122,7 +130,8 @@ async function grantDueInstallmentsForUser(userId: string): Promise<{ granted: b
     }
 
     const maxGrants = MAX_GRANTS[sub.planId] ?? 4;
-    if (sub.weeklyGrantCount >= maxGrants) {
+    let queuedCycles = Number(sub.queuedCycles || 0);
+    if (sub.weeklyGrantCount >= maxGrants && queuedCycles <= 0) {
       return { granted: false };
     }
 
@@ -134,6 +143,9 @@ async function grantDueInstallmentsForUser(userId: string): Promise<{ granted: b
     }
 
     let currentWeekCount = sub.weeklyGrantCount;
+    const startWeekCount = sub.weeklyGrantCount;
+    let installmentsPaid = 0;
+    let totalTicketsToGrant = 0;
     let totalCreditsToGrant = 0;
     const newHistoryEntries: any[] = [];
     const newNotifications: any[] = [];
@@ -143,10 +155,18 @@ async function grantDueInstallmentsForUser(userId: string): Promise<{ granted: b
     const intervalDays = GRANT_INTERVAL_DAYS[sub.planId] ?? 7;
     const unitLabel = intervalDays === 1 ? 'Day' : 'Week';
 
-    while (serverNow >= currentNextGrantDate && currentWeekCount < maxGrants) {
+    while (serverNow >= currentNextGrantDate && (currentWeekCount < maxGrants || queuedCycles > 0)) {
+      // A plan bought while this one was running starts right after it.
+      if (currentWeekCount >= maxGrants) {
+        currentWeekCount = 0;
+        queuedCycles--;
+      }
       const scheduledTimestamp = currentNextGrantDate.toISOString();
       totalCreditsToGrant += grantAmount;
+      installmentsPaid++;
       currentWeekCount++;
+      const ticketsThisWeek = (TICKET_WEEKS[sub.planId] || []).filter((w) => w === currentWeekCount).length;
+      totalTicketsToGrant += ticketsThisWeek;
 
       newHistoryEntries.push({
         amount: grantAmount,
@@ -156,7 +176,7 @@ async function grantDueInstallmentsForUser(userId: string): Promise<{ granted: b
 
       newNotifications.push({
         id: `sub-grant-${currentWeekCount}-${Date.now()}`,
-        message: `${unitLabel === 'Day' ? 'Daily' : 'Weekly'} Consistency Grant: +${grantAmount.toLocaleString()} Credits added! (${unitLabel} ${currentWeekCount}/${maxGrants})`,
+        message: `${unitLabel === 'Day' ? 'Daily' : 'Weekly'} Consistency Grant: +${grantAmount.toLocaleString()} Credits added! (${unitLabel} ${currentWeekCount}/${maxGrants})${ticketsThisWeek ? ` 🎟️ +${ticketsThisWeek} Store Ticket — get any Verified Partner asset free.` : ''}`,
         timestamp: serverNow.toISOString(),
         read: false,
         type: 'credits',
@@ -167,8 +187,9 @@ async function grantDueInstallmentsForUser(userId: string): Promise<{ granted: b
 
     if (totalCreditsToGrant <= 0) return { granted: false };
 
-    const isPlanFinished = currentWeekCount >= maxGrants;
+    const isPlanFinished = currentWeekCount >= maxGrants && queuedCycles <= 0;
     const updateData: any = { credits: FieldValue.increment(totalCreditsToGrant) };
+    if (totalTicketsToGrant > 0) updateData.storeTickets = FieldValue.increment(totalTicketsToGrant);
 
     if (isPlanFinished) {
       updateData.subscription = FieldValue.delete();
@@ -184,6 +205,7 @@ async function grantDueInstallmentsForUser(userId: string): Promise<{ granted: b
         ...sub,
         weeklyGrantCount: currentWeekCount,
         nextWeeklyGrantDate: currentNextGrantDate.toISOString(),
+        queuedCycles,
       };
     }
 
@@ -205,6 +227,24 @@ async function grantDueInstallmentsForUser(userId: string): Promise<{ granted: b
       email: userData.email,
       _rtdbEntries: newHistoryEntries,
       _userId: userId,
+      _log: {
+        source: 'Cloud function (hourly)',
+        name: userData.name,
+        email: userData.email,
+        userId,
+        planName,
+        unit: unitLabel,
+        fromWeek: startWeekCount >= maxGrants ? 0 : startWeekCount,
+        toWeek: currentWeekCount,
+        maxGrants,
+        credits: totalCreditsToGrant,
+        tickets: totalTicketsToGrant,
+        balanceAfter: Number(userData.credits || 0) + totalCreditsToGrant,
+        finished: isPlanFinished,
+        queuedLeft: queuedCycles,
+        nextGrantAt: isPlanFinished ? null : currentNextGrantDate.toISOString(),
+        caughtUp: installmentsPaid > 1,
+      },
     } as any;
   }).then(async (result: any) => {
     if (result?.granted && result._rtdbEntries?.length) {
@@ -213,9 +253,7 @@ async function grantDueInstallmentsForUser(userId: string): Promise<{ granted: b
           logger.error(`RTDB history write failed for ${result._userId}`, e)
         );
       }
-      await sendToTelegram(
-        `⚡ <b>Consistency Grants Synchronized</b>\n<b>User:</b> ${escapeHtml(result.email || result._userId)}\n<b>Status:</b> ${result.weekCount >= (MAX_GRANTS[result.planId] ?? 4) ? 'Plan Completed (Deactivated)' : `Grant ${result.weekCount}/${MAX_GRANTS[result.planId] ?? 4}`}`
-      );
+      await sendToTelegram(formatGrantLog(result._log));
     }
     return result;
   });
@@ -231,7 +269,7 @@ async function syncAllDueSubscriptions(): Promise<{ syncedCount: number; syncedU
 
   for (const doc of usersSnap.docs) {
     const sub = doc.data().subscription as UserSubscription | undefined;
-    if (!sub || (sub.planId !== 'autopay_pro' && sub.planId !== 'test_sub') || (sub.weeklyGrantCount || 0) >= (MAX_GRANTS[sub.planId] ?? 4)) {
+    if (!sub || (sub.planId !== 'autopay_pro' && sub.planId !== 'test_sub') || ((sub.weeklyGrantCount || 0) >= (MAX_GRANTS[sub.planId] ?? 4) && !Number(sub.queuedCycles || 0))) {
       continue;
     }
     try {
