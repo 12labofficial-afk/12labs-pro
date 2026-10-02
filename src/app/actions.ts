@@ -513,7 +513,9 @@ export async function syncAllPendingSubscriptions(): Promise<{
     if (!firestore) return { success: false, syncedCount: 0, syncedUsers: [], error: 'Database unavailable' };
 
     try {
-        const usersSnap = await firestore.collection('users').get();
+        // Only users that actually have a running/cancelled plan — not the
+        // whole user base (25,000+ reads every hour).
+        const usersSnap = await firestore.collection('users').where('subscription.status', 'in', ['active', 'cancelled']).get();
         const syncedUsers: string[] = [];
 
         for (const doc of usersSnap.docs) {
@@ -524,7 +526,7 @@ export async function syncAllPendingSubscriptions(): Promise<{
                 sub &&
                 (sub.planId === 'autopay_pro' || sub.planId === 'test_sub') &&
                 (sub.status === 'active' || sub.status === 'cancelled') &&
-                (sub.weeklyGrantCount || 0) < subMaxGrants
+                ((sub.weeklyGrantCount || 0) < subMaxGrants || Number(sub.queuedCycles || 0) > 0)
             ) {
                 const syncRes = await syncUserSubscriptionInstallments(SERVER_INTERNAL, doc.id);
                 if (syncRes.success && syncRes.updatedProfile) {

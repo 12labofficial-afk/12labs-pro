@@ -3,10 +3,12 @@ import { syncAllPendingSubscriptions } from '@/app/actions';
 import { reportServerError } from '@/lib/report-error';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 /**
  * Automated Cron Endpoint for Weekly Consistency Grants
- * Called automatically by Vercel Cron (see vercel.json) every hour.
+ * Called every hour by the Firebase scheduled function in functions/src/index.ts
+ * (which only makes this request). Send `Authorization: Bearer <CRON_SECRET>`.
  * GET or POST /api/cron/subscription-grants
  */
 export async function GET(req: NextRequest) {
