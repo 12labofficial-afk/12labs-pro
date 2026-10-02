@@ -85,7 +85,7 @@ export const plans: Plan[] = [
         // 30,000 + 1,000 bonus (the bonus moved here from Starter).
         credits: 31000,
         features: [
-            '🎟️ 1 Store Ticket — any Verified Partner asset FREE',
+            '1 Store Ticket',
             '+ 1,000 Bonus Credits! 🎁',
             'Voice editing (Included)',
             'Access to all AI voices',
@@ -106,7 +106,7 @@ export const plans: Plan[] = [
         originalPriceInUSD: 10,
         credits: 50000,
         features: [
-            '🎟️ 2 Store Tickets — any Verified Partner asset FREE',
+            '2 Store Tickets',
             'Priority production node',
             'Voice editing (Included)',
             'Commercial usage rights',
@@ -126,7 +126,7 @@ export const plans: Plan[] = [
         credits: 100000,
         profitAmount: 310, 
         features: [
-            '🎟️ 3 Store Tickets — any Verified Partner asset FREE',
+            '3 Store Tickets',
             'Full commercial usage rights',
             'Voice editing (Included)',
             'Single dialogue extraction',
@@ -146,7 +146,7 @@ export const plans: Plan[] = [
         credits: 80000,
         weeklyCredits: 20000,
         features: [
-            '🎟️ 2 Store Tickets — Week 1 & Week 3 (any Verified Partner asset FREE)',
+            '2 Store Tickets — Week 1 & Week 3',
             'Build your Consistency Habit 📢',
             'Voice editing (Included)',
             'Credits valid for 30 days from purchase',

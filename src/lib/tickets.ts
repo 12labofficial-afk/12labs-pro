@@ -7,7 +7,7 @@ import { plans } from '@/lib/plans';
  */
 
 /** Ticket art. Empty = the built-in CSS ticket is drawn instead. */
-export const TICKET_IMAGE_URL = 'https://storage.12labs.in/Uploaded%20previews/twelve_labs_store_ticket.webp';
+export const TICKET_IMAGE_URL = 'https://storage.12labs.in/Uploaded%20previews/twelve_labs_store_ticket_transparent.webp';
 
 /** Tickets granted per plan purchase (plan.storeTickets). */
 export function ticketsForPlan(planIdOrName?: string | null): number {

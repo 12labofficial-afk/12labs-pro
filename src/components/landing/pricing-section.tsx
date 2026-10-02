@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { plans, type Plan } from '@/lib/plans';
 import { motion } from 'framer-motion';
+import { TicketArt } from '@/components/store/store-ticket';
 
 export function PricingSection() {
   const displayPlans = plans.filter((p) => !p.isTest);
@@ -203,12 +204,16 @@ export function PricingSection() {
                     <ul className="space-y-2.5">
                       {plan.features.map((feature, i) => (
                         <li key={i} className="flex items-start gap-3">
-                          <CheckCircle
-                            className={cn(
-                              "h-4 w-4 flex-shrink-0 mt-0.5",
-                              plan.isAutopay ? "text-indigo-500" : "text-green-500"
-                            )}
-                          />
+                          {feature.includes('Store Ticket') ? (
+                            <TicketArt className="mt-0.5 w-8 flex-shrink-0" />
+                          ) : (
+                            <CheckCircle
+                              className={cn(
+                                "h-4 w-4 flex-shrink-0 mt-0.5",
+                                plan.isAutopay ? "text-indigo-500" : "text-green-500"
+                              )}
+                            />
+                          )}
                           <span
                             className={cn(
                               "text-muted-foreground font-semibold text-sm leading-snug",
@@ -216,7 +221,7 @@ export function PricingSection() {
                                 feature.includes('Voice editing') ||
                                 feature.includes('Bonus')) &&
                                 "font-black text-indigo-600 dark:text-indigo-400",
-                                feature.includes('Store Ticket') && "rounded-lg bg-amber-400/15 px-1.5 py-0.5 font-black text-amber-700 dark:text-amber-400",
+                                feature.includes('Store Ticket') && "rounded-lg bg-purple-500/10 px-2 py-0.5 font-black text-purple-700 dark:text-purple-300",
                               plan.isAutopay && "text-foreground/80"
                             )}
                           >

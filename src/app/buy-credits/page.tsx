@@ -6,7 +6,8 @@ import { CheckCircle, Gem, Loader2, CreditCard, Tag, Coins, Briefcase, Rocket, S
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn, getDisplayUrl, formatCredits } from '@/lib/utils';
-import { TicketWallet } from '@/components/store/ticket-wallet';
+import { TicketBalance } from '@/components/store/ticket-balance';
+import { TicketArt } from '@/components/store/store-ticket';
 import { useAuth } from '@/context/auth-provider';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -455,11 +456,13 @@ export default function BuyCreditsPage() {
                 {plan.features.map((feature: string, i: number) => {
                     return (
                         <li key={i} className="flex items-start gap-3">
-                            <CheckCircle className={cn("h-4 w-4 flex-shrink-0 mt-0.5", plan.isAutopay ? "text-indigo-500" : "text-green-500")} />
+                            {feature.includes('Store Ticket')
+                              ? <TicketArt className="mt-0.5 w-8 flex-shrink-0" />
+                              : <CheckCircle className={cn("h-4 w-4 flex-shrink-0 mt-0.5", plan.isAutopay ? "text-indigo-500" : "text-green-500")} />}
                             <span className={cn(
                                 "text-muted-foreground font-semibold text-sm leading-snug", 
                                 (feature.includes('Full commercial') || feature.includes('Voice editing')) && "font-black text-indigo-600 dark:text-indigo-400",
-                                feature.includes('Store Ticket') && "rounded-lg bg-amber-400/15 px-1.5 py-0.5 font-black text-amber-700 dark:text-amber-400",
+                                feature.includes('Store Ticket') && "rounded-lg bg-purple-500/10 px-2 py-0.5 font-black text-purple-700 dark:text-purple-300",
                                 plan.isAutopay && "text-foreground/80"
                             )}>{feature}</span>
                         </li>
@@ -501,11 +504,12 @@ export default function BuyCreditsPage() {
               </div>
             </div>
           )}
+          {user && (
+            <div className="flex justify-center">
+              <TicketBalance tickets={user.storeTickets || 0} used={user.ticketsUsed || 0} saved={user.ticketSavings || 0} />
+            </div>
+          )}
         </div>
-
-        {user && (
-          <TicketWallet tickets={user.storeTickets || 0} used={user.ticketsUsed || 0} saved={user.ticketSavings || 0} />
-        )}
 
         {user?.subscription && user.subscription.status === 'active' && (
             <div className="max-w-xl mx-auto mb-10">

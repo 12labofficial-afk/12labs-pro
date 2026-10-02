@@ -10,7 +10,7 @@ import { TICKET_IMAGE_URL } from '@/lib/tickets';
  */
 export function TicketArt({ className, label = 'STORE TICKET' }: { className?: string; label?: string }) {
   if (TICKET_IMAGE_URL) {
-    return <img src={TICKET_IMAGE_URL} alt="Store ticket" className={cn('h-auto w-full select-none object-contain drop-shadow-lg', className)} draggable={false} />;
+    return <img src={TICKET_IMAGE_URL} alt="Store ticket" className={cn('block h-auto w-full select-none object-contain', className)} draggable={false} />;
   }
   return (
     <div
@@ -20,13 +20,11 @@ export function TicketArt({ className, label = 'STORE TICKET' }: { className?: s
       )}
       aria-label="Store ticket"
     >
-      {/* side notches */}
       <span className="absolute -left-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-background" />
       <span className="absolute -right-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-background" />
       <div className="flex flex-1 flex-col justify-center pl-4 pr-2">
         <span className="text-[0.55em] font-black uppercase tracking-[0.25em] opacity-70">12Labs</span>
         <span className="text-[1em] font-black uppercase leading-none tracking-tight">{label}</span>
-        <span className="mt-1 text-[0.5em] font-bold uppercase tracking-widest opacity-70">Admit one asset · Verified Partner</span>
       </div>
       <div className="flex w-[28%] items-center justify-center border-l-2 border-dashed border-amber-950/30">
         <Ticket className="h-[45%] w-[45%] -rotate-12" />
@@ -38,12 +36,8 @@ export function TicketArt({ className, label = 'STORE TICKET' }: { className?: s
 /** Small inline ticket chip used inside price pills. */
 export function TicketChip({ className }: { className?: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-0.5 rounded-md bg-gradient-to-r from-amber-400 to-orange-500 px-1.5 py-0.5 text-[10px] font-black uppercase text-amber-950 shadow', className)}>
-      {TICKET_IMAGE_URL ? (
-        <img src={TICKET_IMAGE_URL} alt="" className="h-3.5 w-auto object-contain" draggable={false} />
-      ) : (
-        <Ticket className="h-3 w-3" />
-      )}
+    <span className={cn('inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-amber-400 to-orange-500 py-0.5 pl-0.5 pr-1.5 text-[10px] font-black uppercase text-amber-950 shadow', className)}>
+      <TicketArt className="w-6 text-[4px]" />
       Ticket
     </span>
   );
