@@ -8,6 +8,7 @@ import type { UserProfile, UserSubscription, CreditHistoryEntry, Order } from '@
 import type admin from 'firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { ticketsForWeek } from '@/lib/tickets';
+import { carryOverTickets } from '@/lib/autopay-sync';
 import { formatManualChangeLog } from '@/lib/subscription-log';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml, formatCredits, wholeCredits } from '@/lib/utils';
@@ -318,6 +319,7 @@ export async function manuallyGrantAutopayAction(
     const now = new Date();
     const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const grantAmount = 20000;
+    let grantedTickets = 0;
 
     const sub: UserSubscription = {
         planId: 'autopay_pro',
@@ -339,7 +341,8 @@ export async function manuallyGrantAutopayAction(
                 throw new Error("User already has an active Consistency Plan. Please deactivate it first if you wish to reset.");
             }
 
-            const weekOneTickets = ticketsForWeek('autopay_pro', 1);
+            const weekOneTickets = ticketsForWeek('autopay_pro', 1) + carryOverTickets(userData);
+            grantedTickets = weekOneTickets;
             transaction.update(userRef, { 
                 subscription: sub,
                 autopayLedger: { week: 1 },
@@ -376,7 +379,7 @@ export async function manuallyGrantAutopayAction(
             `⚡ <b>MANUAL CONSISTENCY PLAN ACTIVATED</b>\n\n` +
             `<b>Admin:</b> ${escapeHtml(guard.email || adminEmail || guard.uid)}\n` +
             `<b>User:</b> ${escapeHtml(grantedTo.name || 'N/A')} (${escapeHtml(grantedTo.email || userId)})\n` +
-            `<b>Week 1/4 granted:</b> +${grantAmount.toLocaleString('en-IN')} credits${ticketsForWeek('autopay_pro', 1) ? ` · +${ticketsForWeek('autopay_pro', 1)} 🎟️ ticket` : ''}\n` +
+            `<b>Week 1/4 granted:</b> +${grantAmount.toLocaleString('en-IN')} credits${grantedTickets ? ` · +${grantedTickets} 🎟️ ticket` : ''}\n` +
             `<b>Balance now:</b> ${Math.round(Number(grantedTo.credits || 0)).toLocaleString('en-IN')}\n` +
             `<b>Next grant:</b> ${nextWeek.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' })} (cycle: 28 days)\n` +
             `<b>User ID:</b> <code>${userId}</code>`

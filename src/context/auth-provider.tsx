@@ -390,7 +390,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Only update if there's a meaningful change to avoid unnecessary re-renders
           if (prev.credits !== liveProfile.credits || 
               prev.status !== liveProfile.status || 
-              safeJsonStringify(prev.subscription) !== safeJsonStringify(liveProfile.subscription)) {
+              safeJsonStringify(prev.subscription) !== safeJsonStringify(liveProfile.subscription) ||
+              (prev.storeTickets || 0) !== (liveProfile.storeTickets || 0) ||
+              (prev.ticketsUsed || 0) !== (liveProfile.ticketsUsed || 0) ||
+              safeJsonStringify(prev.autopayLedger) !== safeJsonStringify(liveProfile.autopayLedger) ||
+              safeJsonStringify(prev.autopayQueue) !== safeJsonStringify(liveProfile.autopayQueue)) {
             
             const updatedUser = { ...prev, ...liveProfile } as User;
             // Also sync to localStorage for persistence across reloads

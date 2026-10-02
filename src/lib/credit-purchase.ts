@@ -7,6 +7,7 @@ import type { UserProfile, AffiliateCode } from '@/lib/types';
 import { logSummaryEvent } from '@/lib/summary-logger';
 import { escapeHtml, getISTDateString } from '@/lib/utils';
 import { ticketsForWeek } from '@/lib/tickets';
+import { carryOverTickets } from '@/lib/autopay-sync';
 import { plans } from '@/lib/plans';
 import { reportServerError } from '@/lib/report-error';
 
@@ -249,7 +250,7 @@ export async function handleCreditPurchase(
         // One-off packs: tickets now. Consistent Creator: ticket for week 1 now
         // (a queued cycle gets it from the weekly catch-up when it starts).
         const ticketsToAdd = isAutopay
-            ? (queueForNextCycle ? 0 : ticketsForWeek(effectivePlan?.id, grantCycle))
+            ? (queueForNextCycle ? 0 : ticketsForWeek(effectivePlan?.id, grantCycle) + carryOverTickets(userData))
             : (planSource?.storeTickets || 0);
         if (ticketsToAdd > 0) {
             userUpdates.storeTickets = FieldValue.increment(ticketsToAdd);

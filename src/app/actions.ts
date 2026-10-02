@@ -11,8 +11,7 @@ import { logSummaryEvent } from '@/lib/summary-logger';
 import { escapeHtml } from '@/lib/utils';
 import crypto from 'crypto';
 import { reportServerError } from '@/lib/report-error';
-import { ticketsForWeek, ticketsBetween } from '@/lib/tickets';
-import { needsAutopaySync } from '@/lib/autopay-sync';
+import { needsAutopaySync, computeAutopaySync } from '@/lib/autopay-sync';
 import { formatGrantLog, formatTicketLog } from '@/lib/subscription-log';
 import { plans } from '@/lib/plans';
 import { hashEmailForAbuseCheck } from '@/lib/email-hash';
@@ -330,253 +329,23 @@ export async function syncUserSubscriptionInstallments(idToken: AuthToken, userI
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists) return null;
 
-            const userData = userDoc.data() as UserProfile;
-            const sub: any = userData.subscription;
-            const queueIn = userData.autopayQueue;
-            const ledgerIn = userData.autopayLedger;
-            const serverNow = new Date();
-            const DAY = 24 * 60 * 60 * 1000;
-            const autopay = plans.find(p => p.id === 'autopay_pro');
-            const autopayMax = autopay?.maxGrants ?? 4;
-            const autopayCredits = autopay?.weeklyCredits ?? 20000;
+            const out = computeAutopaySync(
+                userDoc.data(), userId,
+                { increment: (n: number) => FieldValue.increment(n), del: () => FieldValue.delete() },
+                new Date(),
+            );
+            if (!out) return null;
 
-            const subRunnable = !!sub && (sub.planId === 'autopay_pro' || sub.planId === 'test_sub') && (sub.status === 'active' || sub.status === 'cancelled');
-
-            // ---------- A) No subscription on the user ----------
-            // The hourly Firebase function closes a finished plan by deleting
-            // `subscription`, and it knows nothing about tickets or queued
-            // cycles. Settle what it left behind.
-            if (!sub) {
-                const queuedCount = Number(queueIn?.count || 0);
-                const ledgerOpen = typeof ledgerIn?.week === 'number' && ledgerIn.week < autopayMax;
-                if (queuedCount <= 0 && !ledgerOpen) return null;
-
-                let tickets = ledgerOpen ? ticketsBetween('autopay_pro', ledgerIn!.week, autopayMax) : 0;
-                let credits = 0;
-                const updateData: any = {};
-                const notifications: any[] = [];
-                const history: any[] = [];
-                let startedQueued = false;
-
-                if (queuedCount > 0) {
-                    startedQueued = true;
-                    credits = autopayCredits;
-                    tickets += ticketsForWeek('autopay_pro', 1);
-                    updateData.subscription = {
-                        planId: 'autopay_pro',
-                        status: 'active',
-                        ...(queueIn?.subscriptionId ? { subscriptionId: queueIn.subscriptionId } : {}),
-                        startDate: serverNow.toISOString(),
-                        nextWeeklyGrantDate: new Date(serverNow.getTime() + (autopay?.grantIntervalDays ?? 7) * DAY).toISOString(),
-                        weeklyGrantCount: 1,
-                        currentCycleMonth: `${serverNow.getFullYear()}-${String(serverNow.getMonth() + 1).padStart(2, '0')}`,
-                    };
-                    updateData.autopayLedger = { week: 1 };
-                    updateData.autopayQueue = queuedCount - 1 > 0
-                        ? { count: queuedCount - 1, ...(queueIn?.subscriptionId ? { subscriptionId: queueIn.subscriptionId } : {}) }
-                        : FieldValue.delete();
-                    history.push({ amount: credits, reason: `${autopay?.name || 'Consistent Creator'}: Week 1 Grant (queued plan started)`, timestamp: serverNow.toISOString() });
-                    notifications.push({
-                        id: `sub-queued-start-${Date.now()}`,
-                        message: `Your next Consistency plan has started: +${credits.toLocaleString()} Credits (Week 1/${autopayMax}).${ticketsForWeek('autopay_pro', 1) ? ' 🎟️ +1 Store Ticket.' : ''}`,
-                        timestamp: serverNow.toISOString(), read: false, type: 'credits',
-                    });
-                } else {
-                    updateData.autopayLedger = FieldValue.delete();
-                }
-                if (credits > 0) updateData.credits = FieldValue.increment(credits);
-                if (tickets > 0) {
-                    updateData.storeTickets = FieldValue.increment(tickets);
-                    if (!startedQueued) {
-                        notifications.push({
-                            id: `sub-ticket-${Date.now()}`,
-                            message: `🎟️ +${tickets} Store Ticket from your Consistency plan — get any Verified Partner asset free.`,
-                            timestamp: serverNow.toISOString(), read: false, type: 'credits',
-                        });
-                    }
-                }
-                if (credits <= 0 && tickets <= 0 && !startedQueued && !ledgerOpen) return null;
-
-                transaction.update(userRef, updateData);
-                if (history.length) {
-                    transaction.set(userRef.collection('creditHistory').doc('history_log'), { entries: FieldValue.arrayUnion(...history) }, { merge: true });
-                    committedHistoryEntries = history;
-                }
-                if (notifications.length) {
-                    transaction.set(userRef.collection('notifications').doc('user_notifications'), { entries: FieldValue.arrayUnion(...notifications) }, { merge: true });
-                }
-                grantLog = {
-                    kind: 'ticketOnly', started: startedQueued,
-                    name: userData.name, email: userData.email, userId, credits, tickets,
-                    ticketsAfter: Number(userData.storeTickets || 0) + tickets,
-                    balanceAfter: Number(userData.credits || 0) + credits,
-                    queuedLeft: Math.max(0, queuedCount - (startedQueued ? 1 : 0)),
-                };
-                const profile: any = { ...userData, credits: Number(userData.credits || 0) + credits, storeTickets: Number(userData.storeTickets || 0) + tickets };
-                if (startedQueued) profile.subscription = updateData.subscription;
-                return profile as UserProfile;
+            transaction.update(userRef, out.updateData);
+            if (out.history.length) {
+                transaction.set(userRef.collection('creditHistory').doc('history_log'), { entries: FieldValue.arrayUnion(...out.history) }, { merge: true });
+                committedHistoryEntries = out.history;
             }
-
-            // ---------- B) A running plan ----------
-            if (!subRunnable) return null;
-
-            const planSource = plans.find(p => p.id === sub.planId);
-            const maxGrants = planSource?.maxGrants ?? 4;
-            const isAutopayPlan = sub.planId === 'autopay_pro';
-            // queue lives on the user now; fold in the old in-subscription counter
-            let queuedCycles = Number(queueIn?.count || 0) + Number(sub.queuedCycles || 0);
-            const legacyQueueFolded = Number(sub.queuedCycles || 0) > 0;
-
-            let currentNextGrantDate = parseSubscriptionDate(sub.nextWeeklyGrantDate);
-            if (Number.isNaN(currentNextGrantDate.getTime())) {
-                throw new Error('Invalid nextWeeklyGrantDate on subscription.');
+            if (out.notifications.length) {
+                transaction.set(userRef.collection('notifications').doc('user_notifications'), { entries: FieldValue.arrayUnion(...out.notifications) }, { merge: true });
             }
-            let currentWeekCount = Number(sub.weeklyGrantCount || 0);
-            const startWeekCount = currentWeekCount;
-            let installmentsPaid = 0;
-            let totalCreditsToGrant = 0;
-            let totalTicketsToGrant = 0;
-            const newHistoryEntries: any[] = [];
-            const newNotifications: any[] = [];
-
-            // Tickets for weeks the hourly function already paid out. A plan
-            // from before tickets existed has no ledger: treat it as settled
-            // up to where it is now (no retro tickets).
-            let ledgerWeek = typeof ledgerIn?.week === 'number' ? ledgerIn.week : (isAutopayPlan ? currentWeekCount : 0);
-            if (isAutopayPlan && currentWeekCount > ledgerWeek) {
-                totalTicketsToGrant += ticketsBetween(sub.planId, ledgerWeek, currentWeekCount);
-                ledgerWeek = currentWeekCount;
-            }
-
-            const grantAmount = planSource?.weeklyCredits ?? (sub.planId === 'test_sub' ? 2 : 20000);
-            const planName = planSource?.name || 'Consistency Plan';
-            const intervalDays = planSource?.grantIntervalDays ?? 7;
-            const unitLabel = intervalDays === 1 ? 'Day' : 'Week';
-
-            // Catch-up Loop: awards every installment that became due while the user was away
-            while (serverNow >= currentNextGrantDate && (currentWeekCount < maxGrants || queuedCycles > 0)) {
-                // A plan bought while this one was running starts right after it.
-                if (currentWeekCount >= maxGrants) {
-                    currentWeekCount = 0;
-                    queuedCycles--;
-                    ledgerWeek = 0;
-                }
-                // CRITICAL: use the EXACT scheduled date for history
-                const scheduledTimestamp = currentNextGrantDate.toISOString();
-
-                totalCreditsToGrant += grantAmount;
-                installmentsPaid++;
-                currentWeekCount++;
-
-                let ticketsThisWeek = 0;
-                if (isAutopayPlan && currentWeekCount > ledgerWeek) {
-                    ticketsThisWeek = ticketsBetween(sub.planId, ledgerWeek, currentWeekCount);
-                    totalTicketsToGrant += ticketsThisWeek;
-                    ledgerWeek = currentWeekCount;
-                }
-
-                newHistoryEntries.push({
-                    amount: grantAmount,
-                    reason: `${planName}: ${unitLabel} ${currentWeekCount} Grant`,
-                    timestamp: scheduledTimestamp,
-                });
-
-                newNotifications.push({
-                    id: `sub-grant-${currentWeekCount}-${Date.now()}`,
-                    message: `${unitLabel === 'Day' ? 'Daily' : 'Weekly'} Consistency Grant: +${grantAmount.toLocaleString()} Credits added! (${unitLabel} ${currentWeekCount}/${maxGrants})${ticketsThisWeek ? ` 🎟️ +${ticketsThisWeek} Store Ticket — get any Verified Partner asset free.` : ''}`,
-                    timestamp: serverNow.toISOString(),
-                    read: false,
-                    type: 'credits'
-                });
-
-                // ADVANCE THE ANCHOR: strictly move forward by exactly `intervalDays` days
-                currentNextGrantDate = new Date(currentNextGrantDate.getTime() + intervalDays * DAY);
-            }
-
-            if (totalCreditsToGrant <= 0 && totalTicketsToGrant <= 0 && !legacyQueueFolded) return null;
-
-            // If we've hit the last installment, the plan is deactivated after this grant
-            const isPlanFinished = currentWeekCount >= maxGrants && queuedCycles <= 0;
-            const updateData: any = {};
-            if (totalCreditsToGrant > 0) updateData.credits = FieldValue.increment(totalCreditsToGrant);
-            if (totalTicketsToGrant > 0) updateData.storeTickets = FieldValue.increment(totalTicketsToGrant);
-
-            if (totalTicketsToGrant > 0 && totalCreditsToGrant <= 0) {
-                newNotifications.push({
-                    id: `sub-ticket-${Date.now()}`,
-                    message: `🎟️ +${totalTicketsToGrant} Store Ticket from your Consistency plan (${unitLabel} ${currentWeekCount}) — get any Verified Partner asset free.`,
-                    timestamp: serverNow.toISOString(), read: false, type: 'credits',
-                });
-            }
-
-            if (isPlanFinished) {
-                updateData.subscription = FieldValue.delete(); // AUTO-DEACTIVATE
-                updateData.autopayLedger = FieldValue.delete();
-                updateData.autopayQueue = FieldValue.delete();
-                newNotifications.push({
-                    id: `sub-complete-${Date.now()}`,
-                    message: `Congratulations! Your ${maxGrants * intervalDays}-day Consistency Plan is complete. Your credits will expire 30 days from the original purchase date.`,
-                    timestamp: serverNow.toISOString(),
-                    read: false,
-                    type: 'system'
-                });
-            } else {
-                const { queuedCycles: _legacyQueued, ...subRest } = sub;
-                updateData.subscription = {
-                    ...subRest,
-                    weeklyGrantCount: currentWeekCount,
-                    nextWeeklyGrantDate: currentNextGrantDate.toISOString(),
-                };
-                if (isAutopayPlan) updateData.autopayLedger = { week: ledgerWeek };
-                updateData.autopayQueue = queuedCycles > 0
-                    ? { count: queuedCycles, ...(queueIn?.subscriptionId ? { subscriptionId: queueIn.subscriptionId } : {}) }
-                    : FieldValue.delete();
-            }
-
-            transaction.update(userRef, updateData);
-
-            grantLog = totalCreditsToGrant > 0 ? {
-                source: 'App sync',
-                name: userData.name,
-                email: userData.email,
-                userId,
-                planName,
-                unit: unitLabel,
-                fromWeek: startWeekCount >= maxGrants ? 0 : startWeekCount,
-                toWeek: currentWeekCount,
-                maxGrants,
-                credits: totalCreditsToGrant,
-                tickets: totalTicketsToGrant,
-                balanceAfter: (userData.credits || 0) + totalCreditsToGrant,
-                finished: isPlanFinished,
-                queuedLeft: queuedCycles,
-                nextGrantAt: isPlanFinished ? null : currentNextGrantDate.toISOString(),
-                caughtUp: installmentsPaid > 1,
-            } : {
-                kind: 'ticketOnly', started: false,
-                name: userData.name, email: userData.email, userId, credits: 0, tickets: totalTicketsToGrant,
-                ticketsAfter: Number(userData.storeTickets || 0) + totalTicketsToGrant,
-                balanceAfter: Number(userData.credits || 0),
-                queuedLeft: queuedCycles, week: currentWeekCount, planName,
-            };
-
-            if (newHistoryEntries.length) {
-                transaction.set(userRef.collection('creditHistory').doc('history_log'), { entries: FieldValue.arrayUnion(...newHistoryEntries) }, { merge: true });
-                committedHistoryEntries = newHistoryEntries;
-            }
-            if (newNotifications.length) {
-                transaction.set(userRef.collection('notifications').doc('user_notifications'), { entries: FieldValue.arrayUnion(...newNotifications) }, { merge: true });
-            }
-
-            // Updated local profile for an immediate UI refresh
-            const updatedProfile: any = {
-                ...userData,
-                credits: (userData.credits || 0) + totalCreditsToGrant,
-                storeTickets: Number(userData.storeTickets || 0) + totalTicketsToGrant,
-            };
-            if (isPlanFinished) delete updatedProfile.subscription;
-            else updatedProfile.subscription = updateData.subscription;
-            return updatedProfile as UserProfile;
+            grantLog = out.grantLog;
+            return out.silent ? null : (out.updatedProfile as UserProfile);
         });
 
         if (result && database) {

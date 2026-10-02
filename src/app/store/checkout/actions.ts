@@ -396,12 +396,14 @@ export async function redeemTicketForProduct(
 
         const userRef = firestore.collection('users').doc(uid);
         const productRef = firestore.collection('products').doc(productId);
-        const orderRef = firestore.collection('storeHistory').doc();
+        // One fixed order id per (buyer, product): a double click can't spend two tickets on the same item.
+        const orderRef = firestore.collection('storeHistory').doc(`ticket_${uid}_${productId}`);
         let ticketsLeft = 0;
         let buyerEmail = '';
 
         await firestore.runTransaction(async (tx: any) => {
-            const [userDoc, productDoc] = await Promise.all([tx.get(userRef), tx.get(productRef)]);
+            const [userDoc, productDoc, existingOrder] = await Promise.all([tx.get(userRef), tx.get(productRef), tx.get(orderRef)]);
+            if (existingOrder.exists) throw new Error('You already own this item.');
             if (!userDoc.exists) throw new Error('User profile not found.');
             const tickets = Number(userDoc.data()?.storeTickets || 0);
             if (tickets < 1) throw new Error("You don't have any Store Tickets left.");
