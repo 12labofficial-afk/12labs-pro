@@ -102,40 +102,71 @@ export function GenerationSettings() {
         }
     }, [isHqActive, isHqReady]);
 
+    // Live values for the status-line timer below. Read through refs so a
+    // progress update does NOT restart the timer — restarting it is what kept
+    // showing "Warming up the voice engine…" at 1/15, 2/15… (index reset to 0).
+    const progressRef = useRef(realtimeProgress);
+    progressRef.current = realtimeProgress;
+    const projectStatusRef = useRef(hqProject?.status);
+    projectStatusRef.current = hqProject?.status;
+    const visibleBlocksRef = useRef(visibleBlocks);
+    visibleBlocksRef.current = visibleBlocks;
+    const logIndex = useRef(0);
+
     useEffect(() => {
         if (isHqActive && !isHqReady) {
-            const logs = [
-                "Warming up the voice engine…",
-                "Syncing with the neural cluster…",
-                "Rendering character voices…",
-                "Matching emotion and pacing…",
-                "Stitching audio segments…",
-                "Aligning the timeline…",
-                "Balancing levels…",
-                "Running quality checks…",
-                "Finalizing the master track…",
-            ];
-            let i = 0;
-            const interval = setInterval(() => {
-                if (visibleBlocks >= 3) {
-                    // Slip in a real progress line every few ticks so the
-                    // feed reads as this generation's actual work, not just
-                    // generic flavour text.
-                    const total = realtimeProgress?.total || 0;
-                    const done = realtimeProgress?.processed || 0;
-                    if (total > 0 && i % 3 === 1) {
-                        setActiveLog(`Rendered ${done} of ${total} lines…`);
-                    } else {
-                        setActiveLog(logs[i % logs.length]);
-                    }
-                    i += 1;
+            // The line always matches the stage the job is really in.
+            const linesForStage = (): string[] => {
+                const total = progressRef.current?.total || 0;
+                const done = progressRef.current?.processed || 0;
+                const rejected = progressRef.current?.rejected || 0;
+                if (projectStatusRef.current === 'in_queue') {
+                    return ['In the queue — starting in a moment…', 'Reserving a voice node for you…'];
                 }
-            }, 2400);
+                if (total === 0 || done === 0) {
+                    return ['Warming up the voice engine…', 'Reading your script…', 'Assigning a voice to each character…'];
+                }
+                if (done < total) {
+                    return [
+                        `Rendering line ${Math.min(done + 1, total)} of ${total}…`,
+                        'Voicing your characters…',
+                        'Matching emotion and pacing…',
+                        'Checking every line is fully spoken…',
+                        ...(rejected > 0 ? [`${rejected} line${rejected > 1 ? 's' : ''} couldn't be voiced — refunded automatically`] : []),
+                    ];
+                }
+                return ['All lines rendered — stitching the audio…', 'Balancing levels…', 'Finalizing the master track…'];
+            };
+            const tick = () => {
+                if (visibleBlocksRef.current < 3) return;
+                const lines = linesForStage();
+                setActiveLog(lines[logIndex.current % lines.length]);
+                logIndex.current += 1;
+            };
+            tick();
+            const interval = setInterval(tick, 2400);
             return () => clearInterval(interval);
         } else if (isHqReady) {
-            setActiveLog("Master ready • all lines rendered ✅");
+            const total = realtimeProgress?.total || hqProject?.syncData?.dialogues?.length || (hqProject as any)?.totalDialogues || 0;
+            const rejected = (hqProject as any)?.rejectedNodes || 0;
+            setActiveLog(rejected > 0 && total > 0
+                ? `Master ready • ${total - rejected} of ${total} lines rendered`
+                : 'Master ready • all lines rendered ✅');
         }
-    }, [isHqActive, isHqReady, visibleBlocks, realtimeProgress]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isHqActive, isHqReady]);
+
+    // Show the stage line as soon as the cards appear, not 2.4s later.
+    useEffect(() => {
+        if (visibleBlocks >= 3 && isHqActive && !isHqReady && activeLog === 'Initializing Production Hub...') {
+            const total = realtimeProgress?.total || 0;
+            const done = realtimeProgress?.processed || 0;
+            setActiveLog(hqProject?.status === 'in_queue'
+                ? 'In the queue — starting in a moment…'
+                : done > 0 && done < total ? `Rendering line ${done + 1} of ${total}…` : 'Warming up the voice engine…');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [visibleBlocks]);
 
     useEffect(() => {
         if (!database) {
@@ -255,7 +286,13 @@ export function GenerationSettings() {
                                             {activeLog}
                                         </p>
                                         <h3 className="text-base sm:text-lg font-black uppercase tracking-tight leading-none">
-                                            {isHqReady ? 'RENDER COMPLETE' : 'RENDERING FILES'}
+                                            {isHqReady
+                                                ? 'RENDER COMPLETE'
+                                                : hqProject?.status === 'in_queue'
+                                                ? 'IN QUEUE'
+                                                : displayTotal > 0 && displayProcessed >= displayTotal
+                                                ? 'MIXING MASTER'
+                                                : 'RENDERING FILES'}
                                         </h3>
                                         <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest opacity-60">Parallel Synthesis Mode</p>
                                     </div>

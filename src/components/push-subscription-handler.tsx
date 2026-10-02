@@ -242,7 +242,7 @@ export function GetNotifiedButton({
         onClick={handleClick}
         className={cn(className, 'shrink-0 whitespace-nowrap border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/15 hover:text-emerald-600 dark:text-emerald-400')}
       >
-        <Check className="mr-1 h-3.5 w-3.5" /> Notified
+        <Check className="mr-1 h-3.5 w-3.5 shrink-0" /> <span className="text-[0.92em]">Notification On</span>
       </Button>
     );
   }
