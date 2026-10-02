@@ -7,17 +7,15 @@
 // available" prompt once it sees this NEW value — pushing them onto a
 // fresh reload before they ever hit a stale-chunk "Failed to fetch" from
 // a deleted old build file.
-export const APP_VERSION = '2.2.8';
+export const APP_VERSION = '2.2.9';
 
 // 📝 Release notes for the version above — rendered as the "What's new"
 // list in the update prompt (see AppVersionGate). Update this alongside
 // APP_VERSION whenever a version is bumped; it is never shown on its own,
 // only as part of that prompt.
 export const APP_UPDATE_NOTES: string[] = [
-  'Store Tickets: Pro, Business and Enterprise packs now include free Verified Partner assets',
-  'Consistent Creator: 2 tickets (week 1 and week 3)',
-  'Ticket wallet on the Buy Credits page',
-  'Lighter plan cards and smoother landing page',
+  'Consistent Creator plan updates are now tracked more reliably',
+  'Smoother plan grants and tickets',
 ];
 
 // 📦 Cosmetic-only "download size" shown next to the version in the update
