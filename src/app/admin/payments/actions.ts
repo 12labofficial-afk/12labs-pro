@@ -11,7 +11,7 @@ import { revalidatePath } from 'next/cache';
 import { reportServerError } from '@/lib/report-error';
 import { requireAdmin } from '@/lib/auth-guard';
 import { handleCreditPurchase, hasRunningAutopayCycle } from '@/lib/credit-purchase';
-import { ticketsForPlan } from '@/lib/tickets';
+import { ticketsForPlan, ticketsForWeek } from '@/lib/tickets';
 import { plans } from '@/lib/plans';
 import { handleMusicTrackPurchase } from '@/lib/music-purchase';
 
@@ -256,7 +256,7 @@ export async function manuallyApprovePayment(
         totalInvestment: FieldValue.increment(amountPaidInInr),
         hasMadeFirstPurchase: true
       };
-      const ticketsToAdd = isAutopay ? 0 : ticketsForPlan(paymentData.planName);
+      const ticketsToAdd = isAutopay ? (queueForNextCycle ? 0 : ticketsForWeek('autopay_pro', 1)) : ticketsForPlan(paymentData.planName);
       if (ticketsToAdd > 0) userUpdates.storeTickets = FieldValue.increment(ticketsToAdd);
 
       if (queueForNextCycle) {

@@ -20,3 +20,9 @@ export function ticketsForPlan(planIdOrName?: string | null): number {
 export function isTicketEligible(sellerIsVerified?: boolean | null): boolean {
   return !!sellerIsVerified;
 }
+
+/** Tickets an autopay plan hands out with installment `week` (1-based). */
+export function ticketsForWeek(planId: string | undefined | null, week: number): number {
+  const plan = plans.find((p) => p.id === planId);
+  return plan?.ticketWeeks?.filter((w) => w === week).length || 0;
+}

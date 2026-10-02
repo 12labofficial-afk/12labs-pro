@@ -23,6 +23,8 @@ export interface Plan {
     maxGrants?: number;
     /** Store Tickets granted with the pack (each = one free Verified Partner asset). */
     storeTickets?: number;
+    /** Autopay plans: ticket granted with each of these installment numbers (1-based). */
+    ticketWeeks?: number[];
 }
 
 export const plans: Plan[] = [
@@ -144,6 +146,7 @@ export const plans: Plan[] = [
         credits: 80000,
         weeklyCredits: 20000,
         features: [
+            '🎟️ 2 Store Tickets — Week 1 & Week 3 (any Verified Partner asset FREE)',
             'Build your Consistency Habit 📢',
             'Voice editing (Included)',
             'Credits valid for 30 days from purchase',
@@ -153,6 +156,7 @@ export const plans: Plan[] = [
             'ZIP audio dialogue bundle',
         ],
         icon: YouTubeLogo,
+        ticketWeeks: [1, 3],
         isAutopay: true,
         // 20,000 credits granted once a week for 4 weeks (28 days total).
         grantIntervalDays: 7,

@@ -39,6 +39,7 @@ export function TicketWallet({ tickets = 0, used = 0, saved = 0 }: { tickets?: n
               <span className="rounded-full border bg-background px-2.5 py-1">Pro · 1 ticket</span>
               <span className="rounded-full border bg-background px-2.5 py-1">Business · 2 tickets</span>
               <span className="rounded-full border bg-background px-2.5 py-1">Enterprise · 3 tickets</span>
+              <span className="rounded-full border bg-background px-2.5 py-1">Consistent Creator · Week 1 + Week 3</span>
             </div>
             {tickets > 0 && (
               <Link href="/store" prefetch={false} className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-5 text-sm font-black text-amber-950 shadow-lg shadow-amber-500/30 transition-transform active:scale-95">

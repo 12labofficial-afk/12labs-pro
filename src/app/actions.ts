@@ -11,6 +11,7 @@ import { logSummaryEvent } from '@/lib/summary-logger';
 import { escapeHtml } from '@/lib/utils';
 import crypto from 'crypto';
 import { reportServerError } from '@/lib/report-error';
+import { ticketsForWeek } from '@/lib/tickets';
 import { plans } from '@/lib/plans';
 import { hashEmailForAbuseCheck } from '@/lib/email-hash';
 
@@ -350,6 +351,7 @@ export async function syncUserSubscriptionInstallments(idToken: AuthToken, userI
             }
             let currentWeekCount = sub.weeklyGrantCount;
             let totalCreditsToGrant = 0;
+            let totalTicketsToGrant = 0;
             const newHistoryEntries = [];
             const newNotifications = [];
 
@@ -377,9 +379,12 @@ export async function syncUserSubscriptionInstallments(idToken: AuthToken, userI
                     timestamp: scheduledTimestamp,
                 });
 
+                const ticketsThisWeek = ticketsForWeek(sub.planId, currentWeekCount);
+                totalTicketsToGrant += ticketsThisWeek;
+
                 newNotifications.push({
                     id: `sub-grant-${currentWeekCount}-${Date.now()}`,
-                    message: `${unitLabel === 'Day' ? 'Daily' : 'Weekly'} Consistency Grant: +${grantAmount.toLocaleString()} Credits added! (${unitLabel} ${currentWeekCount}/${maxGrants})`,
+                    message: `${unitLabel === 'Day' ? 'Daily' : 'Weekly'} Consistency Grant: +${grantAmount.toLocaleString()} Credits added! (${unitLabel} ${currentWeekCount}/${maxGrants})${ticketsThisWeek ? ` 🎟️ +${ticketsThisWeek} Store Ticket — get any Verified Partner asset free.` : ''}`,
                     timestamp: serverNow.toISOString(),
                     read: false,
                     type: 'credits'
@@ -396,6 +401,7 @@ export async function syncUserSubscriptionInstallments(idToken: AuthToken, userI
                 const updateData: any = {
                     credits: FieldValue.increment(totalCreditsToGrant),
                 };
+                if (totalTicketsToGrant > 0) updateData.storeTickets = FieldValue.increment(totalTicketsToGrant);
 
                 if (isPlanFinished) {
                     // AUTO-DEACTIVATE: Remove the subscription field from the user profile
@@ -433,7 +439,8 @@ export async function syncUserSubscriptionInstallments(idToken: AuthToken, userI
                 // Construct updated local profile for immediate UI update
                 const updatedProfile: any = { 
                     ...userData, 
-                    credits: (userData.credits || 0) + totalCreditsToGrant 
+                    credits: (userData.credits || 0) + totalCreditsToGrant,
+                    ...(totalTicketsToGrant > 0 ? { storeTickets: (userData.storeTickets || 0) + totalTicketsToGrant } : {}),
                 };
                 if (isPlanFinished) {
                     delete updatedProfile.subscription;
