@@ -39,14 +39,14 @@ export function HeroSection({ user }: { user: User | null }) {
 
       <div className="relative z-10 max-w-5xl mx-auto flex flex-col items-center">
         {/* 1 — Status pill */}
-        <div className="anim-in-sink anim-d-0 inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-card/80 dark:bg-zinc-900/90 border border-primary/20 dark:border-white/10 shadow-lg backdrop-blur-2xl text-xs sm:text-sm font-semibold text-foreground mb-8 anim-surface-border">
+        <div className="anim-in-sink anim-d-0 inline-flex max-w-full items-center gap-2 whitespace-nowrap px-3.5 py-1.5 rounded-full bg-card/80 dark:bg-zinc-900/90 border border-primary/20 dark:border-white/10 shadow-lg backdrop-blur-2xl text-xs sm:text-sm font-semibold text-foreground mb-8 anim-surface-border">
           <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 anim-pulse-dot" />
-          <Sparkles className="w-4 h-4 text-primary" />
+          <Sparkles className="w-3.5 h-3.5 shrink-0 text-primary" />
           <span className="text-foreground font-extrabold tracking-wide text-[11px]">
             12Labs Voice Studio
           </span>
-          <span className="text-muted-foreground/50">·</span>
-          <span className="text-muted-foreground font-medium text-xs">Ultra-fast AI sound engine</span>
+          <span className="hidden text-muted-foreground/50 min-[400px]:inline">·</span>
+          <span className="hidden text-muted-foreground font-medium text-[11px] min-[400px]:inline sm:text-xs">Ultra-fast AI sound engine</span>
         </div>
 
         {/* 2 — Brand orb. The rings rotate, but they are circles with no

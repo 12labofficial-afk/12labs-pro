@@ -24,63 +24,51 @@ import { onRtdbValue } from '@/lib/rtdb-listener';
  * than four tidy conveyor belts moving in lockstep.
  */
 
+// Every line must be TRUE for every visitor today. Checked against the
+// product: no "credits never expire" (Terms: 1 year / 30 days), no 24×7
+// claim, no SEO/team/priority-queue features that don't exist, and
+// commercial rights only from Pro up.
 const ROW_1 = [
   'One-click voice generation ⚡',
-  'Instant credit adjustment',
-  '24×7 help & support',
   'Studio-grade output',
-  'No watermarks, ever',
-  '70+ languages',
+  'No watermarks',
   'Multi-character scripts',
   'Emotion & tone control',
-  'Commercial rights included',
+  'Natural Hindi & Hinglish',
   'Pay only for what you use',
   'Unlimited downloads',
-  'Natural Hindi & Hinglish',
 ];
 
 const ROW_2 = [
-  'Bulk generation 🚀',
   'Automatic voice assignment',
-  'Regional Indian accents',
-  'Refunds on failed lines',
-  'Credits never expire',
   'Script writing built in',
   'Thumbnail generator',
   'Background music library',
-  'Instant delivery',
-  'No subscription lock-in',
+  'Sound effects library',
+  'Voice cloning',
   'Works on mobile & desktop',
-  'Preview before you spend',
+  'Preview voices before you spend',
 ];
 
 const ROW_3 = [
   'Full project history 📂',
-  'Re-edit any past project',
   'Voice replacement in one tap',
-  'Long manuscripts supported',
-  'Precise pacing & pauses',
-  'Sound effects library',
-  'Team-friendly workflows',
+  'Long scripts supported',
   'Export ready-to-upload audio',
-  'SEO kit for your videos',
-  'Priority queue for pro users',
+  'Automatic quality checks',
+  '2,000 free credits to start',
+  'Commercial rights on Pro & above',
   'Zero setup required',
-  'Transparent credit pricing',
 ];
 
 const ROW_4 = [
   'Human-like delivery 🎙️',
   'Consistent character voices',
-  'Automatic quality checks',
-  'Fast turnaround on long scripts',
-  'Free credits to start',
   'Secure payments',
   'Promo codes & bonuses',
-  'Creator-first pricing',
-  'Regular new voices added',
-  'Simple, honest billing',
-  'Responsive support team',
+  'Transparent credit pricing',
+  'Ready-made assets in the Store',
+  'Store Tickets on bigger packs',
   'Built for Indian creators',
 ];
 
@@ -89,8 +77,8 @@ function Capsule({ label }: { label: string }) {
     <span
       className={cn(
         'shrink-0 whitespace-nowrap select-none',
-        'px-4 py-2 rounded-full',
-        'text-[13px] sm:text-sm font-semibold',
+        'px-3 py-1.5 rounded-full',
+        'text-[11px] sm:text-[13px] font-semibold',
         // A single light purple family — tinted background, matching
         // border, deeper text. One hue, three weights.
         'bg-violet-500/[0.07] dark:bg-violet-400/10',
@@ -118,7 +106,7 @@ function MarqueeRow({
     <div className={cn('flex overflow-hidden', className)} aria-hidden="true">
       <div
         className={cn(
-          'flex items-center gap-3 shrink-0',
+          'flex items-center gap-2 shrink-0 [will-change:transform]',
           reverse ? 'anim-amb-marquee-x-rev' : 'anim-amb-marquee-x'
         )}
         style={{ animationDuration: `${duration}s` }}
@@ -249,7 +237,7 @@ export function FeatureMarquee() {
       <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-28 z-10 bg-gradient-to-l from-background to-transparent" />
 
       {/* Four auto-scrolling rows, four speeds, alternating directions. */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <MarqueeRow items={ROW_1} duration={46} />
         <MarqueeRow items={ROW_2} duration={62} reverse />
         <MarqueeRow items={ROW_3} duration={54} />
@@ -267,10 +255,10 @@ export function FeatureMarquee() {
       {/* The visible list is decorative and aria-hidden, so the same
           information is offered once, plainly, to screen readers. */}
       <p className="sr-only">
-        12Labs features: one-click voice generation, instant credit adjustment, 24x7 help
-        and support, 70+ languages, multi-character scripts, commercial rights included,
-        credits that do not expire, script writing, thumbnail generation, a background
-        music library, and full project history.
+        12Labs features: one-click voice generation, multi-character scripts with emotion
+        control, natural Hindi and Hinglish, script writing, thumbnail generation, voice
+        cloning, music and sound-effect libraries, full project history, and 2,000 free
+        credits to start.
         {customQuotes.length > 0 ? ` ${customQuotes.join('. ')}.` : ''}
       </p>
     </div>
