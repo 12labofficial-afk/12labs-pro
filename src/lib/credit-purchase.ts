@@ -263,7 +263,11 @@ export async function handleCreditPurchase(
         }
 
          if (queueForNextCycle) {
-            userUpdates['subscription.queuedCycles'] = FieldValue.increment(1);
+            // Kept on the user (not inside `subscription`): the hourly Firebase
+            // function deletes `subscription` when a plan finishes and would
+            // take the queued cycle with it.
+            userUpdates['autopayQueue.count'] = FieldValue.increment(1);
+            if (subscriptionId) userUpdates['autopayQueue.subscriptionId'] = subscriptionId;
             if (subscriptionId && subscriptionId !== previousSubscription?.subscriptionId) {
                 // A new paying subscription: future renewals/cancellations
                 // for it must find this user, and a cancelled old one must
@@ -274,6 +278,7 @@ export async function handleCreditPurchase(
          } else if (isAutopay) {
             const intervalDays = effectivePlan?.grantIntervalDays ?? 7;
             const nextWeek = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+             userUpdates.autopayLedger = { week: grantCycle }; // week-1 ticket is settled with this grant
              userUpdates.subscription = {
                  ...(previousSubscription || {}),
                  planId: previousSubscription?.planId || effectivePlan?.id || 'autopay_pro',

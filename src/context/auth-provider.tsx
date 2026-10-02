@@ -18,6 +18,7 @@ import { onRtdbValue } from '@/lib/rtdb-listener';
 import { doc, onSnapshot } from 'firebase/firestore';
 import type { User, UserProfile } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
+import { needsAutopaySync } from '@/lib/autopay-sync';
 import { plans } from '@/lib/plans';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -163,28 +164,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Subscription Sync (runs for logged in user or impersonated user)
   useEffect(() => {
     const targetUser = impersonatedUser || user;
-    if (targetUser && targetUser.subscription && (targetUser.subscription.planId === 'autopay_pro' || targetUser.subscription.planId === 'test_sub')) {
-        const now = new Date();
-        const nextGrant = new Date(targetUser.subscription.nextWeeklyGrantDate);
-        
-        const subMaxGrants = plans.find(p => p.id === targetUser.subscription!.planId)?.maxGrants ?? 4;
-        if (now >= nextGrant && (targetUser.subscription.weeklyGrantCount || 0) < subMaxGrants) {
-            getIdToken().then((t) => syncUserSubscriptionInstallments(t, targetUser.uid)).then(res => {
-                if (res.success && res.updatedProfile) {
-                    if (isImpersonating) {
-                        setImpersonatedUser(res.updatedProfile);
-                        localStorage.setItem('impersonated_user', safeJsonStringify(res.updatedProfile));
-                    } else {
-                        const merged = { ...user, ...res.updatedProfile };
-                        setUser(merged as User);
-                        localStorage.setItem(CACHE_KEY, safeJsonStringify(res.updatedProfile));
-                    }
+    if (targetUser && needsAutopaySync(targetUser)) {
+        getIdToken().then((t) => syncUserSubscriptionInstallments(t, targetUser.uid)).then(res => {
+            if (res.success && res.updatedProfile) {
+                if (isImpersonating) {
+                    setImpersonatedUser(res.updatedProfile);
+                    localStorage.setItem('impersonated_user', safeJsonStringify(res.updatedProfile));
+                } else {
+                    const merged = { ...user, ...res.updatedProfile };
+                    setUser(merged as User);
+                    localStorage.setItem(CACHE_KEY, safeJsonStringify(res.updatedProfile));
                 }
-            }).catch((err) => {
-        reportClientError('src/context/auth-provider.tsx:164', err);
-                console.warn("[Auth] Subscription installment sync failed (non-fatal):", err);
-            });
-        }
+            }
+        }).catch((err) => {
+            reportClientError('src/context/auth-provider.tsx:164', err);
+            console.warn("[Auth] Subscription installment sync failed (non-fatal):", err);
+        });
     }
   }, [user, impersonatedUser, isImpersonating]);
 

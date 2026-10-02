@@ -26,3 +26,10 @@ export function ticketsForWeek(planId: string | undefined | null, week: number):
   const plan = plans.find((p) => p.id === planId);
   return plan?.ticketWeeks?.filter((w) => w === week).length || 0;
 }
+
+/** Tickets for installments in (fromExclusive, toInclusive]. */
+export function ticketsBetween(planId: string | undefined | null, fromExclusive: number, toInclusive: number): number {
+  let total = 0;
+  for (let w = fromExclusive + 1; w <= toInclusive; w++) total += ticketsForWeek(planId, w);
+  return total;
+}

@@ -342,6 +342,7 @@ export async function manuallyGrantAutopayAction(
             const weekOneTickets = ticketsForWeek('autopay_pro', 1);
             transaction.update(userRef, { 
                 subscription: sub,
+                autopayLedger: { week: 1 },
                 ...(weekOneTickets ? { storeTickets: FieldValue.increment(weekOneTickets) } : {}),
                 credits: FieldValue.increment(grantAmount),
                 totalInvestment: FieldValue.increment(700),

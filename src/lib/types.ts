@@ -55,6 +55,10 @@ export interface UserProfile {
   ticketsUsed?: number;
   /** Total ₹ saved by spending tickets. */
   ticketSavings?: number;
+  /** Consistent Creator: highest installment whose ticket has been settled this cycle. */
+  autopayLedger?: { week: number };
+  /** Consistent Creator cycles bought while one was running; kept outside `subscription` so a plan closing can't drop them. */
+  autopayQueue?: { count: number; subscriptionId?: string };
 }
 
 export type User = FirebaseUser & UserProfile;

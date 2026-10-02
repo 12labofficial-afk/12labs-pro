@@ -261,10 +261,12 @@ export async function manuallyApprovePayment(
       if (ticketsToAdd > 0) userUpdates.storeTickets = FieldValue.increment(ticketsToAdd);
 
       if (queueForNextCycle) {
-        userUpdates['subscription.queuedCycles'] = FieldValue.increment(1);
+        userUpdates['autopayQueue.count'] = FieldValue.increment(1);
+        if (paymentData.orderId) userUpdates['autopayQueue.subscriptionId'] = paymentData.orderId;
       } else if (isAutopay) {
         const now = new Date();
         const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        userUpdates.autopayLedger = { week: 1 };
         userUpdates.subscription = { 
           planId: 'autopay_pro',
           status: 'active',

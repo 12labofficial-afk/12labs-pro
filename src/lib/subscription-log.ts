@@ -94,3 +94,22 @@ export function formatManualChangeLog(opts: {
     `<b>User ID:</b> <code>${esc(opts.userId)}</code>`,
   ].join('\n');
 }
+
+/** Tickets (or a queued plan's start) settled by the website after the hourly function already paid the credits. */
+export function formatTicketLog(i: {
+  name?: string; email?: string; userId: string; planName?: string; week?: number;
+  credits: number; tickets: number; ticketsAfter: number; balanceAfter: number; queuedLeft: number; started: boolean;
+}): string {
+  return [
+    i.started ? '▶️ <b>QUEUED CONSISTENT PLAN STARTED</b>' : '🎟️ <b>STORE TICKET GRANTED (CONSISTENT PLAN)</b>',
+    '',
+    `<b>User:</b> ${esc(i.name || 'N/A')} (${esc(i.email || i.userId)})`,
+    i.planName ? `<b>Plan:</b> ${esc(i.planName)}${i.week ? ` · Week ${i.week}` : ''}` : null,
+    i.started ? `<b>Week 1 credits:</b> +${n(i.credits)}` : '<b>Why:</b> credits for this week were already paid by the hourly function',
+    `<b>Tickets:</b> +${i.tickets} 🎟️ (now ${i.ticketsAfter})`,
+    `<b>Balance now:</b> ${n(i.balanceAfter)}`,
+    i.queuedLeft ? `<b>Queued cycles left:</b> ${i.queuedLeft}` : null,
+    '<b>Source:</b> App sync',
+    `<b>User ID:</b> <code>${esc(i.userId)}</code>`,
+  ].filter((line) => line !== null).join('\n');
+}

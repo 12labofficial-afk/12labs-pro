@@ -7,8 +7,10 @@ export const maxDuration = 60;
 
 /**
  * Automated Cron Endpoint for Weekly Consistency Grants
- * Called every hour by the Firebase scheduled function in functions/src/index.ts
- * (which only makes this request). Send `Authorization: Bearer <CRON_SECRET>`.
+ * Optional batch trigger for any scheduler. The same sync also runs whenever a
+ * user opens the app. If CRON_SECRET is set, send `Authorization: Bearer <CRON_SECRET>`;
+ * if it is not set the endpoint is open (it only grants installments that are
+ * already due, so repeated calls are harmless).
  * GET or POST /api/cron/subscription-grants
  */
 export async function GET(req: NextRequest) {
