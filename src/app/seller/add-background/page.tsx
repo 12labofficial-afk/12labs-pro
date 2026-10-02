@@ -26,7 +26,6 @@ import { initializeFirebase } from '@/firebase';
 import { ref, onValue } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import { Badge } from '@/components/ui/badge';
-import { sendToTelegram } from '@/lib/telegram-logger';
 import { Progress } from '@/components/ui/progress';
 import { reportClientError } from '@/lib/report-client-error';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { sendToTelegram } from '@/lib/telegram-logger';
+import { sendClientReportToTelegram as sendToTelegram } from '@/lib/client-log-actions';
 import { escapeHtml } from '@/lib/utils';
 import { getCurrentUserEmail } from '@/lib/current-user-email';
 import { reportClientError } from '@/lib/report-client-error';

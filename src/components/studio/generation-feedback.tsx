@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/auth-provider';
 import { submitGenerationFeedbackAction } from '@/app/studio/feedback-actions';
+import { getIdToken } from '@/lib/id-token';
 
 type Rating = 'like' | 'dislike';
 
@@ -36,7 +37,7 @@ export function GenerationFeedback({
   const [done, setDone] = useState(false);
 
   const send = async (r: Rating, withReason: string) => {
-    await submitGenerationFeedbackAction({
+    await submitGenerationFeedbackAction(await getIdToken(), {
       rating: r,
       reason: withReason,
       projectName,

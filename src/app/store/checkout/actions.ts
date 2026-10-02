@@ -13,14 +13,90 @@ import { escapeHtml, formatCredits, wholeCredits } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
 
 import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
-// This will be passed from the client
+// Sent by the client. Only `id` and `tier` are trusted — title, price,
+// seller and one-time flag are always re-read from the live listing.
 interface ActionCartItem {
     id: string;
-    title: string;
-    price: number;
-    quantity: number;
-    sellerId: string;
+    title?: string;
+    price?: number;
+    quantity?: number;
+    sellerId?: string;
     isOneTimePurchase?: boolean;
+    tier?: string;
+}
+
+interface PricedCartItem {
+    id: string;
+    title: string;
+    /** Rupees, after tier + verified-partner discount. */
+    price: number;
+    quantity: 1;
+    sellerId: string;
+    sellerVerified: boolean;
+    isOneTimePurchase: boolean;
+}
+
+const MAX_CART_ITEMS = 50;
+const SAFE_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+/**
+ * Price a cart from the database, never from the browser. Digital items are
+ * always quantity 1; duplicates are dropped.
+ */
+async function priceCartOnServer(
+    database: any,
+    cartItems: ActionCartItem[],
+): Promise<{ ok: true; items: PricedCartItem[] } | { ok: false; error: string }> {
+    if (!Array.isArray(cartItems) || cartItems.length === 0) return { ok: false, error: 'Cart is empty.' };
+    if (cartItems.length > MAX_CART_ITEMS) return { ok: false, error: 'Too many items in cart.' };
+
+    const seen = new Set<string>();
+    const wanted = cartItems.filter((item) => {
+        const id = String(item?.id || '');
+        if (!SAFE_ID.test(id) || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+    });
+    if (wanted.length === 0) return { ok: false, error: 'Cart is empty.' };
+
+    const [pricingSnap, ...productSnaps] = await Promise.all([
+        database.ref('settings/pricing').get(),
+        ...wanted.map((item) => database.ref(`storeProducts/${item.id}`).get()),
+    ]);
+    const globalDiscount = Math.min(Math.max(Number(pricingSnap.val()?.verifiedSellerGlobalDiscount || 0), 0), 100);
+
+    const sellerVerified = new Map<string, boolean>();
+    const items: PricedCartItem[] = [];
+    for (let i = 0; i < wanted.length; i++) {
+        const product = productSnaps[i]?.exists() ? productSnaps[i].val() : null;
+        if (!product?.title || !product?.sellerId) return { ok: false, error: 'An item in your cart is no longer available.' };
+        if (product.status === 'sold' || product.isSold || product.buyerUid) {
+            return { ok: false, error: `"${product.title}" has already been sold.` };
+        }
+        const sellerId = String(product.sellerId);
+        if (!sellerVerified.has(sellerId)) {
+            const sellerSnap = await database.ref(`sellerProfiles/${sellerId}/isVerified`).get();
+            sellerVerified.set(sellerId, sellerSnap.val() === true);
+        }
+        const verified = sellerVerified.get(sellerId)!;
+
+        const tier = wanted[i].tier;
+        const tierPrice = tier && product.tieredPricing ? Number(product.tieredPricing[tier]) : NaN;
+        const basePrice = Number.isFinite(tierPrice) && tierPrice > 0 ? tierPrice : Number(product.price || 0);
+        if (!Number.isFinite(basePrice) || basePrice < 0) return { ok: false, error: 'An item in your cart has an invalid price.' };
+        const price = verified && globalDiscount > 0 ? Math.floor(basePrice * (1 - globalDiscount / 100)) : basePrice;
+
+        items.push({
+            id: wanted[i].id,
+            title: String(product.title),
+            price,
+            quantity: 1,
+            sellerId,
+            sellerVerified: verified,
+            isOneTimePurchase: !!product.isOneTimePurchase,
+        });
+    }
+    return { ok: true, items };
 }
 
 interface RazorpayOrderOutput {
@@ -31,7 +107,7 @@ interface RazorpayOrderOutput {
 }
 
 export async function createOrderForCart(idToken: string, 
-    cartItems: ActionCartItem[],
+    clientCart: ActionCartItem[],
     user: UserProfile
 ): Promise<{ success: true; order: RazorpayOrderOutput } | { success: false; error: string }> {
     const guard = await requireSelfOrAdmin(idToken, user.uid);
@@ -41,14 +117,14 @@ export async function createOrderForCart(idToken: string,
     if (!user) {
         return { success: false, error: "User not authenticated." };
     }
-    if (cartItems.length === 0) {
-        return { success: false, error: 'Cart is empty.' };
-    }
-
-    const { firestore } = initializeFirebase();
+    const { firestore, database } = initializeFirebase();
 
   try {
-    const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const priced = await priceCartOnServer(database, clientCart);
+    if (!priced.ok) return { success: false, error: priced.error };
+    const cartItems = priced.items;
+    const subtotal = cartItems.reduce((acc, item) => acc + item.price, 0);
+    if (subtotal <= 0) return { success: false, error: 'These items are free — please refresh and check out again.' };
     
     // BUYER FEE REVISION: 18% GST + 2% Platform/Handling Fee = 20% total addition
     const GST_RATE = 0.18;
@@ -69,7 +145,8 @@ export async function createOrderForCart(idToken: string,
             quantity: item.quantity, 
             price: item.price, 
             sellerId: item.sellerId, 
-            title: item.title 
+            title: item.title,
+            isOneTimePurchase: item.isOneTimePurchase,
         })),
         subtotal: Math.round(subtotal * 100),
         gstAmount: Math.round(gstAmount * 100),
@@ -123,7 +200,7 @@ export async function createOrderForCart(idToken: string,
 
 
 export async function processFreeOrder(idToken: string, 
-    cartItems: ActionCartItem[],
+    clientCart: ActionCartItem[],
     user: UserProfile
 ): Promise<{ success: boolean; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, user.uid);
@@ -132,18 +209,15 @@ export async function processFreeOrder(idToken: string,
     if (!user) {
         return { success: false, error: "User not authenticated." };
     }
-    if (cartItems.length === 0) {
-        return { success: false, error: 'Cart is empty.' };
-    }
-
-    const nonFreeItem = cartItems.find(item => item.price > 0);
-    if (nonFreeItem) {
-        return { success: false, error: 'This flow is only for free products.' };
-    }
-
     const { firestore, database } = initializeFirebase();
 
     try {
+        const priced = await priceCartOnServer(database, clientCart);
+        if (!priced.ok) return { success: false, error: priced.error };
+        const cartItems = priced.items;
+        if (cartItems.some(item => item.price > 0)) {
+            return { success: false, error: 'Some items in your cart are not free. Please refresh and try again.' };
+        }
         const productIds = cartItems.map(item => item.id);
         const productRefs = productIds.length > 0 ? productIds.map(id => firestore.collection('products').doc(id)) : [];
         const productDocs = productIds.length > 0 ? await firestore.getAll(...productRefs) : [];
@@ -211,30 +285,32 @@ export async function processFreeOrder(idToken: string,
 }
 
 export async function processCreditOrder(idToken: string, 
-    cartItems: ActionCartItem[],
+    clientCart: ActionCartItem[],
     user: UserProfile
 ): Promise<{ success: boolean; newBalance?: number; error?: string }> {
     const guard = await requireSelfOrAdmin(idToken, user.uid);
     if (!guard.ok) return { success: false, error: guard.message };
     if (!(await rateLimit('credit-order', guard.uid, 15, 600))) return { success: false, error: RATE_LIMIT_MESSAGE };
     if (!user) return { success: false, error: "User not authenticated." };
-    if (cartItems.length === 0) return { success: false, error: 'Cart is empty.' };
-
     const { firestore, database } = initializeFirebase();
 
     try {
-        const subtotalInRupees = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        const priced = await priceCartOnServer(database, clientCart);
+        if (!priced.ok) return { success: false, error: priced.error };
+        const cartItems = priced.items;
+        const subtotalInRupees = cartItems.reduce((acc, item) => acc + item.price, 0);
         // Conversion rate: 1rs = 100 credits
         const totalCreditCost = Math.round(subtotalInRupees * 100);
+        if (!(totalCreditCost > 0)) return { success: false, error: 'Nothing to pay for in this cart.' };
 
         // Security Check: Credits are ONLY accepted for Verified Partners
+        if (cartItems.some(item => !item.sellerVerified)) {
+            return { success: false, error: "Credits are only accepted for Verified Partner sellers." };
+        }
         const sellerProfiles: Record<string, SellerProfile> = {};
-        for (const item of cartItems) {
-            const sellerSnap = await database.ref(`sellerProfiles/${item.sellerId}`).get();
-            if (!sellerSnap.exists() || !sellerSnap.val().isVerified) {
-                return { success: false, error: "Credits are only accepted for Verified Partner sellers." };
-            }
-            sellerProfiles[item.sellerId] = sellerSnap.val();
+        for (const sellerId of new Set(cartItems.map(item => item.sellerId))) {
+            const sellerSnap = await database.ref(`sellerProfiles/${sellerId}`).get();
+            sellerProfiles[sellerId] = sellerSnap.val() || {};
         }
 
         
@@ -250,6 +326,11 @@ export async function processCreditOrder(idToken: string,
         await firestore.runTransaction(async (transaction: any) => {
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists) throw new Error("User profile not found.");
+            const oneTimeRefs = cartItems.filter(item => item.isOneTimePurchase).map(item => firestore.collection('products').doc(item.id));
+            const oneTimeDocs = oneTimeRefs.length ? await transaction.getAll(...oneTimeRefs) : [];
+            if (oneTimeDocs.some((d: any) => d.exists && (d.data()?.isSold || d.data()?.status === 'sold'))) {
+                throw new Error('An item in your cart has already been sold.');
+            }
             
             const currentCredits = userDoc.data()?.credits || 0;
             if (currentCredits < totalCreditCost) {

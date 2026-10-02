@@ -1,7 +1,7 @@
 
 'use server';
 
-import { requireSelfOrAdmin, SERVER_INTERNAL, type AuthToken } from '@/lib/auth-guard';
+import { requireSelfOrAdmin, requireAdmin, SERVER_INTERNAL, type AuthToken } from '@/lib/auth-guard';
 
 import { initializeFirebase } from '@/firebase/server';
 import type { UserProfile, UserSubscription } from '@/lib/types';
@@ -10,6 +10,8 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { logSummaryEvent } from '@/lib/summary-logger';
 import { escapeHtml } from '@/lib/utils';
 import crypto from 'crypto';
+import { headers } from 'next/headers';
+import { memoryLimit, clientIp } from '@/lib/rate-limit';
 import { reportServerError } from '@/lib/report-error';
 import { needsAutopaySync, computeAutopaySync } from '@/lib/autopay-sync';
 import { formatGrantLog, formatTicketLog } from '@/lib/subscription-log';
@@ -69,16 +71,32 @@ export async function createNewUserProfileOnServer(idToken: string,
   },
   deviceId: string
 ): Promise<{ success: boolean; profile?: UserProfile; error?: string }> {
-    const guard = await requireSelfOrAdmin(idToken, user.uid);
+    const guard = await requireSelfOrAdmin(idToken, user?.uid);
     if (!guard.ok) return { success: false, error: guard.message };
-  if (!user.uid || !user.email) {
+  if (!user?.uid) {
     return { success: false, error: 'User ID and email are required.' };
   }
 
   const { firestore, auth: adminAuth, database } = initializeFirebase();
-  if (!firestore) {
+  if (!firestore || !adminAuth) {
     console.error("CRITICAL: Firebase Admin Firestore is null in createNewUserProfileOnServer.");
     return { success: false, error: 'Firebase Admin is not initialized on the server.' };
+  }
+
+  // The email (and whether it's verified) comes from Firebase Auth itself —
+  // never from the request body. A body-supplied admin email used to get
+  // the caller an admin claim.
+  let emailVerified = false;
+  try {
+    const authRecord = await adminAuth.getUser(user.uid);
+    user = { ...user, email: authRecord.email || null };
+    emailVerified = authRecord.emailVerified === true;
+  } catch (e: any) {
+    reportServerError('src/app/actions.ts:createProfileAuthLookup', e);
+    return { success: false, error: 'Could not verify your account. Please sign in again.' };
+  }
+  if (!user.email) {
+    return { success: false, error: 'User ID and email are required.' };
   }
 
   const userDocRef = firestore.collection('users').doc(user.uid);
@@ -128,7 +146,7 @@ export async function createNewUserProfileOnServer(idToken: string,
         'abcdtoon30@gmail.com',
         '12labofficial@gmail.com'
     ];
-    const isAdmin = adminEmails.includes(user.email);
+    const isAdmin = emailVerified && adminEmails.map((e) => e.toLowerCase()).includes(user.email.toLowerCase());
     
     if (isAdmin && adminAuth) {
         await adminAuth.setCustomUserClaims(user.uid, { role: 'admin' }).catch((e: any) => console.error("Admin claim failed:", e));
@@ -372,12 +390,15 @@ export async function syncUserSubscriptionInstallments(idToken: AuthToken, userI
  * Global Batch Synchronizer: Scans all users in the system and automatically grants
  * all due subscription installments even if users have never logged in or opened the website.
  */
-export async function syncAllPendingSubscriptions(): Promise<{
+export async function syncAllPendingSubscriptions(idToken: AuthToken): Promise<{
     success: boolean;
     syncedCount: number;
     syncedUsers: string[];
     error?: string;
 }> {
+    // Cron / admin only — it walks every plan holder.
+    const guard = await requireAdmin(idToken);
+    if (!guard.ok) return { success: false, syncedCount: 0, syncedUsers: [], error: guard.message };
     const { firestore } = initializeFirebase();
     if (!firestore) return { success: false, syncedCount: 0, syncedUsers: [], error: 'Database unavailable' };
 
@@ -430,6 +451,8 @@ export async function logBotEventAction(input: {
     errorDetails?: string;
 }): Promise<void> {
     try {
+        // Callable from the browser — cap how often one visitor can post.
+        if (!memoryLimit(`bot-event:${clientIp(await headers())}`, 20, 60)) return;
         const { moduleName, userEmail = 'Anonymous', eventType, actionDetails, assetUrl, pageUrl, errorDetails } = input;
         const icons: Record<string, string> = {
             INFO: 'ℹ️',

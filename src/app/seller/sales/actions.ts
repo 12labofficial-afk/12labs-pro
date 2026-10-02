@@ -70,6 +70,18 @@ export async function requestWithdrawalAction(idToken: string,
   const { sellerId, sellerName, withdrawableAmount, upiId, accountHolderName } = validation.data;
 
   try {
+    // The amount is checked against the balance worked out here from paid
+    // orders and earlier withdrawals — never the figure the browser sent.
+    const sales = await getSellerSalesData(idToken, sellerId);
+    if (!sales.success || !sales.data) return { success: false, message: 'Could not verify your balance. Please try again.' };
+    if (sales.data.hasPendingWithdrawal) {
+      return { success: false, message: 'You already have a withdrawal request in progress.' };
+    }
+    const available = Math.floor(sales.data.withdrawableAmount * 100) / 100;
+    if (!Number.isFinite(withdrawableAmount) || withdrawableAmount > available + 0.001) {
+      return { success: false, message: `You can withdraw up to ₹${available.toFixed(2)}.` };
+    }
+
     const newRequestRef = firestore.collection('withdrawalRequests').doc();
 
     await newRequestRef.set({

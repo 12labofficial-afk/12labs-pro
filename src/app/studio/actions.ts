@@ -1,7 +1,7 @@
 
 'use server';
 
-import { requireSelfOrAdmin, requireUser, type AuthToken } from '@/lib/auth-guard';
+import { requireSelfOrAdmin, requireUser, requireAdmin, type AuthToken } from '@/lib/auth-guard';
 
 import { initializeFirebase } from '@/firebase/server';
 import { Transaction } from 'firebase-admin/firestore';
@@ -45,10 +45,54 @@ async function toWav(
   });
 }
 
+// Fast Gen pays up front (deductFastGenCreditsAction) and then renders the
+// lines one call at a time. Each paid run adds a character allowance here;
+// every TTS call spends from it, so the TTS endpoint can't be called
+// directly for free voice. Server-only collection (Firestore rules: admin).
+const TTS_BUDGET_COLLECTION = 'ttsBudgets';
+// Covers the "[Emotion] " prefix and free retries of failed lines.
+const ttsAllowanceFor = (chars: number) => Math.ceil(chars * 1.5) + 300;
+const MAX_TTS_TEXT = 5000;
+
+async function addTtsBudget(uid: string, chars: number) {
+    const { firestore } = initializeFirebase();
+    await firestore.collection(TTS_BUDGET_COLLECTION).doc(uid).set(
+        { chars: FieldValue.increment(chars), updatedAt: new Date().toISOString() },
+        { merge: true },
+    );
+}
+
+async function spendTtsBudget(uid: string, chars: number): Promise<boolean> {
+    const { firestore } = initializeFirebase();
+    const ref = firestore.collection(TTS_BUDGET_COLLECTION).doc(uid);
+    return firestore.runTransaction(async (tx: any) => {
+        const doc = await tx.get(ref);
+        const have = Number(doc.exists ? doc.data()?.chars : 0) || 0;
+        if (have < chars) return false;
+        tx.set(ref, { chars: have - chars, updatedAt: new Date().toISOString() }, { merge: true });
+        return true;
+    });
+}
+
 export async function generateTtsAudioAction(idToken: string, text: string, voiceId: string, userEmail?: string, workerId?: number, character?: string, lineId?: string): Promise<{ success: boolean; audioDataUri?: string; usedBridge?: boolean; keyName?: string; error?: string }> {
     const guard = await requireUser(idToken);
     if (!guard.ok) return { success: false, error: guard.message };
     if (!(await rateLimit('tts', guard.uid, 200, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
+    if (typeof text !== 'string' || !text.trim() || text.length > MAX_TTS_TEXT) return { success: false, error: 'Invalid line text.' };
+
+    const chars = text.length;
+    const paid = await spendTtsBudget(guard.uid, chars);
+    // Admins (e.g. working inside another user's studio) aren't metered.
+    if (!paid && !(await requireAdmin(idToken)).ok) {
+        return { success: false, error: 'Please start the generation again — this line is not covered by your last payment.' };
+    }
+    const result = await synthesizeTts(text, voiceId, userEmail, workerId, character, lineId);
+    // Nothing was delivered, so the allowance goes back for the retry.
+    if (paid && !result.success) await addTtsBudget(guard.uid, chars).catch((e: any) => reportServerError('src/app/studio/actions.ts:ttsRefund', e));
+    return result;
+}
+
+async function synthesizeTts(text: string, voiceId: string, userEmail?: string, workerId?: number, character?: string, lineId?: string): Promise<{ success: boolean; audioDataUri?: string; usedBridge?: boolean; keyName?: string; error?: string }> {
     try {
         const { database } = initializeFirebase();
         const editingSettingsSnap = await database.ref('settings/editingHfBackend').get();
@@ -166,6 +210,11 @@ export async function deductFastGenCreditsAction(idToken: string,
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, error: guard.message };
     if (!(await rateLimit('fastgen', guard.uid, 30, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
+    // A zero / negative / fractional count would make the charge zero or
+    // negative (i.e. add credits) — only whole positive counts are valid.
+    if (!Number.isInteger(totalChars) || totalChars <= 0 || totalChars > 2_000_000) {
+        return { success: false, error: 'Invalid script length.' };
+    }
     const { firestore, database } = initializeFirebase();
     const userRef = firestore.collection('users').doc(userId);
     
@@ -227,6 +276,10 @@ export async function deductFastGenCreditsAction(idToken: string,
             rate: multiplier,
             projectId
         });
+
+        if (!reasonOverride) {
+            await addTtsBudget(userId, ttsAllowanceFor(Math.max(0, Number(totalChars) || 0)));
+        }
 
         await logSummaryEvent('creditsSpent', cost);
         return { success: true, newCredits: result };
@@ -363,6 +416,7 @@ export async function regenerateLineWithCreditsAction(idToken: string, userId: s
     const guard = await requireSelfOrAdmin(idToken, userId);
     if (!guard.ok) return { success: false, error: guard.message };
     if (!(await rateLimit('tts-regen', guard.uid, 30, 60))) return { success: false, error: RATE_LIMIT_MESSAGE };
+    if (typeof text !== 'string' || !text.trim() || text.length > MAX_TTS_TEXT) return { success: false, error: 'Invalid line text.' };
     const { firestore, database } = initializeFirebase();
     const userRef = firestore.collection('users').doc(userId);
     const cost = Math.ceil(text.length * await getEngineRate('gemini'));
@@ -395,7 +449,7 @@ export async function regenerateLineWithCreditsAction(idToken: string, userId: s
             });
         }
 
-        const genResult = await generateTtsAudioAction(idToken, text, voiceId, userEmail);
+        const genResult = await synthesizeTts(text, voiceId, userEmail);
         if (!genResult.success || !genResult.audioDataUri) throw new Error(genResult.error);
 
         const parts = genResult.audioDataUri.split(';base64,');

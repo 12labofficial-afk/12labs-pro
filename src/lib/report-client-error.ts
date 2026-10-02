@@ -1,6 +1,6 @@
 'use client';
 
-import { sendToTelegram } from '@/lib/telegram-logger';
+import { sendClientReportToTelegram as sendToTelegram } from '@/lib/client-log-actions';
 import { escapeHtml } from '@/lib/utils';
 import { getCurrentUserEmail } from '@/lib/current-user-email';
 import { notifyStaleBuildIfNeeded } from '@/lib/stale-build-guard';

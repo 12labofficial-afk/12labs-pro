@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { sendToTelegram } from '@/lib/telegram-logger';
+import { sendClientReportToTelegram as sendToTelegram } from '@/lib/client-log-actions';
 import { escapeHtml, safeJsonStringify } from '@/lib/utils';
 import { getCurrentUserEmail } from '@/lib/current-user-email';
 import { reportClientError } from '@/lib/report-client-error';

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
-import { sendToTelegram } from '@/lib/telegram-logger'
+import { sendClientReportToTelegram as sendToTelegram } from '@/lib/client-log-actions'
 import { escapeHtml } from '@/lib/utils'
 import { reportClientError } from '@/lib/report-client-error'
 

@@ -1,3 +1,4 @@
+import { SERVER_INTERNAL } from '@/lib/auth-guard';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
 import { isValidDeveloperKey, resolveDeveloperKey, logDeveloperApiUsage, maskKeySuffix } from '@/lib/hf-proxy';
@@ -61,7 +62,7 @@ async function handlePOST(request: NextRequest) {
   let result: any;
   let errorMessage: string | undefined;
   try {
-    result = await analyzeScriptStudio({
+    result = await analyzeScriptStudio(SERVER_INTERNAL, {
       script,
       userId: keyRecord.userId,
       userEmail: undefined,

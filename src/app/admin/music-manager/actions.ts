@@ -1,7 +1,8 @@
 'use server';
 
 import { initializeFirebase } from '@/firebase/server';
-import { uploadToGCS, deleteR2Object } from '@/lib/gcs-actions';
+import { uploadToGCS } from '@/lib/gcs-actions';
+import { deleteR2Object } from '@/lib/r2-delete';
 import { revalidatePath } from 'next/cache';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';

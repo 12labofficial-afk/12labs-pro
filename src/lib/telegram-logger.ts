@@ -1,4 +1,8 @@
-'use server';
+// Plain module (no 'use server'): it used to be a server action, which let
+// any browser post arbitrary messages/photos to the admin bot. Browser code
+// reports through sendClientReportToTelegram (client-log-actions.ts). If a
+// shared helper pulls this into a client bundle it simply has no token there
+// (non-NEXT_PUBLIC env vars are never shipped to the browser).
 
 import { escapeHtml } from '@/lib/utils';
 

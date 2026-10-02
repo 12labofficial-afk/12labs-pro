@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase/server';
-import { deleteR2Object } from '@/lib/gcs-actions';
+import { deleteR2Object } from '@/lib/r2-delete';
 import { sendToTelegram } from '@/lib/telegram-logger';
 import { escapeHtml } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';

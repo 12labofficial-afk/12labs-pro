@@ -128,6 +128,7 @@ export default function CheckoutPage() {
             quantity: item.quantity,
             sellerId: item.sellerId,
             isOneTimePurchase: item.isOneTimePurchase,
+            tier: (item as any).selectedTier,
         }));
 
         try {
@@ -253,6 +254,7 @@ export default function CheckoutPage() {
                     quantity: item.quantity,
                     sellerId: item.sellerId,
                     isOneTimePurchase: item.isOneTimePurchase,
+                    tier: (item as any).selectedTier,
                 })),
                 cleanUser
             );

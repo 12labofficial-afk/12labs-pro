@@ -11,7 +11,7 @@ import { requireSelfOrAdmin, requireUser } from '@/lib/auth-guard';
  * - secure/ folder for private vault (resolved via gcs://)
  */
 
-import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { r2Client, R2_BUCKET } from "./r2";
 import { sendToTelegram } from './telegram-logger';
@@ -19,7 +19,8 @@ import { escapeHtml } from "./utils";
 import crypto from 'crypto';
 import { reportServerError } from '@/lib/report-error';
 
-import { rateLimit, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit';
+import { rateLimit, RATE_LIMIT_MESSAGE, memoryLimit, clientIp } from '@/lib/rate-limit';
+import { headers } from 'next/headers';
 /**
  * 🎫 R2 SIGNED URL GENERATOR
  */
@@ -128,29 +129,10 @@ export async function uploadToGCS(idToken: string,
 }
 
 
-/**
- * 🗑️ ASSET DESTRUCTOR
- */
-export async function deleteR2Object(path: string): Promise<{ success: boolean; error?: string }> {
-    try {
-        if (!R2_BUCKET) throw new Error("Storage Node: Bucket ID missing.");
-        
-        let fullKey = "";
-        if (path.startsWith('pub://')) fullKey = "public/" + path.replace('pub://', '');
-        else if (path.startsWith('gcs://')) fullKey = "secure/" + path.replace('gcs://', '');
-        else fullKey = path; 
-        
-        await r2Client.send(new DeleteObjectCommand({
-            Bucket: R2_BUCKET,
-            Key: fullKey
-        }));
-        
-        return { success: true };
-    } catch (e: any) {
-    reportServerError('src/lib/gcs-actions.ts#3', e);
-        console.error("[Storage Purge Error]:", e.message);
-        return { success: false, error: e.message };
-    }
+// These two loggers are called from the browser; cap how often one visitor
+// can make them post to Telegram.
+async function allowUploadLog(): Promise<boolean> {
+    return memoryLimit(`upload-log:${clientIp(await headers())}`, 30, 60);
 }
 
 /**
@@ -161,7 +143,10 @@ export async function logUploadFailureAction(input: {
     fileName: string;
     errorMessage: string;
 }) {
-    const { userEmail, fileName, errorMessage } = input;
+    if (!(await allowUploadLog())) return;
+    const userEmail = String(input?.userEmail || '').slice(0, 200);
+    const fileName = String(input?.fileName || '').slice(0, 300);
+    const errorMessage = String(input?.errorMessage || '').slice(0, 1500);
     try {
         const ext = fileName.split('.').pop()?.toLowerCase() || '';
         let fileCategory = 'Media';
@@ -175,7 +160,7 @@ export async function logUploadFailureAction(input: {
             fileCategory = 'Document';
         }
 
-        await sendToTelegram(`🛰️🚨 <b>Upload Node Failure (${fileCategory})</b>\n<b>User:</b> ${userEmail}\n<b>File:</b> ${fileName}\n<b>Error:</b> <pre>${escapeHtml(errorMessage)}</pre>`);
+        await sendToTelegram(`🛰️🚨 <b>Upload Node Failure (${fileCategory})</b>\n<b>User:</b> ${escapeHtml(userEmail)}\n<b>File:</b> ${escapeHtml(fileName)}\n<b>Error:</b> <pre>${escapeHtml(errorMessage)}</pre>`);
     } catch (e) {
     reportServerError('src/lib/gcs-actions.ts#4', e);
         console.error("Failed to log upload failure:", e);
@@ -190,7 +175,10 @@ export async function logUploadSuccessAction(input: {
     fileName: string;
     publicUrl: string;
 }) {
-    const { userEmail, fileName, publicUrl } = input;
+    if (!(await allowUploadLog())) return;
+    const userEmail = String(input?.userEmail || '').slice(0, 200);
+    const fileName = String(input?.fileName || '').slice(0, 300);
+    const publicUrl = String(input?.publicUrl || '').slice(0, 1000);
     try {
         const ext = fileName.split('.').pop()?.toLowerCase() || '';
         let fileCategory = 'Media';

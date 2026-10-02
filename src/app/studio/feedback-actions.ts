@@ -5,6 +5,8 @@ import { escapeHtml } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
 import { initializeFirebase } from '@/firebase/server';
 import crypto from 'crypto';
+import { requireUser } from '@/lib/auth-guard';
+import { memoryLimit } from '@/lib/rate-limit';
 
 /**
  * Post-generation like/dislike feedback.
@@ -19,7 +21,7 @@ import crypto from 'crypto';
  * ask — no separate bot-log-vs-chat context switch. Nothing else is
  * stored — this is the message's only home.
  */
-export async function submitGenerationFeedbackAction(input: {
+export async function submitGenerationFeedbackAction(idToken: string, input: {
   rating: 'like' | 'dislike';
   reason?: string;
   projectName?: string;
@@ -29,9 +31,16 @@ export async function submitGenerationFeedbackAction(input: {
   engine?: string;
   mode?: string;
 }): Promise<{ success: boolean }> {
+  // The feedback is posted into the caller's own support chat, so the
+  // account comes from the verified token — never from the request body.
+  const guard = await requireUser(idToken);
+  if (!guard.ok) return { success: false };
+  if (!memoryLimit(`gen-feedback:${guard.uid}`, 10, 60)) return { success: false };
   try {
-    const { rating, reason, projectName, userEmail, userId, userName, engine, mode } = input;
-    const trimmedReason = (reason || '').trim();
+    const { rating, projectName, userName, engine, mode } = input;
+    const userId = guard.uid;
+    const userEmail = guard.email || input.userEmail;
+    const trimmedReason = String(input.reason || '').trim().slice(0, 2000);
 
     if (rating === 'dislike' && userId) {
       await postDislikeToLiveChat({ userId, userName, userEmail, projectName, engine, mode, reason: trimmedReason });

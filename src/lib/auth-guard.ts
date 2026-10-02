@@ -44,11 +44,11 @@ export const SERVER_INTERNAL: unique symbol = Symbol('server-internal');
 export type AuthToken = string | typeof SERVER_INTERNAL | undefined | null;
 
 type GuardResult =
-  | { ok: true; uid: string; email: string | null }
+  | { ok: true; uid: string; email: string | null; emailVerified: boolean }
   | { ok: false; message: string };
 
 export async function requireUser(idToken: AuthToken): Promise<GuardResult> {
-  if (idToken === SERVER_INTERNAL) return { ok: true, uid: '__server__', email: null };
+  if (idToken === SERVER_INTERNAL) return { ok: true, uid: '__server__', email: null, emailVerified: false };
   if (!idToken) return { ok: false, message: 'Not signed in.' };
   try {
     const { auth } = initializeFirebase();
@@ -56,11 +56,11 @@ export async function requireUser(idToken: AuthToken): Promise<GuardResult> {
     // Global per-user ceiling on authenticated calls (per instance; the
     // shared RTDB limits on paid actions are in rate-limit.ts). Admins are
     // exempt so bulk admin tools that loop over users don't trip it.
-    const isAdminEmail = !!decoded.email && ADMIN_EMAILS.includes(decoded.email.toLowerCase());
+    const isAdminEmail = decoded.email_verified === true && !!decoded.email && ADMIN_EMAILS.includes(decoded.email.toLowerCase());
     if (!isAdminEmail && !memoryLimit(`user:${decoded.uid}`, 300, 60)) {
       return { ok: false, message: RATE_LIMIT_MESSAGE };
     }
-    return { ok: true, uid: decoded.uid, email: decoded.email || null };
+    return { ok: true, uid: decoded.uid, email: decoded.email || null, emailVerified: decoded.email_verified === true };
   } catch (e) {
         reportServerError('src/lib/auth-guard.ts:46', e);
     return { ok: false, message: 'Invalid or expired session. Please sign in again.' };
@@ -77,7 +77,9 @@ export async function requireAdmin(idToken: AuthToken): Promise<GuardResult> {
     const user = await auth.getUser(result.uid);
     const claimRole = (user.customClaims as any)?.role;
     const isAdminByClaim = claimRole === 'admin';
-    const isAdminByEmail = !!result.email && ADMIN_EMAILS.includes(result.email.toLowerCase());
+    // An unverified address proves nothing: anyone can sign up with an
+    // email/password account using an admin's address if it's free.
+    const isAdminByEmail = result.emailVerified && !!result.email && ADMIN_EMAILS.includes(result.email.toLowerCase());
 
     if (!isAdminByClaim && !isAdminByEmail) {
       return { ok: false, message: 'Admin access required.' };

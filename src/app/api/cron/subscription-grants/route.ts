@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncAllPendingSubscriptions } from '@/app/actions';
+import { SERVER_INTERNAL } from '@/lib/auth-guard';
 import { reportServerError } from '@/lib/report-error';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await syncAllPendingSubscriptions();
+    const result = await syncAllPendingSubscriptions(SERVER_INTERNAL);
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       ...result

@@ -10,7 +10,7 @@ import { sendToTelegram } from '@/lib/telegram-logger';
 import { z } from 'zod';
 import { reportServerError } from '@/lib/report-error';
 
-import { rateLimit, RATE_LIMIT_MESSAGE, clientIp } from '@/lib/rate-limit';
+import { rateLimit, RATE_LIMIT_MESSAGE, clientIp, memoryLimit } from '@/lib/rate-limit';
 import { headers } from 'next/headers';
 /**
  * 🔒 Strips payout/contact fields (UPI ID, bank account holder name, QR
@@ -52,6 +52,10 @@ function toPublicSellerProfile(sellerId: string, raw: any): SellerProfile {
  */
 export async function incrementProductView(productId: string): Promise<void> {
     if (!isValidProductId(productId)) return;
+    // One view per visitor per product every 30 min, and a per-visitor cap,
+    // so the Trending ranking can't be pumped by refreshing or scripting.
+    const ip = clientIp(await headers());
+    if (!memoryLimit(`view:${ip}`, 60, 60) || !memoryLimit(`view:${ip}:${productId}`, 1, 1800)) return;
     const { database } = initializeFirebase();
     try {
         const storeSnap = await database.ref(`storeProducts/${productId}`).get();

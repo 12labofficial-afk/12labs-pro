@@ -9,6 +9,7 @@ import { escapeHtml, getISTDateString, checkIsPaidUser, formatCredits, wholeCred
 import { initializeFirebase } from '@/firebase/server';
 import "server-only";
 import { reportServerError } from '@/lib/report-error';
+import { requireSelfOrAdmin, type AuthToken } from '@/lib/auth-guard';
 
 // Keep polling bounded for scripts that need a few minutes to finish.
 const ANALYSIS_TIMEOUT_MS = 300000;
@@ -274,7 +275,12 @@ ${chunk}
     }
 }
 
-export async function analyzeScriptStudio(input: { script: string, userId: string, userEmail?: string, includeEmotion?: boolean }): Promise<any> {
+export async function analyzeScriptStudio(idToken: AuthToken, input: { script: string, userId: string, userEmail?: string, includeEmotion?: boolean }): Promise<any> {
+  // The caller must BE this user (or an admin / trusted server route) —
+  // otherwise anyone could spend another account's credits or limits.
+  const guard = await requireSelfOrAdmin(idToken, input?.userId);
+  if (!guard.ok) throw new Error(guard.message);
+  if (typeof input.script !== 'string' || !input.script.trim()) throw new Error('Script is empty.');
   const userEmail = input.userEmail || "Anonymous";
   const { firestore, database } = initializeFirebase();
   if (!firestore) throw new Error("Server database instance is currently unavailable.");
@@ -311,7 +317,9 @@ export async function analyzeScriptStudio(input: { script: string, userId: strin
   const today = getISTDateString();
   const analysisLimitRef = database.ref(`userScriptAnalysisLimits/${input.userId}/${today}`);
   const limitSnap = await analysisLimitRef.get();
-  const currentDailyCount = limitSnap.exists() ? Number(limitSnap.val()) : 0;
+  const rawDailyCount = limitSnap.exists() ? Number(limitSnap.val()) : 0;
+  // A negative / garbage counter can only come from tampering — treat it as used up.
+  const currentDailyCount = Number.isFinite(rawDailyCount) && rawDailyCount >= 0 ? Math.floor(rawDailyCount) : maxDailyLimit;
   const overDailyLimit = !isSponsorOrAdmin && currentDailyCount >= maxDailyLimit;
   const OVER_LIMIT_ANALYSIS_COST = 300;
 

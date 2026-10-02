@@ -1,4 +1,4 @@
-'use server';
+import 'server-only';
 
 import { initializeFirebase } from '@/firebase/server';
 import { getISTDateString } from './utils';

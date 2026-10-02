@@ -15,7 +15,7 @@ import {
 import { ref, onValue, set as rtdbSet, update as rtdbUpdate } from 'firebase/database';
 import { onRtdbValue } from '@/lib/rtdb-listener';
 import { analyzeScriptStudio } from '@/ai/flows/analyze-script-studio';
-import { logSummaryEvent } from '@/lib/summary-logger';
+import { logScriptAnalysisEventAction } from '@/lib/client-log-actions';
 import { useRouter } from 'next/navigation';
 import { voices } from '@/lib/voices';
 import { getDisplayUrl, cn, checkIsPaidUser, getISTDateString } from '@/lib/utils';
@@ -1123,7 +1123,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-        const result = await analyzeScriptStudio({ script, userId: activeUid, userEmail: activeUser?.email || undefined, includeEmotion });
+        const result = await analyzeScriptStudio(await getIdToken(), { script, userId: activeUid, userEmail: activeUser?.email || undefined, includeEmotion });
         const timestamp = Date.now();
 
         // 🔴 NEW: this analysis went over the daily free limit and was
@@ -1220,7 +1220,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         });
         setScriptState('valid'); setIsPaid(false); setCurrentFastGenProjectId(`FG_${generateShortId()}`);
         setHqSubmissionId(`HQ_${generateShortId()}_${timestamp}`); 
-        logSummaryEvent('normalScriptAnalysis').catch((e: any) => { reportClientError('src/context/studio-provider.tsx:1172', e); return null; }); 
+        getIdToken().then((t) => logScriptAnalysisEventAction(t)).catch((e: any) => { reportClientError('src/context/studio-provider.tsx:1172', e); return null; }); 
         
         if (!projectName.trim()) setProjectName(`Studio-${new Date().toLocaleDateString()}`);
     } catch (e: any) {
@@ -1474,7 +1474,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setIsPaid(false);
       setCurrentFastGenProjectId(`FG_${generateShortId()}`);
       setHqSubmissionId(`HQ_${generateShortId()}_${timestamp}`);
-      logSummaryEvent('normalScriptAnalysis').catch((e: any) => { reportClientError('src/context/studio-provider.tsx:1406', e); return null; });
+      getIdToken().then((t) => logScriptAnalysisEventAction(t)).catch((e: any) => { reportClientError('src/context/studio-provider.tsx:1406', e); return null; });
 
       if (!projectName.trim()) setProjectName(`Studio-${new Date().toLocaleDateString()}`);
 

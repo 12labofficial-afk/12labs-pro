@@ -23,7 +23,6 @@ import 'react-image-crop/dist/ReactCrop.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { getDisplayUrl, cn, compressImage } from '@/lib/utils';
 import { uploadFileDirectly as uploadFileViaClient } from '@/lib/gcs-client';
-import { sendToTelegram } from '@/lib/telegram-logger';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { reportClientError } from '@/lib/report-client-error';

@@ -151,7 +151,7 @@ async function handlePOST(request: NextRequest) {
 
   try {
     // --- 1. Analyze ---
-    const analysis = await analyzeScriptStudio({
+    const analysis = await analyzeScriptStudio(SERVER_INTERNAL, {
       script,
       userId: keyRecord.userId,
       userEmail: undefined,

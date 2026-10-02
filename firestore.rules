@@ -6,7 +6,9 @@ service cloud.firestore {
     // ---------- FUNCTIONS ----------
     function isSignedIn() { return request.auth != null; }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
-    function isAdmin() { return request.auth != null && (request.auth.token.role == 'admin' || request.auth.token.email in ['toonday378@gmail.com', 'yrathod18495@gmail.com', 'Yashsharma4638@gmail.com', 'abcdtoon30@gmail.com', '12labofficial@gmail.com']); }
+    // An admin email only counts once Google/Firebase has verified it —
+    // otherwise anyone could register an unused admin address.
+    function isAdmin() { return request.auth != null && (request.auth.token.role == 'admin' || (request.auth.token.email_verified == true && request.auth.token.email.lower() in ['toonday378@gmail.com', 'yrathod18495@gmail.com', 'yashsharma4638@gmail.com', 'abcdtoon30@gmail.com', '12labofficial@gmail.com'])); }
 
     // ---------- APPLICATION SETTINGS ----------
     match /settings/maintenance { allow get: if true; allow list, write: if isAdmin(); }
@@ -96,13 +98,13 @@ service cloud.firestore {
     }
 
     // ---------- PENDING PAYMENTS ----------
-    match /pendingPayments/{paymentId} { allow create: if isSignedIn(); allow read, list, update, delete: if isAdmin(); }
+    match /pendingPayments/{paymentId} { allow read, list, create, update, delete: if isAdmin(); }
 
     // ---------- PENDING PROJECTS ----------
     match /pendingProjects/{projectId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow get: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
-      allow list: if isSignedIn();
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow update, delete: if isAdmin();
     }
 
@@ -133,17 +135,18 @@ service cloud.firestore {
     }
 
     // ---------- PRODUCTS ----------
+    // Product docs hold the paid files, so only the seller and admins can
+    // read them (buyers get files through getSecureDownloadUrls). All writes
+    // go through the server.
     match /products/{productId} {
-      allow get, list: if isSignedIn();
-      allow create: if isAdmin() || (isSignedIn() && request.resource.data.ownerId == request.auth.uid);
-      allow update: if isAdmin() || (isSignedIn() && request.resource.data.ownerId == request.auth.uid);
-      allow delete: if isAdmin();
+      allow get, list: if isAdmin() || (isSignedIn() && resource.data.sellerId == request.auth.uid);
+      allow create, update, delete: if isAdmin();
     }
 
     // ---------- STORE HISTORY (SECURED - BUYER & ADMIN ONLY) ----------
     match /storeHistory/{historyId} {
-      // create only for self
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // Orders are written only by the server after payment / credits / ticket.
+      allow create: if isAdmin();
       // get single doc (own buyer or admin only)
       allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       // list only own buyer docs or admin (sellers cannot snoop/list other buyers)
@@ -154,7 +157,7 @@ service cloud.firestore {
 
     // ---------- PENDING ORDERS (BUYER & ADMIN ONLY) ----------
     match /pendingOrders/{orderId} {
-      allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
+      allow create: if isAdmin();
       allow get, list: if isAdmin() || (isSignedIn() && resource.data.buyerId == request.auth.uid);
       allow update, delete: if isAdmin();
     }

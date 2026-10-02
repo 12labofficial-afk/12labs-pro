@@ -1,7 +1,7 @@
 'use client';
 
 import { onValue, type DatabaseReference, type Query } from 'firebase/database';
-import { sendToTelegram } from '@/lib/telegram-logger';
+import { sendClientReportToTelegram as sendToTelegram } from '@/lib/client-log-actions';
 import { escapeHtml } from '@/lib/utils';
 import { reportClientError } from '@/lib/report-client-error';
 

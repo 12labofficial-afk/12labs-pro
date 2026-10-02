@@ -23,7 +23,7 @@ import { plans } from '@/lib/plans';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { createNewUserProfileOnServer, getUserProfileFromServer, syncUserSubscriptionInstallments } from '@/app/actions';
-import { logDailyActiveUser } from '@/lib/summary-logger';
+import { logDailyActiveUserAction } from '@/lib/client-log-actions';
 import { getDeviceFingerprint } from '@/lib/device-fingerprint';
 import { safeJsonStringify } from '@/lib/utils';
 import { reportClientError } from '@/lib/report-client-error';
@@ -125,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const dedupeKey = `dailyActiveLogged_${user.uid}`;
                 const todayLocal = new Date().toDateString();
                 if (localStorage.getItem(dedupeKey) !== todayLocal) {
-                    logDailyActiveUser(user.uid).catch((e: any) => { reportClientError('src/context/auth-provider.tsx:118', e); return null; });
+                    getIdToken().then((t) => logDailyActiveUserAction(t)).catch((e: any) => { reportClientError('src/context/auth-provider.tsx:118', e); return null; });
                     localStorage.setItem(dedupeKey, todayLocal);
                 }
             } catch (e) {
