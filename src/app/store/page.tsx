@@ -630,8 +630,8 @@ export default function StoreHomePage() {
     <div className="flex flex-col min-h-screen bg-background">
         
         <div className="sticky top-[64px] z-40 bg-background/95 backdrop-blur-md border-b">
-            <div className="px-4 pt-3">
-                <div className="relative">
+            <div className="flex items-center gap-2 px-4 pt-3">
+                <div className="relative min-w-0 flex-1">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                         type="search"
@@ -646,6 +646,17 @@ export default function StoreHomePage() {
                         </button>
                     )}
                 </div>
+                {user && (
+                    <button
+                        type="button"
+                        onClick={() => setIsPurchasesOpen(true)}
+                        aria-label="My Purchases"
+                        title="My Purchases"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-muted/40 text-foreground transition-transform active:scale-90 hover:bg-muted"
+                    >
+                        <Package className="h-[18px] w-[18px]" />
+                    </button>
+                )}
             </div>
             <ScrollArea className="w-full">
                 <div className="flex items-center gap-3 p-3 px-4">
@@ -656,14 +667,6 @@ export default function StoreHomePage() {
                             <Link key={cat} href={`/store?category=${cat}`} replace className={cn("px-4 h-8 flex items-center rounded-lg text-sm font-bold whitespace-nowrap transition-colors", isActive ? "bg-foreground text-background" : "bg-muted hover:bg-muted/80")} scroll={false}>{label}</Link>
                         ); 
                     })}
-                    {user && (
-                        <button
-                            onClick={() => setIsPurchasesOpen(true)}
-                            className="px-4 h-8 flex items-center gap-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-colors bg-muted hover:bg-muted/80 shrink-0 ml-1"
-                        >
-                            <Package className="h-3.5 w-3.5" /> My Purchases
-                        </button>
-                    )}
                 </div>
                 <ScrollBar orientation="horizontal" className="invisible" />
             </ScrollArea>
