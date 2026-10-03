@@ -219,12 +219,12 @@ export async function POST(req: NextRequest) {
       // timeout and counts as a failed delivery — repeated failures over
       // 24h are what gets a webhook auto-disabled. Fire-and-forget instead.
       after(() => sendToTelegram(`🚨 <b>RAZORPAY WEBHOOK REJECTED</b>\nNo webhook secret is configured on the server — paid purchases are NOT being credited.`).catch(() => null));
-      return NextResponse.json({ status: 'error', message: 'Webhook secret not configured on server' }, { status: 400 });
+      return NextResponse.json({ status: 'ignored', message: 'Webhook secret not configured on server' });
     }
 
     if (!signature) {
       console.error('[Razorpay Webhook Error] Missing x-razorpay-signature header.');
-      return NextResponse.json({ status: 'error', message: 'Missing x-razorpay-signature header' }, { status: 400 });
+      return NextResponse.json({ status: 'ignored', message: 'Missing x-razorpay-signature header' });
     }
 
     const calculatedHmac = crypto.createHmac('sha256', secret).update(text).digest('hex');
@@ -237,7 +237,7 @@ export async function POST(req: NextRequest) {
       try { eventName = JSON.parse(text)?.event || 'unknown'; } catch { /* body isn't JSON */ }
       // Same fire-and-forget fix as above.
       after(() => sendToTelegram(`🚨 <b>RAZORPAY WEBHOOK REJECTED — BAD SIGNATURE</b>\n<b>Event:</b> ${escapeHtml(eventName)}\nRAZORPAY_WEBHOOK_SECRET on the server doesn't match the Razorpay dashboard webhook secret — paid purchases are NOT being credited.`).catch(() => null));
-      return NextResponse.json({ status: 'error', message: 'Invalid signature' }, { status: 400 });
+      return NextResponse.json({ status: 'ignored', message: 'Invalid signature' });
     }
     
     const event = JSON.parse(text);
@@ -359,10 +359,11 @@ export async function POST(req: NextRequest) {
     } catch (logErr: any) {
         reportServerError('src/app/api/webhook/razorpay/route.ts:failLog', logErr);
     }
-    if (attempts < MAX_WEBHOOK_RETRIES) {
-        return NextResponse.json({ status: 'error', message: e.message }, { status: 500 });
-    }
-    after(() => sendToTelegram(`🚨 <b>WEBHOOK EVENT GAVE UP</b>\n<b>Event ID:</b> <code>${escapeHtml(eventId)}</code>\n<b>Error:</b> ${escapeHtml(e?.message || 'unknown')}\n\nAcked to Razorpay so the webhook stays enabled. Grant manually from Admin → Payments.`).catch(() => null));
+    // Always 200: a non-2xx only makes Razorpay retry and, after enough
+    // failures, DISABLE the webhook. Anything that failed here is recorded
+    // above, alerted below, and picked up again by reconcileMyPendingPayments
+    // the next time the user opens the app.
+    after(() => sendToTelegram(`🚨 <b>WEBHOOK EVENT FAILED (attempt ${attempts})</b>\n<b>Event ID:</b> <code>${escapeHtml(eventId)}</code>\n<b>Error:</b> ${escapeHtml(e?.message || 'unknown')}\n\nAcked with 200 so the webhook stays enabled. It is re-checked automatically when the user opens the app; if not, grant from Admin → Payments.`).catch(() => null));
     return NextResponse.json({ status: 'failed_acknowledged' });
   }
 }

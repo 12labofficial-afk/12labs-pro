@@ -451,7 +451,7 @@ export async function handleCreditPurchase(
           // fire-and-forget call here could get cut off by the platform
           // once the throw unwinds, silently losing the one message that
           // says money was taken but credits were NOT granted.
-          await sendToTelegram(`🚨 <b>PAYMENT SYNC FAILED — CREDITS NOT ADDED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Email:</b> ${escapeHtml(paymentEmail || 'N/A')}\n<b>Error:</b> ${escapeHtml(e.message)}\n\nRazorpay will retry a couple of times. If it keeps failing, approve it from Admin → Payments.`).catch((e2: any) => { reportServerError('src/lib/credit-purchase.ts:telegram3', e2); return null; });
+          await sendToTelegram(`🚨 <b>PAYMENT SYNC FAILED — CREDITS NOT ADDED</b>\n<b>Payment:</b> <code>${paymentId}</code>\n<b>Email:</b> ${escapeHtml(paymentEmail || 'N/A')}\n<b>Error:</b> ${escapeHtml(e.message)}\n\nIt is re-checked automatically when the user opens the app. If it still fails, approve it from Admin → Payments.`).catch((e2: any) => { reportServerError('src/lib/credit-purchase.ts:telegram3', e2); return null; });
           throw e;
       }
       // Credits already added — only a post-grant step (affiliate/revenue log/Telegram) failed.
