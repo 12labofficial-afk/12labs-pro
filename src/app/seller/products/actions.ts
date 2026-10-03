@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { initializeFirebase } from '@/firebase/server';
 import type { Product, ProductPreview } from '@/lib/types';
 import { sendToTelegram } from '@/lib/telegram-logger';
+import { escapeHtml } from '@/lib/utils';
 import { reportServerError } from '@/lib/report-error';
 
 const productTypes = [ "PC Character", "Green Screen Character", "Premium Background", "Hand Written Script", "Real Voice", "AutoDraft Character", "YouTube Thumbnail", "YouTube Story" ] as const;
@@ -102,9 +103,17 @@ export async function deleteProductAction(idToken: string,
     if (!guard.ok) return { success: false, message: guard.message };
   const { firestore, database } = initializeFirebase();
 
+  let productTitle = '';
+  let sellerName = '';
+
   try {
     const productRef = firestore.collection('products').doc(productId);
-    const productDoc = await productRef.get();
+    const [productDoc, sellerSnap] = await Promise.all([
+      productRef.get(),
+      database.ref(`sellerProfiles/${sellerId}/storeName`).get().catch(() => null),
+    ]);
+    sellerName = String(sellerSnap?.val() || '');
+    productTitle = String(productDoc.exists ? (productDoc.data() as Product)?.title || '' : '');
 
     if (!productDoc.exists) {
       // It might have been deleted already. Let's proceed to clean up RTDB just in case.
@@ -123,7 +132,13 @@ export async function deleteProductAction(idToken: string,
     updates[`/pendingProducts/${productId}`] = null;
     await database.ref().update(updates);
 
-    await sendToTelegram(`🗑️ *Product Deleted by Seller*\n*Seller ID:* ${sellerId}\n*Product ID:* ${productId}`);
+    await sendToTelegram(
+      `🗑️ <b>Product Deleted by Seller</b>\n` +
+      `<b>Seller:</b> ${escapeHtml(sellerName || 'Unknown')}\n` +
+      `<b>Seller ID:</b> <code>${escapeHtml(sellerId)}</code>\n` +
+      (productTitle ? `<b>Product:</b> ${escapeHtml(productTitle)}\n` : '') +
+      `<b>Product ID:</b> <code>${escapeHtml(productId)}</code>`
+    );
 
     return { success: true, message: "Product deleted successfully." };
 
@@ -131,7 +146,13 @@ export async function deleteProductAction(idToken: string,
     reportServerError('src/app/seller/products/actions.ts#2', error);
     console.error("Error deleting product:", error);
     const mainErrorMessage = (error.message || 'Unknown error').split('\n')[0];
-    await sendToTelegram(`🚨 *Product Deletion FAILED*\n*Seller ID:* ${sellerId}\n*Product ID:* ${productId}\n*Error:* ${mainErrorMessage}`);
+    await sendToTelegram(
+      `🚨 <b>Product Deletion FAILED</b>\n` +
+      `<b>Seller:</b> ${escapeHtml(sellerName || 'Unknown')}\n` +
+      `<b>Seller ID:</b> <code>${escapeHtml(sellerId)}</code>\n` +
+      `<b>Product ID:</b> <code>${escapeHtml(productId)}</code>\n` +
+      `<b>Error:</b> ${escapeHtml(mainErrorMessage)}`
+    );
     return { success: false, message: error.message };
   }
 }
