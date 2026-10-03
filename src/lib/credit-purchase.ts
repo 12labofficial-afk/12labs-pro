@@ -165,6 +165,23 @@ export async function handleCreditPurchase(
         }
     }
 
+    // Nothing to grant (no plan, no credits in the notes) means we don't know
+    // what this payment bought — never consume it as "processed" with 0
+    // credits. Fall back to the pending payment we created for the order,
+    // and if even that is missing, fail loudly so it gets retried/alerted.
+    if (!isAutopay && !plans.some(p => p.id === notes.productId) && !notes.credits && pendingPaymentId) {
+        const ppSnap = await firestore.collection('pendingPayments').doc(pendingPaymentId).get().catch(() => null);
+        const pp = ppSnap?.exists ? ppSnap.data() : null;
+        if (pp && Number(pp.credits) > 0) {
+            notes.credits = String(pp.credits);
+            if (pp.bonusCredits) notes.bonusCredits = String(pp.bonusCredits);
+            if (pp.planName) notes.planName = pp.planName;
+        }
+    }
+    if (!isAutopay && !plans.some(p => p.id === notes.productId) && !(parseInt(notes.credits || '0', 10) > 0)) {
+        throw new Error('Could not tell which credit pack this payment was for (order notes missing).');
+    }
+
     const processedRef = firestore.collection('processedPayments').doc(paymentId);
     const processedOrderRef = orderId ? firestore.collection('processedPayments').doc(orderId) : null;
     const processedSubRef = subscriptionId ? firestore.collection('processedPayments').doc(subscriptionId) : null;

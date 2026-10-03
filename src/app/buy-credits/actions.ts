@@ -521,3 +521,73 @@ export async function confirmRazorpayCreditPayment(params: {
         return { success: false, error: error?.error?.description || error.message || 'Could not confirm payment.' };
     }
 }
+
+/**
+ * Safety net for missed webhooks: looks at the caller's own pending credit
+ * orders from the last 3 days, asks Razorpay whether any of them were
+ * actually paid, and grants those through the same idempotent path as the
+ * webhook (processedPayments prevents any double credit). Called quietly
+ * when the app loads, so a payment whose webhook timed out or was disabled
+ * still gets its credits the next time the user opens the site.
+ */
+export async function reconcileMyPendingPayments(idToken: string): Promise<{ granted: number }> {
+    const guard = await requireUser(idToken);
+    if (!guard.ok) return { granted: 0 };
+    if (!(await rateLimit('reconcile-payments', guard.uid, 6, 600))) return { granted: 0 };
+
+    const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) return { granted: 0 };
+
+    const { firestore, database } = initializeFirebase();
+    let granted = 0;
+    try {
+        const snap = await firestore.collection('pendingPayments')
+            .where('userId', '==', guard.uid)
+            .where('status', '==', 'pending')
+            .limit(10)
+            .get();
+        const cutoff = Date.now() - 3 * 24 * 60 * 60 * 1000;
+        const candidates = snap.docs
+            .map((d: any) => ({ id: d.id, ...d.data() }))
+            .filter((p: any) => p.orderId && new Date(p.createdAt || 0).getTime() >= cutoff)
+            // Each order is asked about at most every 15 minutes.
+            .filter((p: any) => !p.reconciledAt || Date.now() - new Date(p.reconciledAt).getTime() > 15 * 60 * 1000);
+        if (candidates.length === 0) return { granted: 0 };
+
+        const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+        for (const pp of candidates) {
+            try {
+                await firestore.collection('pendingPayments').doc(pp.id).update({ reconciledAt: new Date().toISOString() }).catch(() => null);
+                const payments: any = await razorpay.orders.fetchPayments(pp.orderId);
+                let paid = (payments?.items || []).find((p: any) => p.status === 'captured');
+                const authorized = !paid && (payments?.items || []).find((p: any) => p.status === 'authorized');
+                if (authorized) paid = await razorpay.payments.capture(authorized.id, authorized.amount, authorized.currency);
+                if (!paid || paid.status !== 'captured') continue;
+
+                const already = await firestore.collection('processedPayments').doc(paid.id).get();
+                if (already.exists) continue;
+
+                const order: any = await razorpay.orders.fetch(pp.orderId);
+                const notes = order?.notes || {};
+                if (notes.type === 'music_track_purchase' || notes.type === 'product_order' || notes.pendingOrderId) continue;
+                if (notes.userId && notes.userId !== guard.uid) continue;
+
+                await handleCreditPurchase(firestore, database, paid, order);
+                granted += 1;
+                await sendToTelegram(
+                    `🛟 <b>PAYMENT RECOVERED (webhook missed)</b>\n` +
+                    `<b>User:</b> ${escapeHtml(guard.email || guard.uid)}\n` +
+                    `<b>Payment:</b> <code>${escapeHtml(paid.id)}</code>\n` +
+                    `<b>Amount:</b> ₹${(Number(paid.amount) || 0) / 100}\n` +
+                    `Credits granted automatically when the user opened the app.`
+                ).catch(() => null);
+            } catch (e: any) {
+                reportServerError('src/app/buy-credits/actions.ts#reconcileOne', e, { orderId: pp.orderId });
+            }
+        }
+    } catch (e: any) {
+        reportServerError('src/app/buy-credits/actions.ts#reconcile', e);
+    }
+    return { granted };
+}

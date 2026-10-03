@@ -29,6 +29,7 @@ import { safeJsonStringify } from '@/lib/utils';
 import { reportClientError } from '@/lib/report-client-error';
 
 import { getIdToken } from '@/lib/id-token';
+import { reconcileMyPendingPayments } from '@/app/buy-credits/actions';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -160,6 +161,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (user && auth?.currentUser?.uid === user.uid) updatePresence('offline');
     };
   }, [user, database, auth]);
+
+  // Missed-webhook safety net: check this user's own unpaid-looking orders
+  // against Razorpay on load and when they come back to the tab (throttled).
+  // Grants are idempotent server-side; the live profile listener shows them.
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid || isImpersonating) return;
+    let last = 0;
+    const run = () => {
+      if (Date.now() - last < 3 * 60 * 1000) return;
+      last = Date.now();
+      getIdToken().then((t) => reconcileMyPendingPayments(t)).catch(() => null);
+    };
+    run();
+    const onVisible = () => { if (document.visibilityState === 'visible') run(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [user?.uid, isImpersonating]);
 
   // Subscription Sync (runs for logged in user or impersonated user)
   useEffect(() => {

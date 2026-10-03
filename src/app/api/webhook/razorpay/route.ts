@@ -187,6 +187,19 @@ async function handleProductPurchase(
     }
 }
 
+/** Order (with its notes) for a payment, or undefined if Razorpay can't be reached. */
+async function fetchRazorpayOrder(orderId: string): Promise<any | undefined> {
+    const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) return undefined;
+    try {
+        return await new Razorpay({ key_id: keyId, key_secret: keySecret }).orders.fetch(orderId);
+    } catch (e: any) {
+        reportServerError('src/app/api/webhook/razorpay/route.ts:fetchOrder', e, { orderId });
+        return undefined;
+    }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
@@ -232,7 +245,15 @@ export async function POST(req: NextRequest) {
     const { firestore, database } = initializeFirebase();
     const entity = event?.payload?.payment?.entity || event?.payload?.subscription?.entity;
     const subscriptionEntity = event?.payload?.subscription?.entity;
-    const notes = { ...(event?.payload?.order?.entity?.notes || {}), ...(entity?.notes || {}) };
+    // payment.captured carries only the payment — our notes (userId, plan,
+    // credits, order type) live on the ORDER. Without them a captured
+    // payment used to be granted 0 credits (user found by email) and marked
+    // processed, so the order.paid that followed was skipped as a duplicate.
+    let orderEntity = event?.payload?.order?.entity;
+    if (!orderEntity && entity?.order_id && (event.event === 'payment.captured' || event.event === 'order.paid')) {
+        orderEntity = await fetchRazorpayOrder(entity.order_id);
+    }
+    const notes = { ...(orderEntity?.notes || {}), ...(entity?.notes || {}) };
 
     if (event.event === 'payment.authorized' && entity?.id && entity?.order_id) {
         // With auto-capture off, a paid order stays "authorized" (and gets
@@ -252,9 +273,9 @@ export async function POST(req: NextRequest) {
             }
         }
     } else if (event.event === 'order.paid' || event.event === 'payment.captured') {
-        if (notes.type === 'music_track_purchase') await handleMusicTrackPurchase(firestore, database, entity, event.payload?.order?.entity);
-        else if (notes.type === 'product_order' || notes.pendingOrderId) await handleProductPurchase(firestore, database, entity, event.payload?.order?.entity);
-        else await handleCreditPurchase(firestore, database, entity, event.payload?.order?.entity);
+        if (notes.type === 'music_track_purchase') await handleMusicTrackPurchase(firestore, database, entity, orderEntity);
+        else if (notes.type === 'product_order' || notes.pendingOrderId) await handleProductPurchase(firestore, database, entity, orderEntity);
+        else await handleCreditPurchase(firestore, database, entity, orderEntity);
      } else if (event.event === 'subscription.charged') {
         await handleCreditPurchase(firestore, database, entity, undefined, true);
      } else if (['subscription.cancelled', 'subscription.completed', 'subscription.paused', 'subscription.halted'].includes(event.event)) {
@@ -347,5 +368,8 @@ export async function POST(req: NextRequest) {
 }
 
 const MAX_WEBHOOK_RETRIES = 3;
-const WEBHOOK_RESPONSE_BUDGET_MS = 3500;
+// Razorpay fails a delivery after ~5s, and a cold start eats part of that
+// before this handler even runs. Ack early; the grant keeps going in
+// after(), and reconcileMyPendingPayments covers anything that still fails.
+const WEBHOOK_RESPONSE_BUDGET_MS = 1800;
 export const maxDuration = 60;
