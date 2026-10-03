@@ -13,7 +13,6 @@ import { useToast } from '@/hooks/use-toast';
 import mammoth from 'mammoth';
 import { cn, formatCredits } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScriptGuidelinesDialog } from './script-guidelines-dialog';
 
 
 import {
@@ -331,8 +330,6 @@ export function ScriptEditor() {
                         </Label>
                         <input id="file-upload" type="file" className="hidden" accept=".txt,.docx" onChange={handleFileChange} disabled={isAnalyzed || isAnalyzing} />
                         
-                        <ScriptGuidelinesDialog variant="button" className="px-3 py-2 rounded-xl text-[11px] h-auto tracking-normal font-bold border-amber-500/30" />
-
                         <label htmlFor="include-emotion-chk" className="flex items-center gap-2 bg-background/80 px-3 py-2 rounded-xl border border-border transition-all hover:bg-muted cursor-pointer select-none">
                             <Checkbox 
                                 id="include-emotion-chk" 
