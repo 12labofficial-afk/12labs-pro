@@ -10,6 +10,7 @@ import { applyPromoCode } from './promo-actions';
 import { plans } from '@/lib/plans';
 import { reportServerError } from '@/lib/report-error';
 import { handleCreditPurchase } from '@/lib/credit-purchase';
+import { handleProductPurchase } from '@/lib/razorpay-events';
 import { escapeHtml } from '@/lib/utils';
 import { requireUser, requireSelfOrAdmin } from '@/lib/auth-guard';
 
@@ -553,8 +554,6 @@ export async function reconcileMyPendingPayments(idToken: string): Promise<{ gra
             .filter((p: any) => p.orderId && new Date(p.createdAt || 0).getTime() >= cutoff)
             // Each order is asked about at most every 15 minutes.
             .filter((p: any) => !p.reconciledAt || Date.now() - new Date(p.reconciledAt).getTime() > 15 * 60 * 1000);
-        if (candidates.length === 0) return { granted: 0 };
-
         const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
         for (const pp of candidates) {
             try {
@@ -584,6 +583,43 @@ export async function reconcileMyPendingPayments(idToken: string): Promise<{ gra
                 ).catch(() => null);
             } catch (e: any) {
                 reportServerError('src/app/buy-credits/actions.ts#reconcileOne', e, { orderId: pp.orderId });
+            }
+        }
+        // Store (cash) orders: same check, granted through the store path.
+        const orderSnap = await firestore.collection('pendingOrders')
+            .where('buyerId', '==', guard.uid)
+            .where('status', '==', 'pending')
+            .limit(10)
+            .get();
+        const storeCandidates = orderSnap.docs
+            .map((d: any) => ({ id: d.id, ...d.data() }))
+            .filter((o: any) => o.razorpayOrderId && new Date(o.createdAt || 0).getTime() >= cutoff)
+            .filter((o: any) => !o.reconciledAt || Date.now() - new Date(o.reconciledAt).getTime() > 15 * 60 * 1000);
+        if (storeCandidates.length > 0) {
+            const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+            for (const po of storeCandidates) {
+                try {
+                    await firestore.collection('pendingOrders').doc(po.id).update({ reconciledAt: new Date().toISOString() }).catch(() => null);
+                    const payments: any = await razorpay.orders.fetchPayments(po.razorpayOrderId);
+                    let paid = (payments?.items || []).find((p: any) => p.status === 'captured');
+                    const authorized = !paid && (payments?.items || []).find((p: any) => p.status === 'authorized');
+                    if (authorized) paid = await razorpay.payments.capture(authorized.id, authorized.amount, authorized.currency);
+                    if (!paid || paid.status !== 'captured') continue;
+                    const already = await firestore.collection('processedPayments').doc(paid.id).get();
+                    if (already.exists) continue;
+                    const order: any = await razorpay.orders.fetch(po.razorpayOrderId);
+                    if (order?.notes?.pendingOrderId !== po.id || order?.notes?.userId !== guard.uid) continue;
+                    await handleProductPurchase(firestore, database, paid, order);
+                    granted += 1;
+                    await sendToTelegram(
+                        `🛟 <b>STORE ORDER RECOVERED (webhook missed)</b>\n` +
+                        `<b>User:</b> ${escapeHtml(guard.email || guard.uid)}\n` +
+                        `<b>Payment:</b> <code>${escapeHtml(paid.id)}</code>\n` +
+                        `<b>Amount:</b> ₹${(Number(paid.amount) || 0) / 100}`
+                    ).catch(() => null);
+                } catch (e: any) {
+                    reportServerError('src/app/buy-credits/actions.ts#reconcileStore', e, { orderId: po.razorpayOrderId });
+                }
             }
         }
     } catch (e: any) {
