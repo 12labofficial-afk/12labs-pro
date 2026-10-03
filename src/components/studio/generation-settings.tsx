@@ -70,7 +70,7 @@ export function GenerationSettings({ forceSetup = false }: { forceSetup?: boolea
     const { database } = initializeFirebase();
 
     const [visibleBlocks, setVisibleBlocks] = useState(0);
-    const [activeLog, setActiveLog] = useState('Starting…');
+    const [activeLog, setActiveLog] = useState('Creating a new cloud container…');
     const introSequenceStarted = useRef(false);
 
     const isAdmin = user?.role === 'admin';
@@ -110,44 +110,76 @@ export function GenerationSettings({ forceSetup = false }: { forceSetup?: boolea
     visibleBlocksRef.current = visibleBlocks;
     const logIndex = useRef(0);
 
+    // Last time the processed-line count moved — used to notice a stall.
+    const lastMoveAt = useRef(Date.now());
+    const lastProcessed = useRef(realtimeProgress?.processed || 0);
+    useEffect(() => {
+        const p = realtimeProgress?.processed || 0;
+        if (p !== lastProcessed.current) {
+            lastProcessed.current = p;
+            lastMoveAt.current = Date.now();
+        }
+    }, [realtimeProgress?.processed]);
+
     useEffect(() => {
         if (isHqActive && !isHqReady) {
-            // One word at a time, Claude-style, always from the stage the
-            // job is really in.
-            const linesForStage = (): string[] => {
+            // Server-style status line, always picked from the stage the job
+            // is really in. Lines rotate every ~3s; a stage change shows its
+            // first line straight away.
+            const startedAt = Date.now();
+            lastMoveAt.current = Date.now();
+            let stageKey = '';
+            let shownAt = 0;
+            const STALL_MS = 25_000;
+            const linesForStage = (): [string, string[]] => {
                 const total = progressRef.current?.total || 0;
                 const done = progressRef.current?.processed || 0;
-                if (projectStatusRef.current === 'in_queue') return ['Queued…', 'Waiting…'];
-                if (total === 0 || done === 0) return ['Warming up…', 'Reading…', 'Casting…'];
-                if (done < total) return ['Voicing…', 'Emoting…', 'Pacing…', 'Rendering…'];
-                return ['Mixing…', 'Stitching…', 'Polishing…'];
+                const elapsed = Date.now() - startedAt;
+                if (done === 0 && elapsed < 3000) return ['boot', ['Creating a new cloud container…']];
+                if (total > 0 && done >= total) return ['mix', ['Stitching all dialogues together…', 'Balancing audio levels…', 'Finalizing your master track…']];
+                if (done > 0 && Date.now() - lastMoveAt.current > STALL_MS) {
+                    return ['stall', ['Checking why the dialogues are stuck…', 'Restarting the slow worker in the container…', 'Re-sending the pending dialogues…']];
+                }
+                if (done === 0) {
+                    return ['arrange', [
+                        'Arranging your script in the cloud container…',
+                        ...(total > 100 ? ['Increasing cloud container limit…'] : []),
+                        'Assigning a voice worker to each character…',
+                        'Reading the first dialogue…',
+                    ]];
+                }
+                return ['render', [
+                    ...(total > 100 ? ['Increasing cloud container limit…'] : []),
+                    'Adding emotions…',
+                    'Watching the next dialogue…',
+                    'Looking for the next line in your script…',
+                    'Checking the container for over-limiting…',
+                    'Matching each voice to its character…',
+                    'Syncing finished dialogues to the cloud…',
+                ]];
             };
             const tick = () => {
                 if (visibleBlocksRef.current < 3) return;
-                const lines = linesForStage();
+                const [key, lines] = linesForStage();
+                const now = Date.now();
+                if (key !== stageKey) {
+                    stageKey = key;
+                    logIndex.current = 0;
+                } else if (now - shownAt < 3000) {
+                    return;
+                }
+                shownAt = now;
                 setActiveLog(lines[logIndex.current % lines.length]);
                 logIndex.current += 1;
             };
             tick();
-            const interval = setInterval(tick, 2800);
+            const interval = setInterval(tick, 500);
             return () => clearInterval(interval);
         } else if (isHqReady) {
             setActiveLog('Done');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isHqActive, isHqReady]);
-
-    // Show the stage line as soon as the cards appear, not 2.4s later.
-    useEffect(() => {
-        if (visibleBlocks >= 3 && isHqActive && !isHqReady && activeLog === 'Starting…') {
-            const total = realtimeProgress?.total || 0;
-            const done = realtimeProgress?.processed || 0;
-            setActiveLog(hqProject?.status === 'in_queue'
-                ? 'Queued…'
-                : done > 0 && done < total ? 'Voicing…' : 'Warming up…');
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [visibleBlocks]);
 
     useEffect(() => {
         if (!database) {
@@ -263,7 +295,7 @@ export function GenerationSettings({ forceSetup = false }: { forceSetup?: boolea
                                     <p
                                         key={activeLog}
                                         className={cn(
-                                            "flex-1 min-w-0 truncate text-lg sm:text-xl font-black tracking-tight animate-in fade-in duration-500",
+                                            "flex-1 min-w-0 line-clamp-2 text-[15px] font-bold leading-snug tracking-tight animate-in fade-in duration-500 sm:text-base",
                                             isHqReady ? "text-green-600" : "anim-status-shimmer",
                                         )}
                                     >
