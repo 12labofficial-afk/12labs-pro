@@ -255,6 +255,19 @@
   animation: text-shimmer-pass 5.5s var(--ease-in-out-soft) infinite;
 }
 
+/* One-word live status ("Voicing…"), Claude-style: a bright band sweeps
+   across dimmed text. */
+@keyframes status-shimmer { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+.anim-status-shimmer {
+  background-image: linear-gradient(90deg, hsl(var(--primary) / 0.45) 0%, hsl(var(--primary) / 0.45) 40%, hsl(var(--primary)) 50%, hsl(var(--primary) / 0.45) 60%, hsl(var(--primary) / 0.45) 100%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: hsl(var(--primary));
+  animation: status-shimmer 1.8s linear infinite;
+}
+
 @keyframes text-weight-settle { from { opacity: 0; letter-spacing: 0.08em; } to { opacity: 1; letter-spacing: normal; } }
 .anim-text-weight-settle { animation: text-weight-settle var(--anim-slow) var(--ease-out-firm) both; }
 

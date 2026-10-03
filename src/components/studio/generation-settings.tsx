@@ -72,7 +72,7 @@ export function GenerationSettings() {
     const { database } = initializeFirebase();
 
     const [visibleBlocks, setVisibleBlocks] = useState(0);
-    const [activeLog, setActiveLog] = useState('Initializing Production Hub...');
+    const [activeLog, setActiveLog] = useState('Starting…');
     const introSequenceStarted = useRef(false);
 
     const isAdmin = user?.role === 'admin';
@@ -115,27 +115,15 @@ export function GenerationSettings() {
 
     useEffect(() => {
         if (isHqActive && !isHqReady) {
-            // The line always matches the stage the job is really in.
+            // One word at a time, Claude-style, always from the stage the
+            // job is really in.
             const linesForStage = (): string[] => {
                 const total = progressRef.current?.total || 0;
                 const done = progressRef.current?.processed || 0;
-                const rejected = progressRef.current?.rejected || 0;
-                if (projectStatusRef.current === 'in_queue') {
-                    return ['In the queue — starting in a moment…', 'Reserving a voice node for you…'];
-                }
-                if (total === 0 || done === 0) {
-                    return ['Warming up the voice engine…', 'Reading your script…', 'Assigning a voice to each character…'];
-                }
-                if (done < total) {
-                    return [
-                        `Rendering line ${Math.min(done + 1, total)} of ${total}…`,
-                        'Voicing your characters…',
-                        'Matching emotion and pacing…',
-                        'Checking every line is fully spoken…',
-                        ...(rejected > 0 ? [`${rejected} line${rejected > 1 ? 's' : ''} couldn't be voiced — refunded automatically`] : []),
-                    ];
-                }
-                return ['All lines rendered — stitching the audio…', 'Balancing levels…', 'Finalizing the master track…'];
+                if (projectStatusRef.current === 'in_queue') return ['Queued…', 'Waiting…'];
+                if (total === 0 || done === 0) return ['Warming up…', 'Reading…', 'Casting…'];
+                if (done < total) return ['Voicing…', 'Emoting…', 'Pacing…', 'Rendering…'];
+                return ['Mixing…', 'Stitching…', 'Polishing…'];
             };
             const tick = () => {
                 if (visibleBlocksRef.current < 3) return;
@@ -144,26 +132,22 @@ export function GenerationSettings() {
                 logIndex.current += 1;
             };
             tick();
-            const interval = setInterval(tick, 2400);
+            const interval = setInterval(tick, 2800);
             return () => clearInterval(interval);
         } else if (isHqReady) {
-            const total = realtimeProgress?.total || hqProject?.syncData?.dialogues?.length || (hqProject as any)?.totalDialogues || 0;
-            const rejected = (hqProject as any)?.rejectedNodes || 0;
-            setActiveLog(rejected > 0 && total > 0
-                ? `Master ready • ${total - rejected} of ${total} lines rendered`
-                : 'Master ready • all lines rendered ✅');
+            setActiveLog('Done');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isHqActive, isHqReady]);
 
     // Show the stage line as soon as the cards appear, not 2.4s later.
     useEffect(() => {
-        if (visibleBlocks >= 3 && isHqActive && !isHqReady && activeLog === 'Initializing Production Hub...') {
+        if (visibleBlocks >= 3 && isHqActive && !isHqReady && activeLog === 'Starting…') {
             const total = realtimeProgress?.total || 0;
             const done = realtimeProgress?.processed || 0;
             setActiveLog(hqProject?.status === 'in_queue'
-                ? 'In the queue — starting in a moment…'
-                : done > 0 && done < total ? `Rendering line ${done + 1} of ${total}…` : 'Warming up the voice engine…');
+                ? 'Queued…'
+                : done > 0 && done < total ? 'Voicing…' : 'Warming up…');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visibleBlocks]);
@@ -281,34 +265,18 @@ export function GenerationSettings() {
                                     <div className="p-3 bg-primary/10 rounded-2xl border border-border dark:border-white/10 shrink-0">
                                         <Zap className={cn("h-5 w-5 sm:h-6 sm:w-6 text-primary fill-current", !isHqReady && "animate-pulse")} />
                                     </div>
-                                    <div className="space-y-0.5 min-w-0 text-zinc-900 dark:text-white flex-1">
-                                        <p className="text-[9px] font-black uppercase text-primary tracking-widest animate-in fade-in duration-500 truncate" key={activeLog}>
-                                            {activeLog}
-                                        </p>
-                                        <h3 className="text-base sm:text-lg font-black uppercase tracking-tight leading-none">
-                                            {isHqReady
-                                                ? 'RENDER COMPLETE'
-                                                : hqProject?.status === 'in_queue'
-                                                ? 'IN QUEUE'
-                                                : displayTotal > 0 && displayProcessed >= displayTotal
-                                                ? 'MIXING MASTER'
-                                                : 'RENDERING FILES'}
-                                        </h3>
-                                        <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest opacity-60">Parallel Synthesis Mode</p>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div className="bg-muted dark:bg-white/5 py-2.5 rounded-2xl border border-border dark:border-white/5 flex flex-col items-center justify-center">
-                                        <span className="text-lg sm:text-xl font-black text-green-600 leading-none">{succeeded}</span>
-                                        <span className="text-[7px] font-black uppercase text-zinc-600 mt-1 tracking-tighter">DONE</span>
-                                    </div>
-                                    <div className={cn("py-2.5 rounded-2xl border flex flex-col items-center justify-center", displayRejected > 0 ? "bg-red-500/10 border-red-500/20" : "bg-muted dark:bg-white/5 border-border dark:border-white/5")}>
-                                        <span className={cn("text-lg sm:text-xl font-black leading-none", displayRejected > 0 ? "text-red-500" : "text-zinc-400")}>{displayRejected}</span>
-                                        <span className={cn("text-[7px] font-black uppercase mt-1 tracking-tighter", displayRejected > 0 ? "text-red-500/70" : "text-zinc-500")}>REJECTED</span>
-                                    </div>
-                                    <div className="bg-muted dark:bg-white/5 py-2.5 rounded-2xl border border-border dark:border-white/5 flex flex-col items-center justify-center">
-                                        <span className="text-lg sm:text-xl font-black text-primary leading-none">{displayTotal || 0}</span>
-                                        <span className="text-[7px] font-black uppercase text-zinc-600 mt-1 tracking-tighter">TOTAL</span>
+                                    <p
+                                        key={activeLog}
+                                        className={cn(
+                                            "flex-1 min-w-0 truncate text-lg sm:text-xl font-black tracking-tight animate-in fade-in duration-500",
+                                            isHqReady ? "text-green-600" : "anim-status-shimmer",
+                                        )}
+                                    >
+                                        {activeLog}
+                                    </p>
+                                    <div className="shrink-0 text-right leading-none">
+                                        <span className="block text-xl sm:text-2xl font-black text-green-600">{succeeded}</span>
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Done</span>
                                     </div>
                                 </div>
                                 {!isHqReady && (
@@ -323,10 +291,7 @@ export function GenerationSettings() {
                                     // it's genuinely still running) keeps going on its
                                     // own and lands in /history regardless of this
                                     // screen being left.
-                                    <div className="space-y-2">
-                                        <p className="text-[9px] font-bold text-zinc-500 text-center leading-relaxed px-2">
-                                            Your production keeps running in the background even if you leave this screen — check My Projects in a few minutes to find it.
-                                        </p>
+                                    <div>
                                         <Button onClick={clearStudioState} variant="ghost" className="w-full h-10 rounded-2xl font-black text-[10px] uppercase tracking-widest text-zinc-500 hover:text-foreground hover:bg-muted dark:hover:bg-white/5">
                                             <Plus className="mr-1.5 h-3.5 w-3.5" /> Start a New Production
                                         </Button>
