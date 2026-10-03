@@ -7,15 +7,17 @@
 // available" prompt once it sees this NEW value — pushing them onto a
 // fresh reload before they ever hit a stale-chunk "Failed to fetch" from
 // a deleted old build file.
-export const APP_VERSION = '2.2.9';
+export const APP_VERSION = '2.3.0';
 
 // 📝 Release notes for the version above — rendered as the "What's new"
 // list in the update prompt (see AppVersionGate). Update this alongside
 // APP_VERSION whenever a version is bumped; it is never shown on its own,
 // only as part of that prompt.
 export const APP_UPDATE_NOTES: string[] = [
-  'Consistent Creator plan updates are now tracked more reliably',
-  'Smoother plan grants and tickets',
+  'All-new Voice Studio design',
+  'Smoother store and support chat — swipe down to close',
+  'Store Tickets now shown as FREE in plans',
+  'Stronger security across payments and the store',
 ];
 
 // 📦 Cosmetic-only "download size" shown next to the version in the update
