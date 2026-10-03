@@ -6,7 +6,7 @@ import { useAuth } from '@/context/auth-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { studioCard } from './studio-ui';
 import { Button } from '@/components/ui/button';
-import { Zap, AlertTriangle, Sparkles, Clock, Coins, Play, Pause, FileText, Loader2, Cpu, CheckCircle, Download, Activity, ShieldCheck, History, Plus, Radio, Info } from 'lucide-react';
+import { Zap, Check, AlertTriangle, Sparkles, Clock, Coins, Play, Pause, FileText, Loader2, Cpu, CheckCircle, Download, Activity, ShieldCheck, History, Plus, Radio, Info } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -221,17 +221,18 @@ export function GenerationSettings() {
                                     </Badge>
                                 </div>
                                 <div className="relative shrink-0">
-                                    <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse scale-125" />
-                                    <div className="relative h-14 w-14 sm:h-16 sm:w-16 rounded-full border-2 border-border dark:border-white/10 bg-card dark:bg-card/80 flex items-center justify-center shadow-xl">
-                                        <Zap className="h-6 w-6 sm:h-7 sm:w-7 text-primary fill-current" />
+                                    {!isHqReady && <div className="absolute inset-0 scale-125 rounded-full bg-primary/20 blur-xl animate-pulse" />}
+                                    <div className={cn("relative flex h-14 w-14 items-center justify-center rounded-full shadow-lg sm:h-16 sm:w-16", isHqReady ? "bg-emerald-500 text-white shadow-emerald-500/30 animate-in zoom-in-50 duration-500" : "border border-border bg-card text-primary dark:border-white/10")}>
+                                        {isHqReady ? <Check className="h-7 w-7" strokeWidth={3} /> : <Zap className="h-6 w-6 fill-current sm:h-7 sm:w-7" />}
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
                     )}
 
-                    {/* 2 — Progress metrics. Compact. */}
-                    {visibleBlocks >= 2 && (
+                    {/* 2 — Progress metrics. Compact. Hidden once done — the
+                        header already says the audio is ready. */}
+                    {visibleBlocks >= 2 && !isHqReady && (
                         <Card className={cn(studioCard, "anim-studio-rise")}>
                             <CardContent className="p-4 space-y-3">
                                 <div className="flex justify-between items-end">
@@ -252,7 +253,7 @@ export function GenerationSettings() {
 
                     {/* 3 — Status + live counters MERGED into one card (was two:
                         "Rendering Files" and "Listening Mode"). */}
-                    {visibleBlocks >= 3 && (
+                    {visibleBlocks >= 3 && !isHqReady && (
                         <Card className={cn(studioCard, "anim-studio-rise")}>
                             <CardContent className="p-4 space-y-3">
                                 <div className="flex items-center gap-3">
@@ -299,16 +300,16 @@ export function GenerationSettings() {
                     {isHqReady && (
                         <Card className={cn(studioCard, "anim-studio-rise")}>
                             <CardContent className="p-4 space-y-3">
-                                <div className="bg-muted dark:bg-black/60 backdrop-blur-xl p-3 rounded-2xl border border-border dark:border-white/10">
-                                    <audio src={getDisplayUrl(hqProject?.audioUrl)} controls className="w-full h-10" />
+                                <div className="rounded-2xl bg-slate-50 p-2 dark:bg-white/[0.04]">
+                                    <audio src={getDisplayUrl(hqProject?.audioUrl)} controls className="h-10 w-full" />
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-                                    <Button onClick={() => handleDownloadDirect(hqProject!.audioUrl!, hqProject!.projectName!)} disabled={isDownloading} className="h-12 rounded-2xl font-black text-sm sm:text-base bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/20 btn-shine text-white">
-                                        {isDownloading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Download className="h-5 w-5 mr-2" />}
-                                        DOWNLOAD MASTER
+                                <div className="grid grid-cols-[1fr_auto] gap-2">
+                                    <Button onClick={() => handleDownloadDirect(hqProject!.audioUrl!, hqProject!.projectName!)} disabled={isDownloading} className="anim-studio-sheen h-12 rounded-2xl bg-emerald-600 text-base font-bold text-white shadow-lg shadow-emerald-500/25 hover:bg-emerald-700">
+                                        {isDownloading ? <Loader2 className="relative z-[2] mr-2 h-5 w-5 animate-spin" /> : <Download className="relative z-[2] mr-2 h-5 w-5" />}
+                                        <span className="relative z-[2]">Download</span>
                                     </Button>
-                                    <Button onClick={clearStudioState} variant="outline" className="h-12 px-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border-border dark:border-white/10 bg-background dark:bg-white/5 text-foreground dark:text-white hover:bg-muted dark:hover:bg-white/10">
-                                        <Plus className="mr-1.5 h-4 w-4" /> NEW
+                                    <Button onClick={clearStudioState} variant="outline" className="h-12 rounded-2xl px-4 font-semibold">
+                                        <Plus className="mr-1.5 h-4 w-4" /> New
                                     </Button>
                                 </div>
                                 <GenerationFeedback

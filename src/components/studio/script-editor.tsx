@@ -243,7 +243,7 @@ export function ScriptEditor() {
             <Textarea
               placeholder={'Paste your script here…\n\nExample:\nNarrator: Ek chhota sa gaon tha…\nRaju: Maa, main school ja raha hoon!'}
               className={cn(
-                'h-[40vh] min-h-[280px] max-h-[560px] sm:h-[46vh] resize-none rounded-2xl border-0 bg-slate-50 p-4 text-[16px] leading-7 text-foreground shadow-none transition-all duration-300 placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0 dark:bg-white/[0.03] sm:p-5',
+                'h-[40vh] min-h-[280px] max-h-[560px] sm:h-[46vh] resize-none rounded-2xl border-0 bg-slate-50 p-4 pb-12 text-[16px] leading-7 text-foreground shadow-none transition-all duration-300 placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0 dark:bg-white/[0.03] sm:p-5 sm:pb-12',
                 isAnalyzed && 'cursor-default text-foreground/85',
                 isTransitioning ? 'scale-[0.99] opacity-0' : 'scale-100 opacity-100',
               )}
@@ -254,6 +254,30 @@ export function ScriptEditor() {
               }}
               readOnly={isAnalyzed}
             />
+            {/* Length meter lives inside the editor's corner, so the toolbar
+                never wraps when Copy appears. */}
+            {!isAnalyzed && (
+              <div className="absolute bottom-2.5 right-2.5 z-10 flex items-center gap-2 rounded-full border border-black/[0.06] bg-white/90 py-1 pl-2.5 pr-1 shadow-sm backdrop-blur dark:border-white/10 dark:bg-zinc-800/90">
+                <div className="hidden h-1.5 w-12 overflow-hidden rounded-full bg-muted min-[380px]:block">
+                  <div className={cn('h-full rounded-full transition-all duration-500', countIsBad ? 'bg-destructive' : 'bg-primary')} style={{ width: `${fillPct}%` }} />
+                </div>
+                <span className={cn('whitespace-nowrap text-xs font-semibold tabular-nums', countIsBad ? 'text-destructive' : 'text-foreground')}>
+                  {billableCharacterCount.toLocaleString()}
+                  <span className="font-normal text-muted-foreground">/30k</span>
+                </span>
+                {characterCount > 0 ? (
+                  <button
+                    type="button"
+                    disabled={isAnalyzing}
+                    onClick={() => setScript('')}
+                    aria-label="Clear script"
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                ) : <span className="w-1.5" />}
+              </div>
+            )}
           </div>
         )}
 
@@ -303,26 +327,6 @@ export function ScriptEditor() {
               </button>
             )}
 
-            <div className="ml-auto flex min-w-0 items-center gap-2 rounded-full border border-black/[0.06] bg-white py-1.5 pl-3 pr-1.5 shadow-sm dark:border-white/10 dark:bg-white/5">
-              <div className="h-1.5 w-12 overflow-hidden rounded-full bg-muted sm:w-16">
-                <div className={cn('h-full rounded-full transition-all duration-500', countIsBad ? 'bg-destructive' : 'bg-primary')} style={{ width: `${fillPct}%` }} />
-              </div>
-              <span className={cn('whitespace-nowrap text-xs font-semibold tabular-nums', countIsBad ? 'text-destructive' : 'text-foreground')}>
-                {billableCharacterCount.toLocaleString()}
-                <span className="font-normal text-muted-foreground">/30k</span>
-              </span>
-              {characterCount > 0 && (
-                <button
-                  type="button"
-                  disabled={isAnalyzing}
-                  onClick={() => setScript('')}
-                  aria-label="Clear script"
-                  className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
           </div>
         )}
       </div>

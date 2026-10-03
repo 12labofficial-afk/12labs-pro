@@ -50,147 +50,135 @@ function ProductOverlay({
     product: StoreProduct | null; 
     seller: SellerProfile | null;
 }) {
-    const [dragOffset, setDragOffset] = useState(0);
-    const [isClosing, setIsClosing] = useState(false);
-    const touchStartY = useRef(0);
-    const isDragging = useRef(false);
-    const scrollRef = useRef<HTMLDivElement>(null);
+    // iOS-style sheet: pull the header (or the content once it's scrolled to
+    // the top) down to dismiss. The offset is painted straight onto the
+    // element — no React state per touch, so the heavy product page never
+    // re-renders while dragging.
+    const sheetRef = useRef<HTMLDivElement>(null);
+    // State (not a ref) so the effect below runs once the portal has
+    // actually mounted the header — it appears a render after isOpen flips.
+    const [headerEl, setHeaderEl] = useState<HTMLDivElement | null>(null);
+    const drag = useRef<{ y: number; t: number; dy: number; active: boolean } | null>(null);
+    const closingRef = useRef(false);
 
-    // Dynamic scale for smooth scaling effect
-    const scale = Math.max(0.85, 1 - (dragOffset / 1000));
-    const opacity = Math.max(0, 1 - (dragOffset / 400));
-
-    const handleTouchStart = (e: React.TouchEvent) => {
-        const viewport = scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-        const isAtTop = viewport ? viewport.scrollTop <= 0 : true;
-
-        if (isAtTop) {
-            touchStartY.current = e.touches[0].clientY;
-            isDragging.current = true;
-        }
+    const paint = (dy: number, animate: boolean) => {
+        const el = sheetRef.current;
+        if (!el) return;
+        el.style.transition = animate ? 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)' : 'none';
+        el.style.transform = dy ? `translate3d(0, ${dy}px, 0)` : '';
     };
 
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (!isDragging.current) return;
-        const currentY = e.touches[0].clientY;
-        const deltaY = currentY - touchStartY.current;
-        
-        if (deltaY > 0) {
-            // If dragging down from top, prevent default scrolling and move sheet
-            setDragOffset(deltaY);
-            if (e.cancelable) e.preventDefault();
-        } else if (deltaY < 0) {
-            // If dragging up, don't interfere with normal scrolling
-            isDragging.current = false;
-            setDragOffset(0);
-        }
+    const finishClose = () => {
+        const el = sheetRef.current;
+        if (el) el.style.animation = 'none'; // already off screen — skip the built-in slide-out
+        onClose();
+        closingRef.current = false;
     };
 
-    const handleTouchEnd = () => {
-        if (!isDragging.current) return;
-        isDragging.current = false;
-        
-        if (dragOffset > 150) {
-            triggerClose();
-        } else {
-            // Spring back animation
-            setDragOffset(0);
-        }
+    const slideAwayAndClose = () => {
+        if (closingRef.current) return;
+        closingRef.current = true;
+        const el = sheetRef.current;
+        if (!el) return finishClose();
+        el.style.transition = 'transform 240ms cubic-bezier(0.32, 0.72, 0, 1)';
+        el.style.transform = 'translate3d(0, 100%, 0)';
+        window.setTimeout(finishClose, 220);
     };
 
-    const triggerClose = () => {
-        setIsClosing(true);
-        setTimeout(() => {
-            onClose();
-            setIsClosing(false);
-            setDragOffset(0);
-        }, 300);
-    };
+    useEffect(() => {
+        if (!isOpen || !headerEl) return;
+        const header = headerEl;
+        const viewport = headerEl.closest('[role=dialog]')?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+        const targets = [header, viewport].filter(Boolean) as HTMLElement[];
+        if (!targets.length) return;
 
-    if (!isOpen && !isClosing) return null;
+        const onStart = (e: TouchEvent) => {
+            if ((e.target as HTMLElement).closest('button, a, input, textarea, video, [role=radiogroup]')) return;
+            const fromHeader = header?.contains(e.target as Node);
+            if (!fromHeader && viewport && viewport.scrollTop > 0) return;
+            drag.current = { y: e.touches[0].clientY, t: performance.now(), dy: 0, active: false };
+        };
+        const onMove = (e: TouchEvent) => {
+            const d = drag.current;
+            if (!d) return;
+            const raw = e.touches[0].clientY - d.y;
+            if (!d.active) {
+                if (raw < 6) { if (raw < -6) drag.current = null; return; } // scrolling up — leave it alone
+                d.active = true;
+            }
+            if (e.cancelable) e.preventDefault(); // we own this gesture now
+            d.dy = Math.max(0, raw);
+            paint(d.dy, false);
+        };
+        const onEnd = () => {
+            const d = drag.current;
+            drag.current = null;
+            if (!d?.active) return;
+            const velocity = d.dy / Math.max(1, performance.now() - d.t);
+            if (d.dy > 140 || (d.dy > 40 && velocity > 0.5)) slideAwayAndClose();
+            else paint(0, true);
+        };
+
+        targets.forEach((t) => {
+            t.addEventListener('touchstart', onStart, { passive: true });
+            t.addEventListener('touchmove', onMove, { passive: false });
+            t.addEventListener('touchend', onEnd);
+            t.addEventListener('touchcancel', onEnd);
+        });
+        return () => targets.forEach((t) => {
+            t.removeEventListener('touchstart', onStart);
+            t.removeEventListener('touchmove', onMove);
+            t.removeEventListener('touchend', onEnd);
+            t.removeEventListener('touchcancel', onEnd);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, headerEl]);
+
+    if (!isOpen) return null;
 
     return (
-        <Sheet open={isOpen} onOpenChange={(open) => !open && triggerClose()}>
-            <SheetContent 
-                side="bottom" 
-                className={cn(
-                    "h-[100dvh] w-full p-0 border-none shadow-none bg-background overflow-hidden flex flex-col transition-all duration-300 ease-out",
-                    isClosing ? "scale-90 opacity-0 translate-y-full" : "scale-100 opacity-100 translate-y-0"
-                )}
-                style={{ 
-                    transform: dragOffset > 0 ? `translateY(${dragOffset}px) scale(${scale})` : undefined,
-                    opacity: dragOffset > 0 ? opacity : undefined,
-                    borderRadius: dragOffset > 0 ? '2.5rem' : '0'
-                }}
+        <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <SheetContent
+                ref={sheetRef}
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                side="bottom"
+                className="flex h-[94dvh] w-full flex-col gap-0 overflow-hidden rounded-t-[28px] border-none bg-background p-0 shadow-2xl will-change-transform"
             >
                 <SheetHeader className="sr-only">
                     <SheetTitle>{product?.title || 'Product Details'}</SheetTitle>
                     <SheetDescription>Viewing detailed information about {product?.title}</SheetDescription>
                 </SheetHeader>
 
-                {/* Fixed Header with Drag Handle */}
-                <div 
-                    className="w-full flex flex-col items-center pt-2 pb-1 shrink-0 bg-background/80 backdrop-blur-xl z-[60] sticky top-0 touch-none"
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                >
-                    <div className="w-12 h-1.5 bg-muted-foreground/20 rounded-full mb-3" />
-                    <div className="w-full flex justify-between items-center px-6 h-10">
-                        <Badge variant="outline" className="font-black text-[9px] uppercase tracking-widest border-primary/20 text-primary/60">
-                            {isLoading ? 'Syncing...' : product?.productType}
-                        </Badge>
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="rounded-full h-10 w-10 bg-muted/50 transition-transform active:scale-90" 
-                            onClick={triggerClose}
+                {/* Grab bar + close — drag anywhere here */}
+                <div ref={setHeaderEl} className="relative z-[60] shrink-0 touch-none select-none bg-background/85 px-4 pb-2 pt-2 backdrop-blur-xl">
+                    <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-muted-foreground/25" />
+                    <div className="flex h-9 items-center justify-between gap-3">
+                        <span className="truncate rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                            {isLoading ? 'Loading…' : (CATEGORY_LABELS as any)[product?.productType as string] || product?.productType}
+                        </span>
+                        <button
+                            type="button"
+                            aria-label="Close"
+                            onClick={slideAwayAndClose}
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-transform active:scale-90"
                         >
-                            <X className="h-5 w-5" />
-                        </Button>
+                            <X className="h-4 w-4" strokeWidth={2.5} />
+                        </button>
                     </div>
                 </div>
 
-                {/* Content Area with Global Touch Support for Pull-to-Dismiss */}
-                <ScrollArea 
-                    ref={scrollRef} 
-                    className="flex-1"
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                >
-                    <div className="relative">
-                        {isLoading || !product ? (
-                            <div className="p-8 space-y-8 animate-in fade-in duration-500">
-                                <Skeleton className="aspect-video w-full rounded-[2.5rem]" />
-                                <div className="space-y-4">
-                                    <Skeleton className="h-10 w-3/4 rounded-xl" />
-                                    <Skeleton className="h-24 w-full rounded-xl" />
-                                    <Skeleton className="h-48 w-full rounded-xl" />
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="pb-32">
-                                <ProductView 
-                                    initialProduct={product} 
-                                    initialSeller={seller} 
-                                />
-                            </div>
-                        )}
-                    </div>
-                </ScrollArea>
-                
-                {/* Pull-to-dismiss Label (Visible when dragging) */}
-                <div 
-                    className={cn(
-                        "absolute bottom-10 left-0 right-0 flex justify-center transition-opacity duration-300 pointer-events-none z-[70]",
-                        dragOffset > 50 ? "opacity-100" : "opacity-0"
+                <ScrollArea className="flex-1">
+                    {isLoading || !product ? (
+                        <div className="space-y-5 p-4 animate-in fade-in duration-300">
+                            <Skeleton className="aspect-video w-full rounded-[22px]" />
+                            <Skeleton className="h-8 w-3/4 rounded-xl" />
+                            <Skeleton className="h-6 w-1/3 rounded-xl" />
+                            <Skeleton className="h-40 w-full rounded-[22px]" />
+                        </div>
+                    ) : (
+                        <ProductView initialProduct={product} initialSeller={seller} />
                     )}
-                >
-                    <Badge className="bg-black/60 text-white backdrop-blur-md px-6 py-2 rounded-full font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl">
-                        Release to Close
-                    </Badge>
-                </div>
+                </ScrollArea>
             </SheetContent>
         </Sheet>
     );

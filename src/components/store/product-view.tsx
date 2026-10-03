@@ -340,9 +340,14 @@ function AdminEditDialog({ product, open, onOpenChange, onUpdate }: { product: S
 export function MetadataBlock({ icon: Icon, label, value, colorClass, statusBadge }: { icon: any, label: string, value: any, colorClass?: string, statusBadge?: boolean }) {
     if (value === undefined || value === null || value === '' || value === false) return null;
     return (
-        <div className="p-4 sm:p-5 rounded-[1.5rem] bg-white dark:bg-card border border-primary/5 shadow-sm transition-all hover:bg-muted/5 flex flex-col gap-2 h-full">
-            <div className="flex items-center gap-2.5 mb-0.5"><div className={cn("p-2 rounded-xl bg-primary/5 shadow-inner", colorClass || "text-primary")}><Icon className="h-4 w-4" /></div><span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">{label}</span></div>
-            <div className="flex items-center gap-2">{statusBadge && value === true ? (<div className="flex items-center gap-2 text-green-600"><div className="p-1 bg-green-500 rounded-full"><Check className="h-3 w-3 text-white" /></div><span className="text-[12px] font-black uppercase tracking-tight">YES / VERIFIED</span></div>) : (<span className="text-[13px] font-black uppercase tracking-tighter text-foreground truncate">{value === true ? 'Yes' : String(value)}</span>)}</div>
+        <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.04]">
+            <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-white/10", colorClass || "text-primary")}><Icon className="h-4 w-4" /></div>
+            <div className="min-w-0">
+                <p className="truncate text-[11px] text-muted-foreground">{label}</p>
+                {statusBadge && value === true
+                    ? <p className="flex items-center gap-1 text-sm font-semibold text-emerald-600"><Check className="h-3.5 w-3.5" strokeWidth={3} /> Yes</p>
+                    : <p className="truncate text-sm font-semibold text-foreground">{value === true ? 'Yes' : String(value)}</p>}
+            </div>
         </div>
     );
 }
@@ -616,230 +621,217 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
         return isValid(date) ? format(date, 'PP') : 'Recently';
     }, [product.createdAt]);
 
+    const basePriceForStrike = product.tieredPricing ? ((product.tieredPricing as any)[selectedTier] || product.price) : product.price;
+    const strikePrice = isVerifiedPartner && globalDiscount > 0
+        ? basePriceForStrike
+        : (Number(product.originalPrice) > Number(displayPrice) ? Number(product.originalPrice) : null);
+    const offPct = strikePrice ? Math.round(((Number(strikePrice) - Number(displayPrice)) / Number(strikePrice)) * 100) : 0;
+    const typeLabel = isScript ? 'Script' : isStory ? 'Readymade video' : product.productType;
+
     return (
-        <div className="pb-32">
-            <div className="container mx-auto max-w-6xl py-10 px-4">
-                <div className="grid lg:grid-cols-3 gap-8 md:gap-12">
-                    <div className="lg:col-span-2 space-y-4">
+        <div className="pb-28">
+            <div className="mx-auto max-w-6xl px-4 pb-6 pt-2 lg:pt-6">
+                <div className="grid gap-6 lg:grid-cols-3 lg:gap-10">
+                    {/* A — media + title */}
+                    <div className="anim-studio-rise min-w-0 space-y-4 lg:col-span-2">
                         <Carousel setApi={setApi} plugins={[plugin.current]} className="w-full">
                             <CarouselContent>
                                 {effectivePreviews.map((preview, index) => (
                                     <CarouselItem key={index}>
-                                        <div className="aspect-video w-full bg-muted rounded-3xl overflow-hidden relative group border shadow-sm">
-                                            {preview.type === 'image' ? <img src={getDisplayUrl(preview.url)} alt="P" className="w-full h-full object-contain" /> : <video src={getDisplayUrl(preview.url)} controls className="w-full h-full object-contain" />}
+                                        <div className="relative aspect-video w-full overflow-hidden rounded-[22px] bg-muted shadow-[0_20px_50px_-28px_rgba(15,23,42,0.45)]">
+                                            {preview.type === 'image' ? <img src={getDisplayUrl(preview.url)} alt={product.title} className="h-full w-full object-cover" /> : <video src={getDisplayUrl(preview.url)} controls playsInline className="h-full w-full object-contain" />}
                                         </div>
                                     </CarouselItem>
                                 ))}
                             </CarouselContent>
-                            {effectivePreviews.length > 1 && (<><CarouselPrevious className="left-2" /><CarouselNext className="right-2" /></>)}
+                            {effectivePreviews.length > 1 && (<><CarouselPrevious className="left-2 hidden sm:flex" /><CarouselNext className="right-2 hidden sm:flex" /></>)}
                         </Carousel>
-                        <div className="space-y-4 pt-4">
-                            <div className="flex items-center gap-3 flex-wrap">
-                                <Badge variant="secondary" className="font-black uppercase text-[10px] px-3 h-6 tracking-widest bg-primary/5 text-primary border-primary/10">{product.productType}</Badge>
-                                {isVerifiedPartner && (<Badge className="bg-primary/10 text-primary border-none h-6 px-3 text-[10px] uppercase font-black flex items-center gap-1"><VerifiedBadge className="h-3 w-3" /> Verified Partner</Badge>)}
-                            </div>
-                            <h1 className="text-3xl md:text-5xl font-black tracking-tighter uppercase leading-none">{product.title}</h1>
-                            
-                            {isVerifiedPartner && globalDiscount > 0 && (
-                                <div className="flex items-baseline gap-3 pt-2">
-                                    <span className="text-2xl md:text-3xl font-black text-primary">₹{displayPrice}</span>
-                                    <span className="text-lg font-bold text-muted-foreground line-through opacity-50">₹{product.tieredPricing ? (product.tieredPricing as any)[selectedTier] || product.price : product.price}</span>
-                                    <Badge className="bg-primary text-white font-black text-[10px] px-2 h-5 border-none rounded-lg uppercase">{globalDiscount}% OFF</Badge>
-                                </div>
-                            )}
 
-                            <div className="flex items-center flex-wrap gap-x-6 gap-y-3 text-muted-foreground pt-2">
-                                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest"><Calendar className="h-4 w-4" /><span>Listed {safeFormattedDate}</span></div>
+                        <div className="space-y-2.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">{typeLabel}</span>
+                                {isVerifiedPartner && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"><VerifiedBadge className="h-3.5 w-3.5" /> Verified Partner</span>
+                                )}
                             </div>
-                        </div>
-                        <Separator className="my-8" />
-                        {isStory && (
-                            <div className="space-y-8 pt-4">
-                                <h3 className="text-3xl font-black uppercase tracking-tighter flex items-center gap-4"><Activity className="h-8 w-8 text-primary" />ASSET SPECIFICATIONS</h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <MetadataBlock icon={Globe} label="Audio Language" value={product.language} />
-                                    <MetadataBlock icon={Cpu} label="AI Audio Sync" value={!!product.isAiGenerated} colorClass="text-green-500" statusBadge />
-                                    <MetadataBlock icon={Sparkles} label="Video Quality" value={product.quality} colorClass="text-amber-500" />
-                                    <MetadataBlock icon={MonitorPlay} label="Resolution" value={product.resolution} />
-                                    <MetadataBlock icon={Clock} label="Duration" value={product.duration} />
-                                    <MetadataBlock icon={Download} label="File Size Range" value={product.videoSize} colorClass="text-blue-600" />
-                                    <MetadataBlock icon={Layers} label="Scene Density" value={product.frameCount} />
-                                    <MetadataBlock icon={UserCircle} label="Target Audience" value={product.targetAudience} />
-                                    <MetadataBlock icon={MessageSquare} label="Emotional Tone" value={product.emotionalTone} />
-                                    <MetadataBlock icon={Award} label="License Hub" value="Full Commercial" colorClass="text-green-600" />
-                                    <MetadataBlock icon={Volume2} label="Sound FX" value={product.soundFx} />
-                                    <MetadataBlock icon={Music} label="BGM" value={product.bgm} />
-                                </div>
-                            </div>
-                        )}
-                        <div className="space-y-6 pt-12">
-                            <h3 className="text-3xl font-black uppercase tracking-tighter flex items-center gap-4"><Info className="h-8 w-8 text-primary" />PRODUCTION INSIGHT</h3>
-                            <p className="text-muted-foreground text-lg leading-relaxed whitespace-pre-wrap font-medium">{product.description}</p>
-                            
-                            {isScript && (scriptPreviewText.length > 0 || isFetchingPreview) && (
-                                <div className="space-y-4 pt-6">
-                                    <h4 className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
-                                        <FileText className="h-6 w-6 text-primary" />
-                                        SCRIPT BLUEPRINT (PREVIEW)
-                                    </h4>
-                                    <div
-                                        className="border-2 border-primary/10 rounded-[2rem] p-6 sm:p-10 bg-muted/20 font-mono text-sm leading-relaxed shadow-inner relative select-none"
-                                        style={{ WebkitUserSelect: 'none', userSelect: 'none' }}
-                                        onCopy={(e) => {
-                                            e.preventDefault();
-                                            toast({ variant: 'destructive', title: 'Copying disabled', description: 'Purchase the script to get the full, downloadable manuscript.' });
-                                        }}
-                                        onCut={(e) => e.preventDefault()}
-                                        onContextMenu={(e) => e.preventDefault()}
-                                        onDragStart={(e) => e.preventDefault()}
-                                    >
-                                        {isFetchingPreview ? (
-                                            <div className="flex flex-col items-center justify-center py-10 gap-3 opacity-30">
-                                                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                                                <p className="text-[10px] font-black uppercase tracking-widest">Fetching GCS Preview...</p>
-                                            </div>
-                                        ) : (
-                                            scriptPreviewText.map((line, index) => (
-                                                <div key={index} className="mb-2">
-                                                    {line.trim() === '[LOCKED_LINE]' ? (
-                                                        <Badge variant="outline" className="h-6 px-3 bg-background border-primary/20 text-primary font-black uppercase text-[9px] tracking-widest gap-2">
-                                                            <Lock className="h-3 w-3" /> 
-                                                            FULL SCRIPT ENCRYPTED - UNLOCK VIA PURCHASE
-                                                        </Badge>
-                                                    ) : (
-                                                        <p className="whitespace-pre-wrap break-words opacity-80">{line}</p>
-                                                    )}
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                    <div className="flex items-center justify-between px-4">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 italic">
-                                            Displaying 30% teaser of the complete manuscript.
-                                        </p>
-                                        {product.characterCount && (
-                                            <Badge variant="secondary" className="h-5 px-2 text-[9px] font-black uppercase bg-primary/5 text-primary/70">
-                                                {product.characterCount.toLocaleString()} CHARACTERS
-                                            </Badge>
-                                        )}
-                                    </div>
+                            <h1 className="break-words text-[26px] font-extrabold leading-tight tracking-tight sm:text-4xl">{product.title}</h1>
+                            {!hasPurchased && !isSoldOut && (
+                                <div className="flex flex-wrap items-baseline gap-2.5">
+                                    <span className="text-3xl font-extrabold tracking-tight text-foreground tabular-nums">₹{displayPrice}</span>
+                                    {strikePrice && <span className="text-base font-medium text-muted-foreground line-through tabular-nums">₹{strikePrice}</span>}
+                                    {offPct > 0 && <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-600">{offPct}% off</span>}
                                 </div>
                             )}
+                            <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> Listed {safeFormattedDate}</p>
                         </div>
                     </div>
-                    <div className="lg:col-span-1">
-                        <Card className="sticky top-24 border-primary/10 shadow-2xl overflow-hidden rounded-[2.5rem]">
-                            <CardHeader className="bg-primary/5 pb-6 border-b border-primary/10 text-center">
-                                {hasPurchased ? (<div className="space-y-1"><Badge className="bg-green-600 text-white font-black uppercase tracking-widest">OWNED BY YOU</Badge><CardTitle className="text-xl font-black mt-2">Secured Archive Active</CardTitle></div>) : isSoldOut ? (<div className="space-y-1"><Badge variant="destructive" className="font-black uppercase tracking-widest">SOLD OUT</Badge><CardTitle className="text-xl font-black mt-2">Exclusive Asset Sold</CardTitle></div>) : ticketUsable ? (<><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">With your ticket</p><div className="flex items-center justify-center gap-3"><span className="text-2xl font-bold text-muted-foreground line-through">₹{displayPrice}</span><CardTitle className="text-5xl font-black tracking-tighter text-emerald-600">FREE</CardTitle></div><div className="mt-2 flex justify-center"><TicketChip /></div></>) : (<><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Standard Entry</p><CardTitle className="text-5xl font-black tracking-tighter">₹{displayPrice}</CardTitle></>)}
-                            </CardHeader>
-                            <CardContent className="pt-8 space-y-8">
+
+                    {/* B — buy card (right after the title on phones, sticky column on desktop) */}
+                    <div className="anim-studio-rise min-w-0 lg:col-start-3 lg:row-span-2 lg:row-start-1">
+                        <div className="overflow-hidden rounded-[28px] border border-black/[0.06] bg-white shadow-[0_24px_60px_-30px_rgba(37,99,235,0.35)] dark:border-white/10 dark:bg-zinc-900 lg:sticky lg:top-6">
+                            <div className="space-y-4 p-5">
                                 {hasPurchased ? (
-                                    <div className="space-y-6">
-                                        <div className="p-5 rounded-3xl bg-green-500/5 border border-green-500/10 text-center space-y-3">
-                                            <div className="p-3 bg-green-500/20 rounded-2xl w-fit mx-auto"><ShieldCheck className="h-8 w-8 text-green-600" /></div>
-                                            <p className="text-[10px] font-bold text-green-700 uppercase">Licensed for commercial projects.</p>
-                                        </div>
-                                        <div className="space-y-4">
-                                            {isScript && (<Button onClick={handleDownloadTxt} className="w-full h-16 text-lg font-black rounded-2xl shadow-xl shadow-primary/30 btn-shine uppercase gap-3"><Download className="h-6 w-6" />Download .TXT</Button>)}
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <Button variant="secondary" className="h-12 rounded-xl font-black text-[10px] uppercase tracking-widest gap-2 bg-primary/5 text-primary border-primary/10 shadow-sm" onClick={handleDownloadLicense} disabled={isGeneratingLicense}>{isGeneratingLicense ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Award className="h-4 w-4" />}License</Button>
-                                            </div>
+                                    <div className="flex items-center gap-3 rounded-2xl bg-emerald-500/10 p-3">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white"><ShieldCheck className="h-5 w-5" /></div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">You own this</p>
+                                            <p className="text-xs text-muted-foreground">Licensed for commercial projects</p>
                                         </div>
                                     </div>
                                 ) : isSoldOut ? (
-                                    <div className="space-y-6">
-                                        <div className="p-5 rounded-3xl bg-muted/30 border-2 border-dashed text-center space-y-3 grayscale"><Gem className="h-8 w-8 text-muted-foreground mx-auto" /><p className="text-xs font-bold text-muted-foreground uppercase">This exclusive item has been sold.</p></div><Button variant="outline" className="w-full h-16 text-sm font-black rounded-2xl border-2 uppercase" asChild><Link href="/store">BROWSE MARKETPLACE</Link></Button>
+                                    <div className="flex items-center gap-3 rounded-2xl bg-muted p-3">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-background text-muted-foreground"><Gem className="h-5 w-5" /></div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold">Sold out</p>
+                                            <p className="text-xs text-muted-foreground">This exclusive item has been sold.</p>
+                                        </div>
                                     </div>
+                                ) : ticketUsable ? (
+                                    <div className="flex items-baseline justify-between gap-3">
+                                        <p className="text-sm font-medium text-muted-foreground">With your ticket</p>
+                                        <p className="flex items-baseline gap-2"><span className="text-sm text-muted-foreground line-through">₹{displayPrice}</span><span className="text-2xl font-extrabold text-emerald-600">FREE</span></p>
+                                    </div>
+                                ) : null}
+
+                                {hasPurchased ? (
+                                    <div className="space-y-2.5">
+                                        {isScript && (<Button onClick={handleDownloadTxt} className="h-14 w-full rounded-2xl text-base font-bold shadow-lg shadow-primary/25"><Download className="mr-2 h-5 w-5" /> Download script (.txt)</Button>)}
+                                        <Button variant="outline" className="h-12 w-full rounded-2xl font-semibold" onClick={handleDownloadLicense} disabled={isGeneratingLicense}>{isGeneratingLicense ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Award className="mr-2 h-4 w-4 text-primary" />}Download license</Button>
+                                    </div>
+                                ) : isSoldOut ? (
+                                    <Button variant="outline" className="h-12 w-full rounded-2xl font-semibold" asChild><Link href="/store">Browse the store</Link></Button>
                                 ) : (
                                     <>
                                         {product.tieredPricing && (
-                                            <div className="space-y-4">
-                                                <p className="text-[10px] font-black uppercase text-primary px-1">Select Tier</p>
-                                                <RadioGroup value={selectedTier} onValueChange={(v: any) => setSelectedTier(v)} className="grid gap-3">
-                                                    <Label className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", selectedTier === 'singleChannel' ? 'border-primary bg-primary/5' : 'border-muted/50 opacity-60')}>
-                                                        <div className="flex items-center gap-3">
-                                                            <RadioGroupItem value="singleChannel" id="t1" />
-                                                            <div className="space-y-0.5"><p className="font-black text-sm uppercase">Single Channel</p></div>
-                                                        </div>
-                                                        <span className="font-black">₹{product.tieredPricing.singleChannel}</span>
+                                            <RadioGroup value={selectedTier} onValueChange={(v: any) => setSelectedTier(v)} className="grid gap-2">
+                                                {([['singleChannel', 'Single channel'], ['multipleWorks', 'Multi-commercial']] as const).map(([value, label]) => (
+                                                    <Label key={value} className={cn("flex cursor-pointer items-center justify-between rounded-2xl border p-3.5 transition-all duration-200", selectedTier === value ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border')}>
+                                                        <span className="flex items-center gap-3"><RadioGroupItem value={value} /><span className="text-sm font-semibold">{label}</span></span>
+                                                        <span className="text-sm font-bold tabular-nums">₹{(product.tieredPricing as any)[value]}</span>
                                                     </Label>
-                                                    <Label className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", selectedTier === 'multipleWorks' ? 'border-primary bg-primary/5' : 'border-muted/50 opacity-60')}>
-                                                        <div className="flex items-center gap-3">
-                                                            <RadioGroupItem value="multipleWorks" id="t2" />
-                                                            <div className="space-y-0.5"><p className="font-black text-sm uppercase">Multi-Commercial</p></div>
-                                                        </div>
-                                                        <span className="font-black">₹{product.tieredPricing.multipleWorks}</span>
-                                                    </Label>
-                                                </RadioGroup>
-                                            </div>
+                                                ))}
+                                            </RadioGroup>
                                         )}
                                         {ticketUsable && (
-                                            <div className="space-y-3 rounded-3xl border-2 border-amber-400/50 bg-gradient-to-b from-amber-50 to-transparent p-4 dark:from-amber-500/10">
+                                            <div className="space-y-3 rounded-2xl bg-gradient-to-b from-purple-500/10 to-transparent p-3 ring-1 ring-purple-500/20">
                                                 <div className="flex items-center gap-3">
-                                                    <TicketArt className="w-28 shrink-0 text-[10px]" />
-                                                    <div className="min-w-0 text-left">
-                                                        <p className="text-sm font-black">You have {ticketCount} Store Ticket{ticketCount > 1 ? 's' : ''}</p>
-                                                        <p className="text-xs text-muted-foreground">Use 1 ticket and get this Verified Partner item free.</p>
+                                                    <TicketArt className="w-20 shrink-0 text-[8px]" />
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-bold">{ticketCount} Store Ticket{ticketCount > 1 ? 's' : ''}</p>
+                                                        <p className="text-xs text-muted-foreground">Use 1 to get this item free.</p>
                                                     </div>
                                                 </div>
                                                 <Button
                                                     onClick={handleUseTicket}
                                                     disabled={isRedeemingTicket}
-                                                    className="h-14 w-full rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-base font-black uppercase text-amber-950 shadow-lg shadow-amber-500/30 hover:from-amber-500 hover:to-orange-600"
+                                                    className="h-12 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-500 text-base font-bold text-white shadow-lg shadow-purple-500/25 hover:brightness-105"
                                                 >
                                                     {isRedeemingTicket ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
                                                     Use 1 ticket · Save ₹{displayPrice}
                                                 </Button>
-                                                <p className="text-center text-[11px] font-semibold text-muted-foreground">Or pay normally below.</p>
                                             </div>
                                         )}
-                                        {isInCart(product.id) ? (<Button className="w-full h-16 text-lg font-black rounded-2xl bg-green-600 hover:bg-green-700 uppercase" asChild><Link href="/store/checkout"><Check className="mr-3 h-6 w-6" /> GO TO CHECKOUT</Link></Button>) : (<Button className="w-full h-16 text-xl font-black rounded-2xl shadow-xl shadow-primary/30 btn-shine uppercase tracking-tight" onClick={handleAddToCart}><ShoppingCart className="mr-3 h-6 w-6" /> ADD TO CART</Button>)}
+                                        {isInCart(product.id)
+                                            ? (<Button className="h-14 w-full rounded-2xl bg-emerald-600 text-base font-bold hover:bg-emerald-700" asChild><Link href="/store/checkout"><Check className="mr-2 h-5 w-5" /> Go to checkout</Link></Button>)
+                                            : (<Button className={cn("anim-studio-sheen h-14 w-full rounded-2xl text-base font-bold shadow-lg shadow-primary/30", ticketUsable ? "bg-foreground text-background hover:bg-foreground/90" : "bg-gradient-to-r from-primary to-indigo-500 text-white hover:brightness-105")} onClick={handleAddToCart}><ShoppingCart className="relative z-[2] mr-2 h-5 w-5" /><span className="relative z-[2]">{ticketUsable ? 'Or add to cart' : 'Add to cart'}</span></Button>)}
                                     </>
                                 )}
-                            </CardContent>
+                            </div>
+
                             {seller && (
-                                <CardFooter className="p-6 bg-muted/20 border-t">
-                                    <div className="flex items-center justify-between w-full gap-3">
-                                        <Link href={`/seller/${product.sellerId}`} className="flex items-center justify-between p-2 rounded-2xl transition-all hover:bg-background/80 flex-grow min-w-0 group">
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <Avatar className="h-10 w-10 shadow-md">
-                                                    <AvatarImage src={getDisplayUrl(seller.profileImageUrl)} />
-                                                    <AvatarFallback className={cn("font-black text-xs", avatarColor.bg, avatarColor.text)}>{seller.storeName.charAt(0).toUpperCase()}</AvatarFallback>
-                                                </Avatar>
-                                                <div className="min-w-0">
-                                                    <div className="flex items-center gap-1"><p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Creator</p>{isVerifiedPartner && <VerifiedBadge className="h-3 w-3" />}</div>
-                                                    <p className="font-black text-sm truncate">{seller.storeName}</p>
-                                                    {typeof seller.followerCount === 'number' && (
-                                                        <p className="text-[11px] text-muted-foreground">{seller.followerCount.toLocaleString()} {seller.followerCount === 1 ? 'subscriber' : 'subscribers'}</p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </Link>
-                                        {user?.uid !== product.sellerId && (
-                                            <Button
-                                                onClick={handleFollowToggle}
-                                                disabled={isLoadingFollow}
-                                                className={cn(
-                                                    "h-9 shrink-0 rounded-full px-4 text-xs font-bold",
-                                                    isFollowing
-                                                        ? "bg-muted text-foreground hover:bg-muted/80"
-                                                        : "bg-foreground text-background hover:bg-foreground/90"
-                                                )}
-                                            >
-                                                {isLoadingFollow ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : isFollowing ? (
-                                                    <><Bell className="mr-1.5 h-3.5 w-3.5" /> Subscribed</>
-                                                ) : (
-                                                    'Subscribe'
-                                                )}
-                                            </Button>
-                                        )}
-                                    </div>
-                                </CardFooter>
+                                <div className="flex items-center gap-3 border-t border-black/[0.05] p-4 dark:border-white/10">
+                                    <Link href={`/seller/${product.sellerId}`} className="flex min-w-0 flex-1 items-center gap-3">
+                                        <Avatar className="h-10 w-10">
+                                            <AvatarImage src={getDisplayUrl(seller.profileImageUrl)} />
+                                            <AvatarFallback className={cn("text-xs font-bold", avatarColor.bg, avatarColor.text)}>{seller.storeName.charAt(0).toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="min-w-0">
+                                            <p className="flex items-center gap-1 truncate text-sm font-semibold">{seller.storeName}{isVerifiedPartner && <VerifiedBadge className="h-3.5 w-3.5 shrink-0" />}</p>
+                                            <p className="truncate text-xs text-muted-foreground">
+                                                {typeof seller.followerCount === 'number' ? `${seller.followerCount.toLocaleString()} ${seller.followerCount === 1 ? 'subscriber' : 'subscribers'}` : 'Creator'}
+                                            </p>
+                                        </div>
+                                    </Link>
+                                    {user?.uid !== product.sellerId && (
+                                        <Button
+                                            onClick={handleFollowToggle}
+                                            disabled={isLoadingFollow}
+                                            className={cn("h-9 shrink-0 rounded-full px-4 text-xs font-bold", isFollowing ? "bg-muted text-foreground hover:bg-muted/80" : "bg-foreground text-background hover:bg-foreground/90")}
+                                        >
+                                            {isLoadingFollow ? <Loader2 className="h-4 w-4 animate-spin" /> : isFollowing ? <><Bell className="mr-1.5 h-3.5 w-3.5" /> Subscribed</> : 'Subscribe'}
+                                        </Button>
+                                    )}
+                                </div>
                             )}
-                        </Card>
-                        {isAdmin && (<div className="mt-6"><Button variant="outline" className="w-full h-12 rounded-2xl font-black uppercase text-[10px] tracking-widest border-primary/10 text-primary/70 hover:bg-primary transition-all gap-3" onClick={() => setIsAdminEditOpen(true)}><Edit className="h-4 w-4" /> Admin Override</Button></div>)}
+                        </div>
+                        {isAdmin && (<Button variant="outline" className="mt-3 h-11 w-full rounded-2xl font-semibold" onClick={() => setIsAdminEditOpen(true)}><Edit className="mr-2 h-4 w-4" /> Admin edit</Button>)}
+                    </div>
+
+                    {/* C — details */}
+                    <div className="anim-studio-rise min-w-0 space-y-6 lg:col-span-2">
+                        {isStory && (
+                            <section className="space-y-3">
+                                <h3 className="flex items-center gap-2 text-lg font-bold tracking-tight"><Activity className="h-5 w-5 text-primary" /> Specifications</h3>
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                    <MetadataBlock icon={Globe} label="Audio language" value={product.language} />
+                                    <MetadataBlock icon={Cpu} label="AI audio sync" value={!!product.isAiGenerated} statusBadge />
+                                    <MetadataBlock icon={Sparkles} label="Video quality" value={product.quality} colorClass="text-amber-500" />
+                                    <MetadataBlock icon={MonitorPlay} label="Resolution" value={product.resolution} />
+                                    <MetadataBlock icon={Clock} label="Duration" value={product.duration} />
+                                    <MetadataBlock icon={Download} label="File size" value={product.videoSize} />
+                                    <MetadataBlock icon={Layers} label="Scenes" value={product.frameCount} />
+                                    <MetadataBlock icon={UserCircle} label="Audience" value={product.targetAudience} />
+                                    <MetadataBlock icon={MessageSquare} label="Tone" value={product.emotionalTone} />
+                                    <MetadataBlock icon={Award} label="License" value="Full commercial" colorClass="text-emerald-600" />
+                                    <MetadataBlock icon={Volume2} label="Sound FX" value={product.soundFx} />
+                                    <MetadataBlock icon={Music} label="BGM" value={product.bgm} />
+                                </div>
+                            </section>
+                        )}
+
+                        {product.description && (
+                            <section className="space-y-2">
+                                <h3 className="flex items-center gap-2 text-lg font-bold tracking-tight"><Info className="h-5 w-5 text-primary" /> About this {isScript ? 'script' : 'item'}</h3>
+                                <p className="whitespace-pre-wrap break-words text-[15px] leading-7 text-foreground/80">{product.description}</p>
+                            </section>
+                        )}
+
+                        {isScript && (scriptPreviewText.length > 0 || isFetchingPreview) && (
+                            <section className="space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                    <h3 className="flex items-center gap-2 text-lg font-bold tracking-tight"><FileText className="h-5 w-5 text-primary" /> Preview</h3>
+                                    {product.characterCount ? <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">{product.characterCount.toLocaleString()} characters</span> : null}
+                                </div>
+                                <div
+                                    className="relative select-none overflow-hidden rounded-[22px] bg-slate-50 p-4 text-[15px] leading-7 dark:bg-white/[0.04] sm:p-6"
+                                    style={{ WebkitUserSelect: 'none', userSelect: 'none' }}
+                                    onCopy={(e) => {
+                                        e.preventDefault();
+                                        toast({ variant: 'destructive', title: 'Copying disabled', description: 'Purchase the script to get the full, downloadable manuscript.' });
+                                    }}
+                                    onCut={(e) => e.preventDefault()}
+                                    onContextMenu={(e) => e.preventDefault()}
+                                    onDragStart={(e) => e.preventDefault()}
+                                >
+                                    {isFetchingPreview ? (
+                                        <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+                                            <Loader2 className="h-4 w-4 animate-spin text-primary" /> Loading preview…
+                                        </div>
+                                    ) : (
+                                        scriptPreviewText.map((line, index) => (
+                                            line.trim() === '[LOCKED_LINE]' ? (
+                                                <div key={index} className="mt-2 flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm dark:bg-white/10">
+                                                    <Lock className="h-3.5 w-3.5" /> The full script unlocks after purchase
+                                                </div>
+                                            ) : (
+                                                <p key={index} className="whitespace-pre-wrap break-words text-foreground/80">{line}</p>
+                                            )
+                                        ))
+                                    )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">Showing about 30% of the full script.</p>
+                            </section>
+                        )}
                     </div>
                 </div>
             </div>

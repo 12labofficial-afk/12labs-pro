@@ -30,13 +30,6 @@ function StudioTopBar({ step }: { step: number }) {
   return (
     <div className="anim-studio-rise flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-primary shadow-sm backdrop-blur dark:bg-white/5">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          </span>
-          Next-gen voice engine
-        </div>
         <h1 className="text-[28px] font-extrabold leading-none tracking-tight sm:text-4xl">
           Voice <span className="bg-gradient-to-r from-primary to-indigo-500 bg-clip-text text-transparent">Studio</span>
         </h1>
@@ -81,7 +74,8 @@ function StudioContent() {
   // Show dialogue nodes whenever generated lines exist
   const showGeneratedLines = generatedLines.length > 0;
 
-  const step = isHqActive || isAudioReady || isGenerating ? 3 : scriptState === 'valid' ? 2 : 1;
+  // 4 = everything done: all three steps show a check.
+  const step = isAudioReady ? 4 : isHqActive || isGenerating ? 3 : scriptState === 'valid' ? 2 : 1;
 
   return (
     <div className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-[#f6f8fc] pb-24 text-foreground dark:bg-zinc-950">
