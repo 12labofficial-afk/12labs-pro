@@ -185,7 +185,7 @@ const ageColorClasses = {
     Old: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
 };
 
-export function CharacterAssignments() {
+export function CharacterAssignments({ forceSetup = false }: { forceSetup?: boolean } = {}) {
   const { 
     characters, 
     handleVoiceChange, 
@@ -270,7 +270,8 @@ export function CharacterAssignments() {
   };
 
   // AUTOMATIC HIDE: Hide component during and after submission
-  if (characters.length === 0 || isGenerating || isFinalizing || hqProject || generatedAudio) {
+  // forceSetup: the user stepped back from a finished/running job to look at the cast.
+  if (characters.length === 0 || isGenerating || isFinalizing || (!forceSetup && (hqProject || generatedAudio))) {
     return null;
   }
   

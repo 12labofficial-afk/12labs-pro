@@ -915,13 +915,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             if (res.success && res.projectId) { 
                 if (res.newCredits !== undefined) setUser({ ...user, credits: res.newCredits } as any); 
                 setHqProjectId(res.projectId); 
-                
-                setScript('');
-                setCleanScript('');
-                setCharacters([]);
-                setGeneratedLines([]);
-                setScriptState('pristine');
-                setScriptAnalysis(null);
+                // The job now runs on the server. Leaving "generating" on is
+                // what stopped the draft (with this project id) from ever
+                // being saved — so reopening /studio fell back to the
+                // script step instead of the finished audio.
+                setIsGenerating(false);
+                // Script, cast and lines are kept so the user can step back
+                // to them from the result; "New" clears everything.
                 setIsPaid(false);
                 setHqSubmissionId(null);
 

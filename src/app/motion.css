@@ -278,6 +278,10 @@
 /* Equalizer bars on the playing sample. */
 @keyframes studio-eq { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
 
+/* Soft attention pulse (ring grows and fades) — e.g. the studio "New" button. */
+@keyframes new-pulse { 0% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.45); } 70%, 100% { box-shadow: 0 0 0 12px hsl(var(--primary) / 0); } }
+.anim-new-pulse { animation: new-pulse 1.8s ease-out infinite; }
+
 /* Slow float for the hero icon tile. */
 @keyframes studio-float { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -4px, 0); } }
 .anim-studio-float { animation: studio-float 4s ease-in-out infinite; }

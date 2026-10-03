@@ -32,7 +32,7 @@ const GENRE_IMAGES: Record<string, string> = {
   'moral': 'https://storage.12labs.in/Uploaded%20previews/moral_story_preview.webp'
 };
 
-export function GenerationSettings() {
+export function GenerationSettings({ forceSetup = false }: { forceSetup?: boolean } = {}) {
     const { user } = useAuth();
     const { 
         characters, 
@@ -185,7 +185,7 @@ export function GenerationSettings() {
         }
     };
 
-    if (isHqActive || isHqReady) {
+    if ((isHqActive || isHqReady) && !forceSetup) {
         const displayTotal = realtimeProgress?.total || hqProject?.syncData?.dialogues?.length || (hqProject as any)?.totalDialogues || 0;
         const displayProcessed = isHqReady ? displayTotal : (realtimeProgress?.processed || 0);
         // Rejected count: while running it comes live from RTDB; once done
@@ -308,10 +308,17 @@ export function GenerationSettings() {
                                         {isDownloading ? <Loader2 className="relative z-[2] mr-2 h-5 w-5 animate-spin" /> : <Download className="relative z-[2] mr-2 h-5 w-5" />}
                                         <span className="relative z-[2]">Download</span>
                                     </Button>
-                                    <Button onClick={clearStudioState} variant="outline" className="h-12 rounded-2xl px-4 font-semibold">
+                                    <Button
+                                        onClick={() => { clearStudioState(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                        variant="outline"
+                                        className="anim-new-pulse h-12 rounded-2xl border-primary/40 px-4 font-semibold text-primary hover:bg-primary/5 hover:text-primary"
+                                    >
                                         <Plus className="mr-1.5 h-4 w-4" /> New
                                     </Button>
                                 </div>
+                                <p className="text-center text-xs text-muted-foreground">
+                                    Want to make another voice? Tap <span className="font-semibold text-primary">New</span> to start fresh.
+                                </p>
                                 <GenerationFeedback
                                     projectName={hqProject?.projectName || projectName}
                                     mode="high-quality"
@@ -328,7 +335,7 @@ export function GenerationSettings() {
     const isStandardAudioReady = !isGenerating && !isFinalizing && (!!generatedAudio || !!generatedAudioUrl || (generatedLines.length > 0 && generatedLines.every(l => l.status === 'done')));
     const masterAudioUrl = hqProject?.audioUrl || generatedAudioUrl || (generatedAudio ? URL.createObjectURL(generatedAudio) : null);
 
-    if (isStandardAudioReady && !isHqActive) {
+    if (isStandardAudioReady && !isHqActive && !forceSetup) {
         const displayMasterUrl = masterAudioUrl ? getDisplayUrl(masterAudioUrl) : null;
         return (
             <Card className={cn(studioCard, 'anim-studio-rise')}>
