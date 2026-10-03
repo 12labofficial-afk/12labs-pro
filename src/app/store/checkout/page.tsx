@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useMemo, useEffect } from 'react';
 import { createOrderForCart, processFreeOrder, processCreditOrder, redeemTicketForProduct } from './actions';
-import { canUseTicket } from '@/components/store/store-ticket';
+import { canUseTicket, TicketConfirmDialog } from '@/components/store/store-ticket';
 import type { UserProfile, Product, CartItem } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { cn, getDisplayUrl, formatCredits } from '@/lib/utils';
@@ -216,6 +216,7 @@ export default function CheckoutPage() {
     const [redeemingId, setRedeemingId] = useState<string | null>(null);
     const ticketCount = Number(user?.storeTickets || 0);
 
+    const [ticketItem, setTicketItem] = useState<CartItem | null>(null);
     const handleUseTicket = async (item: CartItem) => {
         setRedeemingId(item.id);
         try {
@@ -343,7 +344,7 @@ export default function CheckoutPage() {
                                                 {!isSoldOut && canUseTicket({ tickets: ticketCount, sellerVerified: item.sellerIsVerified, price: item.price }) && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => handleUseTicket(item)}
+                                                        onClick={() => setTicketItem(item)}
                                                         disabled={!!redeemingId || isLoading || isProcessingCredits}
                                                         className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1.5 text-[11px] font-black uppercase text-amber-950 shadow-md transition-transform active:scale-95 disabled:opacity-60"
                                                     >
@@ -481,6 +482,14 @@ export default function CheckoutPage() {
                     )}
                 </div>
             </div>
+            <TicketConfirmDialog
+                open={!!ticketItem}
+                onOpenChange={(open) => { if (!open) setTicketItem(null); }}
+                itemTitle={ticketItem?.title || ''}
+                price={Number(ticketItem?.price) || 0}
+                ticketsLeft={ticketCount}
+                onConfirm={() => { const item = ticketItem; setTicketItem(null); if (item) handleUseTicket(item); }}
+            />
         </div>
     );
 }

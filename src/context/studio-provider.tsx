@@ -822,7 +822,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             // with whatever string it's given. Catch it here instead,
             // before any credits are spent or a job is queued.
             if (submittedEngine === 'gemini') {
-                const knownGeminiIds = new Set(voices.map(v => v.id));
+                const knownGeminiIds = new Set(voices.filter(v => !v.disabled).map(v => v.id));
                 // 🔴 FIX: this used to only catch `c.voice && !knownGeminiIds.has(...)`
                 // — a truthy voice from the wrong library. An EMPTY voice
                 // (`c.voice === ''`) slipped straight through that guard

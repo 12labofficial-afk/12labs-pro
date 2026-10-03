@@ -13,7 +13,7 @@ export const voices = [
     { id: 'enceladus', name: 'Enceladus', gender: 'Male', description: 'A dark, ominous male voice. Perfect for horror narration or villains.', tags: ['dark', 'ominous', 'scary', 'deep'], demoUrl: 'https://storage.googleapis.com/12labspublic/voices/enceladus.wav' },
     { id: 'erinome', name: 'Erinome', gender: 'Female', description: 'A soft-spoken, gentle female voice. Good for emotional or shy characters.', tags: ['soft', 'gentle', 'sad'], demoUrl: 'https://storage.googleapis.com/12labspublic/voices/erinome.wav' },
     { id: 'fenrir', name: 'Fenrir', gender: 'Male', description: 'An aggressive, powerful male voice. Suitable for action heroes or angry characters.', tags: ['aggressive', 'powerful', 'angry'], demoUrl: 'https://storage.googleapis.com/12labspublic/voices/fenrir.wav' },
-    { id: 'gacrux', name: 'Gacrux', gender: 'Female', description: 'A standard, middle-aged male voice. A reliable choice for a variety of roles.', tags: ['standard', 'middle-aged', 'neutral'], demoUrl: 'https://storage.googleapis.com/12labspublic/voices/gacrux.wav' },
+    { id: 'gacrux', name: 'Gacrux', gender: 'Female', description: 'A standard, middle-aged male voice. A reliable choice for a variety of roles.', tags: ['standard', 'middle-aged', 'neutral'], demoUrl: 'https://storage.googleapis.com/12labspublic/voices/gacrux.wav', disabled: true },
     { id: 'iapetus', name: 'Iapetus', gender: 'Male', description: 'An older, grandfatherly voice. Wise and calming.', tags: ['older', 'wise', 'grandfatherly'], demoUrl: 'https://storage.googleapis.com/12labspublic/voices/iapetus.wav' },
     { id: 'kore', name: 'Kore', gender: 'Female', description: 'A youthful, energetic female voice. Ideal for teenage or young adult characters.', tags: ['youthful', 'energetic', 'happy'], demoUrl: 'https://storage.googleapis.com/12labspublic/voices/kore.wav' },
     { id: 'laomedeia', name: 'Laomedeia', gender: 'Female', description: 'A mysterious, alluring female voice. Good for femme fatales or enigmatic characters.', tags: ['mysterious', 'alluring', 'sultry'], demoUrl: 'https://storage.googleapis.com/12labspublic/voices/laomedeia.wav' },
@@ -31,6 +31,12 @@ export const voices = [
     { id: 'zephyr', name: 'Zephyr', gender: 'Female', description: 'A fast-paced, energetic female voice. Good for commercials or excited characters.', tags: ['energetic', 'fast-paced', 'excited'], demoUrl: 'https://storage.googleapis.com/12labspublic/voices/zephyr.wav' },
     { id: 'zubenelgenubi', name: 'Zubenelgenubi', gender: 'Male', description: 'An eccentric, older male voice. Good for scientists or quirky old men.', tags: ['eccentric', 'older', 'quirky'], demoUrl: 'https://storage.googleapis.com/12labspublic/voices/zubenelgenubi.wav' },
 ];
+
+/**
+ * Voices users can pick. Disabled ones stay in `voices` only so older
+ * projects can still show the name; they are never offered or auto-assigned.
+ */
+export const selectableVoices = voices.filter((v) => !(v as { disabled?: boolean }).disabled);
 
 export const emotions = [
     "Neutral", "Happy", "Sad", "Angry", "Surprised", "Fearful", "Disgusted", "Excited", "Anxious", "Calm"

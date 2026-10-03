@@ -19,7 +19,7 @@ import type { GeneratedLine as GeneratedLineType, Character } from '@/lib/types'
 import { useAuth } from '@/context/auth-provider';
 import { convertMp3ToWav, trimAudioBlob } from '@/lib/audio-utils';
 import { Textarea } from '../ui/textarea';
-import { voices } from '@/lib/voices';
+import { voices, selectableVoices } from '@/lib/voices';
 import { saveAs } from 'file-saver';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { reportClientError } from '@/lib/report-client-error';
@@ -48,9 +48,9 @@ function VoicePicker({
 
     const groupedVoices = useMemo(() => {
         return {
-            male: voices.filter(v => v.gender === 'Male'),
-            female: voices.filter(v => v.gender === 'Female'),
-            neutral: voices.filter(v => v.gender !== 'Male' && v.gender !== 'Female')
+            male: selectableVoices.filter(v => v.gender === 'Male'),
+            female: selectableVoices.filter(v => v.gender === 'Female'),
+            neutral: selectableVoices.filter(v => v.gender !== 'Male' && v.gender !== 'Female')
         };
     }, []);
 

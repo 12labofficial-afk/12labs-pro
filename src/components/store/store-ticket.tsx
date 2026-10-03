@@ -3,6 +3,16 @@
 import { Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TICKET_IMAGE_URL } from '@/lib/tickets';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 /**
  * The ticket itself. Uses TICKET_IMAGE_URL when set; otherwise draws a
@@ -66,4 +76,46 @@ export function TicketPricePill({ price, size = 'sm', className }: { price: numb
 /** "Can this viewer use a ticket on this item?" */
 export function canUseTicket(opts: { tickets?: number; sellerVerified?: boolean; price: number; owned?: boolean; sold?: boolean }) {
   return (opts.tickets || 0) > 0 && !!opts.sellerVerified && opts.price > 0 && !opts.owned && !opts.sold;
+}
+
+/**
+ * "Use 1 ticket on this item?" — a ticket can't be given back, so every
+ * redeem button asks first instead of spending it on a stray tap.
+ */
+export function TicketConfirmDialog({
+  open,
+  onOpenChange,
+  itemTitle,
+  price,
+  ticketsLeft,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  itemTitle: string;
+  price: number;
+  ticketsLeft: number;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-sm rounded-3xl">
+        <AlertDialogHeader>
+          <div className="mx-auto mb-1 w-28"><TicketArt className="text-[8px]" /></div>
+          <AlertDialogTitle className="text-center">Use 1 Store Ticket?</AlertDialogTitle>
+          <AlertDialogDescription className="text-center">
+            <span className="font-semibold text-foreground">{itemTitle}</span> will be added to your purchases for free
+            (you save ₹{price}). You'll have {Math.max(0, ticketsLeft - 1)} ticket{ticketsLeft - 1 === 1 ? '' : 's'} left.
+            A used ticket can't be returned.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="gap-2 sm:gap-2">
+          <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm} className="rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 font-bold text-white hover:brightness-105">
+            Yes, use ticket
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }

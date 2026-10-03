@@ -4,7 +4,7 @@ import { isValidDeveloperKey, resolveDeveloperKey, logDeveloperApiUsage, maskKey
 import { analyzeScriptStudio } from '@/ai/flows/analyze-script-studio';
 import { processHighQualityGenerationAndDeductCredits } from '@/app/studio/actions';
 import { getEngineRate } from '@/lib/pricing';
-import { voices as geminiVoices } from '@/lib/voices';
+import { selectableVoices as geminiVoices } from '@/lib/voices';
 import { initializeFirebase } from '@/firebase/server';
 import { reportServerError } from '@/lib/report-error';
 import { withCors, corsPreflight } from '@/lib/cors';

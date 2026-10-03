@@ -21,7 +21,7 @@ import { getCompleteProduct } from '@/app/admin/projects/actions';
 import { adminDeleteProduct, adminUpdateProduct } from '@/app/store/admin-actions';
 import { useAuth } from '@/context/auth-provider';
 import { redeemTicketForProduct } from '@/app/store/checkout/actions';
-import { TicketArt, TicketChip, canUseTicket } from '@/components/store/store-ticket';
+import { TicketArt, TicketChip, TicketConfirmDialog, canUseTicket } from '@/components/store/store-ticket';
 import { useToast } from '@/hooks/use-toast';
 import { cn, generateAvatarColor, getDisplayUrl } from '@/lib/utils';
 import { toggleFollowSeller, checkFollowStatus } from '@/app/seller/actions';
@@ -510,6 +510,7 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
         sold: product.status === 'sold',
     });
 
+    const [confirmTicketOpen, setConfirmTicketOpen] = useState(false);
     const handleUseTicket = async () => {
         if (product.requiresYoutubeLink && !youtubeLink.trim()) {
             toast({ variant: 'destructive', title: 'Link Required', description: 'Add your YouTube channel link first.' }); return;
@@ -722,7 +723,7 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
                                                     </div>
                                                 </div>
                                                 <Button
-                                                    onClick={handleUseTicket}
+                                                    onClick={() => setConfirmTicketOpen(true)}
                                                     disabled={isRedeemingTicket}
                                                     className="h-12 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-500 text-base font-bold text-white shadow-lg shadow-purple-500/25 hover:brightness-105"
                                                 >
@@ -835,6 +836,14 @@ export default function ProductView({ initialProduct, initialSeller }: ProductVi
                     </div>
                 </div>
             </div>
+            <TicketConfirmDialog
+                open={confirmTicketOpen}
+                onOpenChange={setConfirmTicketOpen}
+                itemTitle={product.title}
+                price={Number(displayPrice) || 0}
+                ticketsLeft={ticketCount}
+                onConfirm={() => { setConfirmTicketOpen(false); handleUseTicket(); }}
+            />
             {isAdmin && <AdminEditDialog product={product} open={isAdminEditOpen} onOpenChange={setIsAdminEditOpen} onUpdate={() => window.location.reload()}/>}
         </div>
     );

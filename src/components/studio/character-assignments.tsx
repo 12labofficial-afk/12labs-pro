@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { voices } from '@/lib/voices';
+import { voices, selectableVoices } from '@/lib/voices';
 import { ElevenLabsVoiceSource, VoiceEngineToggle } from '@/components/studio/voice-engine';
 import {
   Dialog,
@@ -49,9 +49,9 @@ function VoicePicker({
 
     const groupedVoices = useMemo(() => {
         return {
-            male: voices.filter(v => v.gender === 'Male'),
-            female: voices.filter(v => v.gender === 'Female'),
-            neutral: voices.filter(v => v.gender !== 'Male' && v.gender !== 'Female')
+            male: selectableVoices.filter(v => v.gender === 'Male'),
+            female: selectableVoices.filter(v => v.gender === 'Female'),
+            neutral: selectableVoices.filter(v => v.gender !== 'Male' && v.gender !== 'Female')
         };
     }, []);
 

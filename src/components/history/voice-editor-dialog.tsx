@@ -140,9 +140,9 @@ function VoicePicker({
 
     const groupedVoices = useMemo(() => {
         return {
-            male: activeVoicesList.filter(v => v.gender === 'Male'),
-            female: activeVoicesList.filter(v => v.gender === 'Female'),
-            neutral: activeVoicesList.filter(v => v.gender !== 'Male' && v.gender !== 'Female')
+            male: activeVoicesList.filter(v => v.gender === 'Male' && !(v as any).disabled),
+            female: activeVoicesList.filter(v => v.gender === 'Female' && !(v as any).disabled),
+            neutral: activeVoicesList.filter(v => v.gender !== 'Male' && v.gender !== 'Female' && !(v as any).disabled)
         };
     }, [activeVoicesList]);
 

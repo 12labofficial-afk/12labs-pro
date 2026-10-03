@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Key, Terminal, Copy, Check, Mic2, ListMusic, ArrowRight, FileText, Sparkles, Play } from 'lucide-react';
-import { voices } from '@/lib/voices';
+import { selectableVoices as voices } from '@/lib/voices';
 
 export default function ApiDocsPage() {
   const [copied, setCopied] = useState<string | null>(null);
