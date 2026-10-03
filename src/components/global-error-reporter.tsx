@@ -12,8 +12,29 @@ import { isIgnorableError, isBrowserExtensionError } from '@/lib/ignorable-error
 const COOLDOWN_MS = 10 * 60 * 1000;
 const lastReported = new Map<string, number>();
 
+// A tab that loaded the previous deploy and then lazily loads a chunk from
+// the new one: webpack's runtime can't find the module factory and throws
+// "Cannot read properties of undefined (reading 'call')" from webpack-*.js.
+// Not a code bug — one reload fixes it, so do that instead of reporting.
+const STALE_RELOAD_KEY = 'last_sync_reload';
+function isStaleWebpackModule(message: string, stack?: string): boolean {
+  return /reading 'call'/.test(message) && !!stack && /\/_next\/static\/chunks\/webpack-/.test(stack);
+}
+function reloadOnceForStaleBuild(): boolean {
+  try {
+    const last = Number(sessionStorage.getItem(STALE_RELOAD_KEY) || 0);
+    if (Date.now() - last < 30_000) return false; // reloaded just now — let it report
+    sessionStorage.setItem(STALE_RELOAD_KEY, String(Date.now()));
+  } catch {
+    return false;
+  }
+  setTimeout(() => window.location.reload(), 300);
+  return true;
+}
+
 function report(context: string, message: string, stack?: string, extra?: Record<string, string>) {
   if (isIgnorableError(message) || isBrowserExtensionError(stack)) return;
+  if (isStaleWebpackModule(message, stack) && reloadOnceForStaleBuild()) return;
 
   // Same stale-build detection as reportClientError — this path catches
   // whatever slipped past a local try/catch (uncaught errors, unawaited
