@@ -4,6 +4,7 @@ import { useStudio } from '@/context/studio-provider';
 import { GenerationFeedback } from '@/components/studio/generation-feedback';
 import { useAuth } from '@/context/auth-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { studioCard } from './studio-ui';
 import { Button } from '@/components/ui/button';
 import { Zap, AlertTriangle, Sparkles, Clock, Coins, Play, Pause, FileText, Loader2, Cpu, CheckCircle, Download, Activity, ShieldCheck, History, Plus, Radio, Info } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -78,7 +79,6 @@ export function GenerationSettings() {
     
     const isHqActive = !!hqProjectId || (hqProject && (hqProject.status === 'in_queue' || hqProject.status === 'processing'));
     const isHqReady = hqProject?.status === 'completed' && !!hqProject.audioUrl;
-    const THEME_BG_IMAGE = "https://storage.googleapis.com/12labspublic/store/previews/20260721_134259.jpg";
 
     useEffect(() => {
         if (isHqActive && !isHqReady && !introSequenceStarted.current) {
@@ -206,21 +206,18 @@ export function GenerationSettings() {
 
         return (
             <div className="relative w-full max-w-xl mx-auto space-y-3 animate-in fade-in duration-700">
-                <div className="fixed inset-0 z-0 pointer-events-none opacity-60 overflow-hidden">
-                    <img src={THEME_BG_IMAGE} alt="Theme" className="w-full h-full object-cover scale-110" />
-                </div>
 
                 <div className="relative z-10 space-y-3">
                     {/* 1 — Header: brand + status. Compact. */}
                     {visibleBlocks >= 1 && (
-                        <Card className="border-border dark:border-white/10 shadow-lg bg-card dark:bg-white/[0.03] backdrop-blur-2xl rounded-3xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+                        <Card className={cn(studioCard, "anim-studio-rise")}>
                             <CardContent className="p-4 flex items-center justify-between gap-3">
                                 <div className="space-y-1.5 flex-1 min-w-0">
-                                    <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tighter flex items-center gap-1.5 text-zinc-900 dark:text-white">
-                                        SUPERFAST <span className="text-primary italic flex items-center"><Zap className="h-4 w-4 sm:h-6 sm:w-6 fill-current" /><Zap className="h-4 w-4 sm:h-6 sm:w-6 fill-current -ml-1.5" /></span>
+                                    <h2 className="flex items-center gap-1.5 text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
+                                        {isHqReady ? 'Your audio is ready' : 'Creating your audio'}
                                     </h2>
-                                    <Badge className="bg-primary/10 text-primary border-none font-black text-[8px] uppercase tracking-widest px-2.5 h-5 rounded-full">
-                                        {isHqReady ? 'RENDER COMPLETE' : 'NEURAL CLUSTER ACTIVE'}
+                                    <Badge className={cn("h-5 rounded-full border-none px-2.5 text-[11px] font-semibold", isHqReady ? "bg-emerald-500/10 text-emerald-600" : "bg-primary/10 text-primary")}>
+                                        {isHqReady ? 'Complete' : 'SuperFast engine'}
                                     </Badge>
                                 </div>
                                 <div className="relative shrink-0">
@@ -235,20 +232,20 @@ export function GenerationSettings() {
 
                     {/* 2 — Progress metrics. Compact. */}
                     {visibleBlocks >= 2 && (
-                        <Card className="border-border dark:border-white/10 shadow-lg bg-card dark:bg-white/[0.03] backdrop-blur-2xl rounded-3xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+                        <Card className={cn(studioCard, "anim-studio-rise")}>
                             <CardContent className="p-4 space-y-3">
                                 <div className="flex justify-between items-end">
                                     <div className="space-y-0.5">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-primary">Progress</p>
-                                        <p className="text-xs sm:text-sm font-black text-zinc-900 dark:text-white uppercase">
-                                            {displayProcessed} / {displayTotal || '...'} Signals
+                                        <p className="text-xs font-semibold text-muted-foreground">Progress</p>
+                                        <p className="text-sm font-bold text-foreground tabular-nums">
+                                            {displayProcessed} / {displayTotal || '…'} lines
                                         </p>
                                     </div>
-                                    <span className="text-3xl sm:text-4xl font-black text-primary tracking-tighter leading-none">
+                                    <span className="text-3xl sm:text-4xl font-extrabold text-primary tracking-tight leading-none tabular-nums">
                                         {Math.round(progressPercent)}%
                                     </span>
                                 </div>
-                                <Progress value={progressPercent} className="h-2 rounded-full bg-muted dark:bg-white/5 overflow-hidden" />
+                                <Progress value={progressPercent} className="h-2 overflow-hidden rounded-full bg-primary/10 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-indigo-500 [&>div]:transition-transform [&>div]:duration-700" />
                             </CardContent>
                         </Card>
                     )}
@@ -256,7 +253,7 @@ export function GenerationSettings() {
                     {/* 3 — Status + live counters MERGED into one card (was two:
                         "Rendering Files" and "Listening Mode"). */}
                     {visibleBlocks >= 3 && (
-                        <Card className="border-border dark:border-white/10 shadow-lg bg-card dark:bg-white/[0.03] backdrop-blur-2xl rounded-3xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+                        <Card className={cn(studioCard, "anim-studio-rise")}>
                             <CardContent className="p-4 space-y-3">
                                 <div className="flex items-center gap-3">
                                     <div className="p-3 bg-primary/10 rounded-2xl border border-border dark:border-white/10 shrink-0">
@@ -300,7 +297,7 @@ export function GenerationSettings() {
 
                     {/* 4 — Completed: player + download + new, all in ONE card. */}
                     {isHqReady && (
-                        <Card className="border-border dark:border-white/10 shadow-lg bg-card dark:bg-white/[0.03] backdrop-blur-2xl rounded-3xl overflow-hidden animate-in zoom-in duration-500">
+                        <Card className={cn(studioCard, "anim-studio-rise")}>
                             <CardContent className="p-4 space-y-3">
                                 <div className="bg-muted dark:bg-black/60 backdrop-blur-xl p-3 rounded-2xl border border-border dark:border-white/10">
                                     <audio src={getDisplayUrl(hqProject?.audioUrl)} controls className="w-full h-10" />
@@ -333,8 +330,8 @@ export function GenerationSettings() {
     if (isStandardAudioReady && !isHqActive) {
         const displayMasterUrl = masterAudioUrl ? getDisplayUrl(masterAudioUrl) : null;
         return (
-            <Card className="border-border dark:border-white/10 shadow-2xl bg-card dark:bg-white/[0.02] backdrop-blur-3xl overflow-hidden rounded-[2rem] border-emerald-500/20">
-                <CardHeader className="bg-emerald-500/5 pb-6 border-b border-emerald-500/10">
+            <Card className={cn(studioCard, 'anim-studio-rise')}>
+                <CardHeader className="border-b border-emerald-500/10 bg-emerald-500/5 px-5 pb-4 pt-5">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-2xl shadow-inner">
@@ -429,14 +426,14 @@ export function GenerationSettings() {
     }
 
     return (
-        <Card className="border-border/60 shadow-2xl bg-card/90 dark:bg-white/[0.02] backdrop-blur-3xl overflow-hidden rounded-[2rem]">
-            <CardHeader className="bg-primary/5 pb-5 border-b border-border/60">
-                <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                         <div className="p-3 bg-primary/10 rounded-2xl shadow-inner"><Zap className="h-6 w-6 text-primary"/></div>
-                         <div>
-                            <CardTitle className="text-xl font-black uppercase tracking-tight text-foreground">Engine Core</CardTitle>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em]">SuperFast Neural Rendering</p>
+        <Card className={cn(studioCard, 'anim-studio-rise')}>
+            <CardHeader className="p-0">
+                <div className="flex items-center justify-between gap-3 border-b border-black/[0.05] px-5 pb-4 pt-5 dark:border-white/10">
+                    <div className="flex min-w-0 items-center gap-3">
+                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Zap className="h-5 w-5"/></div>
+                         <div className="min-w-0">
+                            <CardTitle className="truncate text-[17px] font-bold leading-tight tracking-tight text-foreground">Generate</CardTitle>
+                            <p className="truncate text-xs text-muted-foreground">SuperFast rendering</p>
                          </div>
                     </div>
                     {/* 🔴 NEW: shows which VOICE engine (Gemini / 11Labs) is

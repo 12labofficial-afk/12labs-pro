@@ -4,10 +4,10 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useStudio } from '@/context/studio-provider';
 import { useAuth } from '@/context/auth-provider';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { studioCard, StudioCardHeader } from './studio-ui';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Wand2, FileUp, Trash2, Copy, Check, FilePenLine, RotateCcw, Zap, Coins, AlertCircle, ShieldAlert } from 'lucide-react';
+import { Loader2, Wand2, FileUp, Trash2, Copy, Check, FilePenLine, RotateCcw, Sparkles, Coins, AlertCircle, ShieldAlert } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import mammoth from 'mammoth';
@@ -38,7 +38,6 @@ export function ScriptEditor() {
   } = useStudio();
   const { toast } = useToast();
   const [isCopied, setIsCopied] = useState(false);
-  const [showCopyButton, setShowCopyButton] = useState(false);
   const [viewMode, setViewMode] = useState<'original' | 'clean'>('clean');
   const [isTransitioning, setIsTransitioning] = useState(false);
   
@@ -169,287 +168,222 @@ export function ScriptEditor() {
   // `characterCount` and never this weighted number.
   const billableCharacterCount = Math.ceil(characterCount * (activeRate ?? pricing?.normal ?? 1.2));
 
+  const isSponsorOrAdmin = user?.isSponsor === true || user?.role === 'admin';
+  const userCredits = Number(user?.credits ?? 0);
+  const trimmedCount = script.trim().length;
+  const requiredCredits = Math.ceil(trimmedCount * (activeRate ?? pricing?.normal ?? 1.2));
+  const isNotEnoughCredits = !isSponsorOrAdmin && trimmedCount > 0 && userCredits < requiredCredits;
+  const isDailyLimitReached = !isSponsorOrAdmin && dailyAnalysisCount >= maxDailyAnalysisLimit;
+  const isAnalyzeDisabled = !script.trim() || isAnalyzing || !isMinCharCountValid || !isMaxCharCountValid || isNotEnoughCredits || isDailyLimitReached || isAnalyzed;
+  const countIsBad = (!isMinCharCountValid && characterCount > 0 && !isAnalyzed) || !isMaxCharCountValid;
+  const fillPct = Math.min(100, (characterCount / 30000) * 100);
+
   return (
-    <Card className="border-border/60 shadow-2xl shadow-primary/5 bg-card/95 backdrop-blur-3xl overflow-hidden rounded-[2.5rem]">
-      <CardHeader className="text-center pb-8 border-b border-border/60 bg-muted/20 relative overflow-hidden">
-          {/* Blueprint background pattern for header */}
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-          
-          <div className="flex justify-center mb-4 relative z-10">
-              <div className="p-4 bg-primary/10 rounded-[2rem] shadow-inner relative group">
-                  <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                  <FilePenLine className="h-10 w-10 text-primary relative z-10" />
-              </div>
+    <section className={studioCard}>
+      <StudioCardHeader
+        icon={<FilePenLine className="h-5 w-5" />}
+        title="Script"
+        subtitle={isAnalyzing ? 'Reading your script…' : isAnalyzed ? 'Analyzed — characters and lines are ready' : 'Paste or import · min. 100 characters'}
+        right={!isAnalyzed ? (
+          <div className="flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+            <Coins className="h-3.5 w-3.5" />
+            <span className="tabular-nums">{formatCredits(userCredits)}</span>
           </div>
-          <CardTitle className="text-3xl md:text-4xl font-black tracking-tight uppercase relative z-10 text-foreground">
-            Production <span className="text-primary italic">Manuscript</span>
-          </CardTitle>
-          <CardDescription className="text-sm md:text-base font-medium max-w-lg mx-auto text-muted-foreground relative z-10 mt-1">
-            {isAnalyzing ? (
-              <span>Neural engine is scanning your script...</span>
-            ) : isAnalyzed ? (
-              <span>Your script is processed. Compare versions below.</span>
-            ) : (
-              <span>Paste your script or upload a file. AI analysis requires at least 100 characters.</span>
-            )}
-          </CardDescription>
+        ) : undefined}
+      />
 
-          {isAnalyzed && !isAnalyzing && (
-            <div className="mt-5 flex justify-center relative z-20">
-               <div className="flex bg-muted/80 backdrop-blur-md p-1.5 rounded-full border border-border shadow-md">
-                 <button 
-                  className={cn(
-                      "h-9 px-6 rounded-full text-xs font-black uppercase tracking-widest transition-all duration-300",
-                      viewMode === 'original' ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
-                  )}
-                  onClick={() => handleToggleView('original')}
-                 >
-                   Original
-                 </button>
-                 <button 
-                  className={cn(
-                      "h-9 px-6 rounded-full text-xs font-black uppercase tracking-widest transition-all duration-300",
-                      viewMode === 'clean' ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
-                  )}
-                  onClick={() => handleToggleView('clean')}
-                 >
-                   Cleaned
-                 </button>
-               </div>
-            </div>
-          )}
-      </CardHeader>
-      <CardContent className="pt-8">
-        <div className="relative group min-h-[350px] md:min-h-[500px]">
-            
-            {isAnalyzing ? (
-              <div 
-                ref={scrollRef}
-                className="h-[350px] md:h-[500px] overflow-y-auto rounded-3xl border-2 border-border/60 bg-muted/20 p-6 sm:p-8 space-y-4 shadow-inner custom-scrollbar"
+      {isAnalyzed && !isAnalyzing && (
+        <div className="px-4 pt-3 sm:px-5">
+          <div className="grid grid-cols-2 rounded-xl bg-muted/70 p-1 text-xs font-semibold dark:bg-white/5">
+            {(['original', 'clean'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => handleToggleView(mode)}
+                className={cn(
+                  'rounded-lg py-2 transition-all duration-300',
+                  viewMode === mode ? 'bg-white text-foreground shadow-sm dark:bg-white/15' : 'text-muted-foreground hover:text-foreground',
+                )}
               >
-                {scriptLines.map((line, idx) => (
-                  <div 
-                    key={idx}
-                    ref={el => { lineRefs.current[idx] = el; }}
-                    className={cn(
-                      "p-3 rounded-2xl transition-all duration-500 text-lg font-medium border border-transparent leading-relaxed",
-                      activeLineIndex === idx 
-                        ? "bg-primary/15 dark:bg-primary/25 text-foreground border-primary/30 shadow-md font-bold ring-1 ring-primary/30" 
-                        : "text-foreground/80 dark:text-foreground/70 font-medium opacity-80 dark:opacity-60"
-                    )}
-                  >
-                    {activeLineIndex === idx && (
-                        isThinking ? <Loader2 className="h-4 w-4 inline-block mr-3 animate-spin text-primary/60" /> : <Zap className="h-4 w-4 inline-block mr-3 animate-pulse fill-primary text-primary" />
-                    )}
-                    {line}
-                  </div>
-                ))}
+                {mode === 'original' ? 'Original' : 'Cleaned'}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="p-3 sm:p-4">
+        {isAnalyzing ? (
+          <div
+            ref={scrollRef}
+            className="h-[40vh] min-h-[280px] max-h-[560px] sm:h-[46vh] space-y-1.5 overflow-y-auto overscroll-contain rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.03] sm:p-4"
+          >
+            {scriptLines.map((line, idx) => (
+              <div
+                key={idx}
+                ref={el => { lineRefs.current[idx] = el; }}
+                className={cn(
+                  'break-words rounded-xl px-3 py-2 text-[15px] leading-relaxed transition-all duration-500',
+                  activeLineIndex === idx
+                    ? 'bg-primary/10 font-semibold text-foreground ring-1 ring-primary/25'
+                    : 'text-foreground/55',
+                )}
+              >
+                {activeLineIndex === idx && (
+                  isThinking
+                    ? <Loader2 className="mr-2 inline-block h-3.5 w-3.5 animate-spin text-primary" />
+                    : <Sparkles className="mr-2 inline-block h-3.5 w-3.5 text-primary" />
+                )}
+                {line}
               </div>
-            ) : (
-              <div className="relative h-full">
-                <Textarea
-                  placeholder="Paste your script here..."
-                  className={cn(
-                      "min-h-[380px] md:min-h-[500px] text-lg leading-relaxed font-medium transition-all focus-visible:ring-primary p-6 sm:p-8 rounded-3xl",
-                      "border-2 border-border bg-card shadow-inner text-foreground placeholder:text-muted-foreground", 
-                      isAnalyzed ? "bg-muted/40 text-foreground/90 cursor-default" : "opacity-100",
-                      isTransitioning ? "opacity-0 blur-sm scale-95" : "opacity-100 blur-0 scale-100"
-                  )}
-                  value={isAnalyzed && viewMode === 'clean' ? cleanScript : script}
-                  onChange={(e) => {
-                      if (isAnalyzed) return;
-                      setScript(e.target.value);
-                      if (e.target.value.length === 0) setShowCopyButton(false);
-                      else if (!showCopyButton) setShowCopyButton(true);
-                  }}
-                  readOnly={isAnalyzed}
-                  onFocus={() => script.length > 0 && setShowCopyButton(true)}
-                  onBlur={() => setTimeout(() => setShowCopyButton(false), 200)}
-                />
-                
-                {/* Floating copy action only; Script Rules is available in
-                    the toolbar below the editor, so it should not cover the
-                    script input itself. */}
-                <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
-                    {showCopyButton && characterCount > 0 && (
-                        <Button
-                            size="sm"
-                            variant="secondary"
-                            className="animate-in fade-in zoom-in duration-300 shadow-xl rounded-full px-5 h-9 font-bold bg-background/90 backdrop-blur-sm border border-border text-foreground hover:bg-accent"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={handleCopyToClipboard}
-                        >
-                            {isCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4 text-primary" />}
-                            {isCopied ? 'Copied!' : 'Copy'}
-                        </Button>
-                    )}
-                </div>
+            ))}
+          </div>
+        ) : (
+          <div className="relative">
+            <Textarea
+              placeholder={'Paste your script here…\n\nExample:\nNarrator: Ek chhota sa gaon tha…\nRaju: Maa, main school ja raha hoon!'}
+              className={cn(
+                'h-[40vh] min-h-[280px] max-h-[560px] sm:h-[46vh] resize-none rounded-2xl border-0 bg-slate-50 p-4 text-[16px] leading-7 text-foreground shadow-none transition-all duration-300 placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0 dark:bg-white/[0.03] sm:p-5',
+                isAnalyzed && 'cursor-default text-foreground/85',
+                isTransitioning ? 'scale-[0.99] opacity-0' : 'scale-100 opacity-100',
+              )}
+              value={isAnalyzed && viewMode === 'clean' ? cleanScript : script}
+              onChange={(e) => {
+                if (isAnalyzed) return;
+                setScript(e.target.value);
+              }}
+              readOnly={isAnalyzed}
+            />
+          </div>
+        )}
+
+        {isAnalyzed && !isAnalyzing && (
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={handleCopyToClipboard}
+              className="flex items-center gap-1.5 rounded-full border border-black/[0.06] bg-white px-3 py-1.5 text-xs font-semibold shadow-sm transition-transform active:scale-95 dark:border-white/10 dark:bg-white/5"
+            >
+              {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-primary" />}
+              {isCopied ? 'Copied' : viewMode === 'clean' ? 'Copy cleaned script' : 'Copy original'}
+            </button>
+          </div>
+        )}
+
+        {/* Toolbar */}
+        {!isAnalyzed && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Label htmlFor="file-upload" className={cn(isAnalyzing ? 'pointer-events-none opacity-40' : 'cursor-pointer')}>
+              <span className="flex items-center gap-1.5 rounded-full border border-black/[0.06] bg-white px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-transform active:scale-95 dark:border-white/10 dark:bg-white/5">
+                <FileUp className="h-3.5 w-3.5 text-primary" /> Import
+              </span>
+            </Label>
+            <input id="file-upload" type="file" className="hidden" accept=".txt,.docx" onChange={handleFileChange} disabled={isAnalyzed || isAnalyzing} />
+
+            <label htmlFor="include-emotion-chk" className="flex cursor-pointer select-none items-center gap-2 rounded-full border border-black/[0.06] bg-white px-3 py-1.5 text-xs font-semibold shadow-sm dark:border-white/10 dark:bg-white/5">
+              <Checkbox
+                id="include-emotion-chk"
+                checked={includeEmotion}
+                onCheckedChange={(val) => setIncludeEmotion(val as boolean)}
+                disabled={isAnalyzing}
+                className="h-4 w-4 rounded-[5px] border-border data-[state=checked]:border-primary data-[state=checked]:bg-primary"
+              />
+              Emotions
+            </label>
+
+            {characterCount > 0 && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={handleCopyToClipboard}
+                className="flex items-center gap-1.5 rounded-full border border-black/[0.06] bg-white px-3 py-1.5 text-xs font-semibold shadow-sm transition-transform active:scale-95 animate-in fade-in zoom-in-95 duration-200 dark:border-white/10 dark:bg-white/5"
+              >
+                {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-primary" />}
+                {isCopied ? 'Copied' : 'Copy'}
+              </button>
+            )}
+
+            <div className="ml-auto flex min-w-0 items-center gap-2 rounded-full border border-black/[0.06] bg-white py-1.5 pl-3 pr-1.5 shadow-sm dark:border-white/10 dark:bg-white/5">
+              <div className="h-1.5 w-12 overflow-hidden rounded-full bg-muted sm:w-16">
+                <div className={cn('h-full rounded-full transition-all duration-500', countIsBad ? 'bg-destructive' : 'bg-primary')} style={{ width: `${fillPct}%` }} />
+              </div>
+              <span className={cn('whitespace-nowrap text-xs font-semibold tabular-nums', countIsBad ? 'text-destructive' : 'text-foreground')}>
+                {billableCharacterCount.toLocaleString()}
+                <span className="font-normal text-muted-foreground">/30k</span>
+              </span>
+              {characterCount > 0 && (
+                <button
+                  type="button"
+                  disabled={isAnalyzing}
+                  onClick={() => setScript('')}
+                  aria-label="Clear script"
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Action */}
+      <div className="space-y-3 border-t border-black/[0.05] p-4 dark:border-white/10 sm:p-5">
+        {isAnalyzed ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="h-12 w-full rounded-2xl border-destructive/25 font-semibold text-destructive hover:bg-destructive/5 hover:text-destructive">
+                <RotateCcw className="mr-2 h-4 w-4" /> Start over
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="rounded-3xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Start a new script?</AlertDialogTitle>
+                <AlertDialogDescription>This clears the current script, characters and any generated lines.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                <AlertDialogAction className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={clearStudioState}>Start over</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <>
+            {isNotEnoughCredits && (
+              <div className="flex items-center gap-2.5 rounded-2xl bg-destructive/[0.06] px-3.5 py-3 text-sm font-medium text-destructive animate-in fade-in slide-in-from-bottom-1">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                Not enough credits — top up or shorten the script.
               </div>
             )}
-        </div>
-      </CardContent>
-      <CardFooter className="p-6 md:p-10 border-t border-border/60 bg-muted/20 relative overflow-hidden">
-        {/* Decorative blueprint lines */}
-        <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-        
-        {isAnalyzed ? (
-            <div className="w-full flex flex-col items-center gap-3 relative z-10">
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button className="w-full h-16 text-xl font-black shadow-2xl shadow-destructive/20 transition-all hover:scale-[1.01] active:scale-95 rounded-2xl bg-destructive hover:bg-destructive/90 text-destructive-foreground uppercase gap-3">
-                            <RotateCcw className="h-6 w-6" /> RESET STUDIO
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="rounded-[2.5rem] border-border p-8 md:p-10 shadow-3xl bg-card text-card-foreground">
-                        <AlertDialogHeader>
-                            <AlertDialogTitle className="text-3xl font-black tracking-tight uppercase text-destructive">Full Studio Reset?</AlertDialogTitle>
-                            <AlertDialogDescription className="text-base font-medium text-muted-foreground mt-2">
-                                This protocol will purge the entire production state including script, characters, and any generated fragments.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel className="rounded-xl font-bold h-12 px-8 bg-muted border-border text-foreground hover:bg-muted/80 transition-colors">Abort</AlertDialogCancel>
-                            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-2xl font-black h-12 px-10" onClick={clearStudioState}>Confirm Reset</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </div>
-        ) : (
-            <div className="w-full flex flex-col gap-6 relative z-10">
-                {/* Compact Toolbar Grid / Flex */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3.5 sm:p-4 rounded-2xl bg-muted/20 border border-border/70 shadow-xs">
-                    {/* Left: Quick Actions */}
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
-                        <Label htmlFor="file-upload" className={cn(isAnalyzed || isAnalyzing ? "cursor-not-allowed" : "cursor-pointer")}>
-                            <div className={cn(
-                                "flex items-center gap-1.5 text-[11px] font-bold tracking-wider transition-all whitespace-nowrap border border-border px-3.5 py-2 rounded-xl bg-background/80 hover:bg-muted shadow-2xs",
-                                (isAnalyzed || isAnalyzing) ? "text-muted-foreground opacity-30 pointer-events-none" : "text-foreground hover:text-primary active:scale-95"
-                            )}>
-                                <FileUp className="h-3.5 w-3.5 text-primary" /> Import
-                            </div>
-                        </Label>
-                        <input id="file-upload" type="file" className="hidden" accept=".txt,.docx" onChange={handleFileChange} disabled={isAnalyzed || isAnalyzing} />
-                        
-                        <label htmlFor="include-emotion-chk" className="flex items-center gap-2 bg-background/80 px-3 py-2 rounded-xl border border-border transition-all hover:bg-muted cursor-pointer select-none">
-                            <Checkbox 
-                                id="include-emotion-chk" 
-                                checked={includeEmotion} 
-                                onCheckedChange={(val) => setIncludeEmotion(val as boolean)}
-                                disabled={isAnalyzing}
-                                className="border-border h-4 w-4 rounded-md data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                            />
-                            <span className="text-[11px] font-bold text-foreground/80 cursor-pointer">
-                                Emotions
-                            </span>
-                        </label>
-                    </div>
-
-                    {/* Right: Counters & Balances — wraps instead of overflowing on narrow screens */}
-                    <div className="flex flex-wrap items-center justify-between sm:justify-end gap-1.5 sm:gap-2.5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
-                        {/* Character count pill */}
-                        <div className="flex items-center gap-1 sm:gap-1.5 bg-background/80 border border-border px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-foreground shadow-2xs">
-                            <Zap className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5 fill-primary text-primary shrink-0", characterCount > 0 ? "animate-pulse" : "opacity-30")} />
-                            <div className="text-[10px] sm:text-[11px] font-bold font-mono whitespace-nowrap">
-                                <span className={cn(
-                                    (!isMinCharCountValid && characterCount > 0 && !isAnalyzed) || !isMaxCharCountValid ? "text-destructive" : "text-foreground font-extrabold"
-                                )}>
-                                    {billableCharacterCount.toLocaleString()}
-                                </span>
-                                <span className="text-muted-foreground text-[9px] sm:text-[10px]">/30k</span>
-                            </div>
-                            {characterCount > 0 && !isAnalyzed && (
-                                <button disabled={isAnalyzing} className="text-destructive/60 hover:text-destructive transition-colors ml-0.5 sm:ml-1 p-0.5 rounded shrink-0" onClick={() => setScript('')} title="Clear Text">
-                                    <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Available Credits pill */}
-                        {(() => {
-                            const userCredits = Number(user?.credits ?? 0);
-                            return (
-                                <div className="flex items-center gap-1 sm:gap-2 bg-amber-500/10 border border-amber-500/25 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl shadow-2xs">
-                                    <Coins className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500 shrink-0" />
-                                    <div className="flex items-baseline gap-1 font-mono whitespace-nowrap">
-                                        <span className="text-[11px] sm:text-xs font-black text-foreground">
-                                            {formatCredits(userCredits)}
-                                        </span>
-                                        <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                                            Credits
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })()}
-                    </div>
-                </div>
-
-                {/* Main Action Area */}
-                {(() => {
-                    const isSponsorOrAdmin = user?.isSponsor === true || user?.role === 'admin';
-                    const userCredits = Number(user?.credits ?? 0);
-                    const charCount = script.trim().length;
-                    const requiredCredits = Math.ceil(charCount * (activeRate ?? pricing?.normal ?? 1.2));
-                    const isNotEnoughCredits = !isSponsorOrAdmin && charCount > 0 && userCredits < requiredCredits;
-                    const isDailyLimitReached = !isSponsorOrAdmin && dailyAnalysisCount >= maxDailyAnalysisLimit;
-                    const isAnalyzeDisabled = !script.trim() || isAnalyzing || !isMinCharCountValid || !isMaxCharCountValid || isNotEnoughCredits || isDailyLimitReached || isAnalyzed;
-
-                    return (
-                        <div className="w-full space-y-6">
-                            {!isAnalyzed && (
-                                <div className="w-full space-y-3">
-                                    {isDailyLimitReached && (
-                                        <div className="flex items-center justify-center">
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 shadow-sm">
-                                                Daily Analysis Quota: {dailyAnalysisCount} / {maxDailyAnalysisLimit} Used
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    {isNotEnoughCredits && (
-                                        <div className="flex items-center gap-3 p-5 rounded-2xl bg-destructive/5 border border-destructive/20 text-destructive text-sm font-black uppercase tracking-wide animate-in slide-in-from-bottom-2">
-                                            <AlertCircle className="h-5 w-5 shrink-0" />
-                                            <span>Insufficient Credits — Please top up or shorten your script</span>
-                                        </div>
-                                    )}
-
-                                    {isDailyLimitReached && !isNotEnoughCredits && (
-                                        <div className="flex items-center gap-3 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-amber-500 text-sm font-black uppercase tracking-wide animate-in slide-in-from-bottom-2">
-                                            <ShieldAlert className="h-5 w-5 shrink-0" />
-                                            <span>Daily Analysis Limit Reached — Reset at 00:00 UTC</span>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            <Button 
-                                onClick={analyzeScript} 
-                                disabled={isAnalyzeDisabled} 
-                                className={cn(
-                                    "w-full h-14 sm:h-16 text-lg sm:text-xl font-black shadow-xl transition-all rounded-2xl uppercase tracking-[0.05em]",
-                                    isNotEnoughCredits || isDailyLimitReached 
-                                        ? "bg-muted text-muted-foreground cursor-not-allowed border-2 border-dashed border-border shadow-none hover:scale-100" 
-                                        : "shadow-primary/30 hover:scale-[1.01] active:scale-95 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-primary-foreground"
-                                )}
-                            >
-                                {isAnalyzing ? (
-                                    <span className="flex items-center justify-center gap-2"><Loader2 className="h-6 w-6 animate-spin" /> <span>ANALYZING SCRIPT...</span></span>
-                                ) : isNotEnoughCredits ? (
-                                    <span className="flex items-center justify-center gap-2"><AlertCircle className="h-6 w-6 text-destructive" /> <span>INSUFFICIENT CREDITS</span></span>
-                                ) : isDailyLimitReached ? (
-                                    <span className="flex items-center justify-center gap-2"><ShieldAlert className="h-6 w-6 text-amber-500" /> <span>QUOTA EXCEEDED</span></span>
-                                ) : isAnalyzed ? (
-                                    <span className="flex items-center justify-center gap-2"><Check className="h-6 w-6" /> <span>ANALYSIS COMPLETE</span></span>
-                                ) : (
-                                    <span className="flex items-center justify-center gap-2"><Wand2 className="h-6 w-6 text-white" /> <span>START AI ANALYSIS</span></span>
-                                )}
-                            </Button>
-                        </div>
-                    );
-                })()}
-            </div>
+            {isDailyLimitReached && !isNotEnoughCredits && (
+              <div className="flex items-center gap-2.5 rounded-2xl bg-amber-500/10 px-3.5 py-3 text-sm font-medium text-amber-700 dark:text-amber-300 animate-in fade-in slide-in-from-bottom-1">
+                <ShieldAlert className="h-4 w-4 shrink-0" />
+                Daily analysis limit reached ({dailyAnalysisCount}/{maxDailyAnalysisLimit}). Try again tomorrow.
+              </div>
+            )}
+            <Button
+              onClick={analyzeScript}
+              disabled={isAnalyzeDisabled}
+              className={cn(
+                'anim-studio-sheen h-14 w-full rounded-2xl text-base font-bold transition-all duration-200 active:scale-[0.98]',
+                isAnalyzeDisabled && !isAnalyzing
+                  ? 'bg-muted text-muted-foreground shadow-none'
+                  : 'bg-gradient-to-r from-primary to-indigo-500 text-white shadow-lg shadow-primary/30 hover:brightness-105',
+              )}
+            >
+              {isAnalyzing ? (
+                <span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /> Analyzing script…</span>
+              ) : isNotEnoughCredits ? (
+                <span className="flex items-center gap-2"><AlertCircle className="h-5 w-5" /> Not enough credits</span>
+              ) : isDailyLimitReached ? (
+                <span className="flex items-center gap-2"><ShieldAlert className="h-5 w-5" /> Daily limit reached</span>
+              ) : (
+                <span className="relative z-[2] flex items-center gap-2"><Wand2 className="h-5 w-5" /> Analyze with AI</span>
+              )}
+            </Button>
+          </>
         )}
-      </CardFooter>
-    </Card>
+      </div>
+    </section>
   );
 }

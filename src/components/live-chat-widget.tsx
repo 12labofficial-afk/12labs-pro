@@ -134,6 +134,10 @@ export function LiveChatWidget() {
   const [showDismiss, setShowDismiss] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
 
+  // iOS-style sheet: drag the header down to dismiss (mobile).
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const sheetDrag = useRef<{ y: number; t: number; dy: number } | null>(null);
+
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isDeletingChat, setIsDeletingChat] = useState(false);
 
@@ -284,6 +288,43 @@ export function LiveChatWidget() {
     else setIsOpen(true);
   };
 
+  const onSheetDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isMobile || (e.target as HTMLElement).closest('button')) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    sheetDrag.current = { y: e.clientY, t: performance.now(), dy: 0 };
+    if (sheetRef.current) sheetRef.current.style.transition = 'none';
+  };
+
+  const onSheetDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = sheetDrag.current;
+    const el = sheetRef.current;
+    if (!drag || !el) return;
+    // Pulling up gives a little rubber-band resistance; down follows the finger.
+    const raw = e.clientY - drag.y;
+    drag.dy = raw > 0 ? raw : raw / 6;
+    el.style.transform = `translate3d(0, ${drag.dy}px, 0)`;
+  };
+
+  const onSheetDragEnd = () => {
+    const drag = sheetDrag.current;
+    const el = sheetRef.current;
+    sheetDrag.current = null;
+    if (!drag || !el) return;
+    const velocity = drag.dy / Math.max(1, performance.now() - drag.t); // px per ms
+    if (drag.dy > 120 || (drag.dy > 30 && velocity > 0.5)) {
+      el.style.transition = 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)';
+      el.style.transform = 'translate3d(0, 100%, 0)';
+      window.setTimeout(() => {
+        // Already off screen — skip the built-in slide-out so it can't jump back.
+        el.style.animation = 'none';
+        setIsOpen(false);
+      }, 200);
+    } else {
+      el.style.transition = 'transform 280ms cubic-bezier(0.32, 0.72, 0, 1)';
+      el.style.transform = '';
+    }
+  };
+
   const handleSendMessage = async () => {
     if ((!input.trim() && !imageToSend) || !user || !database || isSending) return;
     if (input.length > MAX_LEN) return;
@@ -415,6 +456,7 @@ export function LiveChatWidget() {
 
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetContent
+          ref={sheetRef}
           side={isMobile ? 'bottom' : 'right'}
           onOpenAutoFocus={(e) => e.preventDefault()}
           className={cn(
@@ -423,8 +465,17 @@ export function LiveChatWidget() {
           )}
         >
           {/* Header — frosted, compact, Apple-style */}
-          <div className="relative z-10 shrink-0 border-b border-black/5 bg-background/80 px-4 pb-3 pt-2 backdrop-blur-xl dark:border-white/10">
-            {isMobile && <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-muted-foreground/25" />}
+          <div
+            onPointerDown={onSheetDragStart}
+            onPointerMove={onSheetDragMove}
+            onPointerUp={onSheetDragEnd}
+            onPointerCancel={onSheetDragEnd}
+            className={cn(
+              'relative z-10 shrink-0 border-b border-black/5 bg-background/80 px-4 pb-3 pt-2 backdrop-blur-xl dark:border-white/10',
+              isMobile && 'touch-none select-none',
+            )}
+          >
+            {isMobile && <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-muted-foreground/30" />}
             <div className={cn('flex items-center gap-3', !isMobile && 'pt-2')}>
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/70 text-sm font-bold text-primary-foreground">
                 12
@@ -455,8 +506,8 @@ export function LiveChatWidget() {
                 </AlertDialog>
               )}
               <SheetClose asChild>
-                <button type="button" className="rounded-full px-2 py-1 text-[15px] font-semibold text-primary transition-opacity active:opacity-60">
-                  Done
+                <button type="button" aria-label="Close chat" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-transform active:scale-90">
+                  <X className="h-4 w-4" strokeWidth={2.5} />
                 </button>
               </SheetClose>
             </div>

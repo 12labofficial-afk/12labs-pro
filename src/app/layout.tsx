@@ -205,6 +205,25 @@ export default function RootLayout({
             `,
           }}
         />
+        {/* Installed-app launch: Android shows its own static splash (icon on
+            the manifest background); right after it this plays a short logo
+            animation on the same white, once per app session. Pure CSS —
+            it never blocks taps and removes itself after ~1.6s. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+                  if (standalone && !sessionStorage.getItem('pwa_launch_seen')) {
+                    sessionStorage.setItem('pwa_launch_seen', '1');
+                    document.documentElement.classList.add('pwa-launch');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
       </head>
       <body className={cn(
           'min-h-screen font-sans antialiased overflow-x-hidden w-full max-w-full pb-16 md:pb-0',
@@ -218,6 +237,12 @@ export default function RootLayout({
                 the thing showing through behind the status bar, washing out
                 its icons. Sits above everything (z-[100]) and is purely
                 visual — it never intercepts touches. */}
+            <div id="pwa-splash" aria-hidden="true">
+              <div className="pwa-splash-mark">
+                <img src="/icon-192x192.png" alt="" width={104} height={104} />
+              </div>
+              <span className="pwa-splash-word">12Labs</span>
+            </div>
             <div className="status-bar-spacer" aria-hidden="true" />
             {/* Same idea, bottom edge — the Android gesture-nav strip, see
                 the .bottom-bar-spacer comment in globals.css. */}

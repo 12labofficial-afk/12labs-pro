@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStudio } from '@/context/studio-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { studioCard, StudioCardHeader } from './studio-ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -274,18 +275,8 @@ export function CharacterAssignments() {
   }
   
   return (
-    <Card id="character-assignments-container" className="border-border/60 shadow-2xl bg-card/90 dark:bg-white/[0.02] backdrop-blur-3xl overflow-hidden rounded-[2rem]">
-      <CardHeader className="bg-primary/5 pb-6 border-b border-border/60">
-        <div className="flex items-center gap-4">
-             <div className="p-3 bg-primary/10 rounded-2xl shadow-inner">
-                <Users className="h-6 w-6 text-primary" />
-             </div>
-             <div>
-                <CardTitle className="text-xl font-black uppercase tracking-tight text-foreground">Project Cast</CardTitle>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em]">Assign AI Personas</p>
-             </div>
-        </div>
-      </CardHeader>
+    <Card id="character-assignments-container" className={cn(studioCard, 'anim-studio-rise')}>
+      <StudioCardHeader icon={<Users className="h-5 w-5" />} title="Cast" subtitle="Pick a voice for each character" />
       <CardContent className="space-y-8 pt-8">
         <div className="space-y-2">
             <Label htmlFor="project-name-input" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Project Identifier</Label>

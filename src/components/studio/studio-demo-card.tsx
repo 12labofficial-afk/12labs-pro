@@ -2,9 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, Volume2, Play, Pause, Radio } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import { studioCard } from './studio-ui';
 import { cn, getDisplayUrl } from '@/lib/utils';
 import { initializeFirebase } from '@/firebase';
 import { ref, onValue } from 'firebase/database';
@@ -46,9 +44,9 @@ const DEFAULT_DEMOS: AudioDemoItem[] = [
 ];
 
 export function StudioDemoCard({
-  title = "STUDIO ENGINE READY",
-  badgeText = "INSTANT VOICE SYNTHESIS",
-  subtitle = "Analyze script to activate neural voices"
+  title = "Your voices appear here",
+  badgeText = "",
+  subtitle = "Analyze a script to cast a voice for every character."
 }: StudioDemoCardProps) {
   const { database } = initializeFirebase();
   const [demos, setDemos] = useState<AudioDemoItem[]>(DEFAULT_DEMOS);
@@ -134,106 +132,62 @@ export function StudioDemoCard({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[440px] border-2 border-dashed border-border/80 rounded-[2.5rem] bg-card/90 dark:bg-white/[0.02] backdrop-blur-3xl shadow-sm p-6 sm:p-8 relative overflow-hidden group">
-      {/* Background Glow */}
-      <div className="absolute inset-0 bg-primary/[0.01] -z-10" />
-
-      <div className="space-y-6 text-center animate-in zoom-in-95 duration-700 w-full max-w-md">
-        <div className="relative mx-auto w-fit">
-          <div className={cn(
-            "absolute inset-0 bg-primary/20 rounded-full blur-2xl transition-all duration-1000",
-            activePlayingId ? "scale-150 opacity-100" : "scale-100 opacity-0"
-          )} />
-          <div className="p-4 bg-primary/10 rounded-3xl relative z-10">
-            <Sparkles className="h-8 w-8 text-primary animate-pulse" />
-          </div>
+    <section className={studioCard}>
+      <div className="relative px-5 pb-5 pt-6 text-center">
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(50%_80%_at_50%_0%,rgba(37,99,235,0.12),transparent)]" />
+        <div className="anim-studio-float relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-500 text-white shadow-lg shadow-primary/30">
+          <Sparkles className="h-6 w-6" />
         </div>
+        <p className="relative mt-4 text-lg font-bold tracking-tight">{title}</p>
+        <p className="relative mt-1 text-sm text-muted-foreground">{subtitle}</p>
+        {badgeText && (
+          <span className="relative mt-3 inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">{badgeText}</span>
+        )}
+      </div>
 
-        <div className="space-y-2 flex flex-col items-center">
-          {badgeText && (
-            <Badge className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white font-black uppercase text-[10px] h-6 px-4 rounded-full shadow-lg border-none mb-1 tracking-widest">
-              {badgeText}
-            </Badge>
-          )}
-          <p className="text-xl sm:text-2xl font-black tracking-tight uppercase text-foreground">{title}</p>
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-            {subtitle}
-          </p>
-        </div>
-
-        <Separator className="max-w-[160px] mx-auto bg-border" />
-
-        {/* 🎙️ ALL 3 NEURAL DEMOS PLAYER */}
-        <div className="space-y-3 pt-1 w-full">
-          <div className="flex items-center justify-center gap-2">
-            <Radio className="h-3.5 w-3.5 text-primary animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
-              STUDIO DEMOS (3 VOICE PROFILES)
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-2.5 w-full">
-            {demos.map((demo, idx) => {
-              const isPlayingThis = activePlayingId === demo.id;
-              return (
-                <div
-                  key={demo.id}
-                  onClick={() => handleTogglePlay(demo)}
+      <div className="border-t border-black/[0.05] p-3 dark:border-white/10">
+        <p className="flex items-center gap-1.5 px-2 pb-2 text-xs font-semibold text-muted-foreground">
+          <Radio className="h-3.5 w-3.5 text-primary" /> Listen to samples
+        </p>
+        <div className="space-y-1.5">
+          {demos.map((demo) => {
+            const isPlayingThis = activePlayingId === demo.id;
+            return (
+              <button
+                key={demo.id}
+                type="button"
+                onClick={() => handleTogglePlay(demo)}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all duration-300 active:scale-[0.99]',
+                  isPlayingThis ? 'bg-primary/10 ring-1 ring-primary/25' : 'hover:bg-muted/70 dark:hover:bg-white/5',
+                )}
+              >
+                <span
                   className={cn(
-                    "flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 cursor-pointer text-left",
-                    isPlayingThis
-                      ? "bg-primary/20 border-primary/40 shadow-md ring-2 ring-primary/20"
-                      : "bg-muted/50 dark:bg-white/5 border-border/60 dark:border-white/5 hover:border-primary/40 hover:bg-muted/80"
+                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300',
+                    isPlayingThis ? 'scale-105 bg-primary text-white shadow-md shadow-primary/30' : 'bg-primary/10 text-primary',
                   )}
                 >
-                  <div className="flex items-center gap-3 min-w-0 pr-2">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className={cn(
-                        "h-9 w-9 shrink-0 rounded-full transition-all duration-300",
-                        isPlayingThis
-                          ? "bg-primary text-white shadow-md scale-105"
-                          : "bg-primary/10 text-primary hover:bg-primary/20"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleTogglePlay(demo);
-                      }}
-                    >
-                      {isPlayingThis ? (
-                        <Pause className="h-4 w-4 fill-current" />
-                      ) : (
-                        <Play className="h-4 w-4 fill-current ml-0.5" />
-                      )}
-                    </Button>
-                    <div className="truncate">
-                      <p className="text-xs font-black uppercase tracking-wide truncate text-foreground">
-                        Demo {idx + 1}: {demo.title}
-                      </p>
-                      {demo.tag && (
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground truncate">
-                          {demo.tag}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="shrink-0">
-                    {isPlayingThis ? (
-                      <Badge className="bg-primary text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full animate-pulse">
-                        PLAYING
-                      </Badge>
-                    ) : (
-                      <Volume2 className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  {isPlayingThis ? <Pause className="h-4 w-4 fill-current" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{demo.title}</span>
+                  {demo.tag && <span className="block truncate text-xs text-muted-foreground">{demo.tag}</span>}
+                </span>
+                {isPlayingThis ? (
+                  <span aria-hidden className="flex h-4 shrink-0 items-end gap-[3px] pr-1">
+                    {[0, 1, 2, 3].map((b) => (
+                      <span key={b} className="w-[3px] origin-bottom rounded-full bg-primary animate-[studio-eq_900ms_ease-in-out_infinite]" style={{ height: '100%', animationDelay: `${b * 120}ms` }} />
+                    ))}
+                  </span>
+                ) : (
+                  <Volume2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

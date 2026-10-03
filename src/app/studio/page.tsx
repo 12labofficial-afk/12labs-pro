@@ -6,7 +6,7 @@ import { CharacterAssignments } from '@/components/studio/character-assignments'
 import { GenerationProgress } from '@/components/studio/generation-progress';
 import { GenerationSettings } from '@/components/studio/generation-settings';
 import { GeneratedLines } from '@/components/studio/generated-lines';
-import { Rocket, Sparkles, ArrowUp, Cpu, Activity, Zap, ShieldCheck, Loader2 } from 'lucide-react';
+import { Loader2, FileText, Users, AudioLines, Check } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { ref, onValue } from 'firebase/database';
@@ -19,6 +19,52 @@ import { StudioDemoCard } from '@/components/studio/studio-demo-card';
 
 // Force dynamic execution for production stability
 export const dynamic = 'force-dynamic';
+
+const STEPS = [
+  { n: 1, label: 'Script', icon: FileText },
+  { n: 2, label: 'Voices', icon: Users },
+  { n: 3, label: 'Generate', icon: AudioLines },
+] as const;
+
+function StudioTopBar({ step }: { step: number }) {
+  return (
+    <div className="anim-studio-rise flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-primary shadow-sm backdrop-blur dark:bg-white/5">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          </span>
+          Next-gen voice engine
+        </div>
+        <h1 className="text-[28px] font-extrabold leading-none tracking-tight sm:text-4xl">
+          Voice <span className="bg-gradient-to-r from-primary to-indigo-500 bg-clip-text text-transparent">Studio</span>
+        </h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">Script in, studio-quality voices out.</p>
+      </div>
+
+      {/* Step tracker — three equal segments, always fits a 320px screen. */}
+      <ol className="grid w-full grid-cols-3 gap-1.5 rounded-2xl border border-black/[0.06] bg-white/80 p-1.5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 sm:w-auto sm:min-w-[340px]">
+        {STEPS.map(({ n, label, icon: Icon }) => {
+          const done = step > n;
+          const active = step === n;
+          return (
+            <li
+              key={n}
+              className={cn(
+                'flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-semibold transition-colors duration-300',
+                active ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25' : done ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
+              {done ? <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={3} /> : <Icon className="h-3.5 w-3.5 shrink-0" />}
+              <span className="truncate">{label}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
 
 function StudioContent() {
   const { 
@@ -35,45 +81,40 @@ function StudioContent() {
   // Show dialogue nodes whenever generated lines exist
   const showGeneratedLines = generatedLines.length > 0;
 
-  return (
-    <div className="relative min-h-screen bg-background text-foreground dark:bg-card pb-20 selection:bg-primary/30 selection:text-white overflow-x-hidden transition-colors duration-300">
-      {/* 🎭 HIGH-PERFORMANCE NEURAL BACKGROUND */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        {/* Deep base layers */}
-        <div className="absolute inset-0 dark:bg-[radial-gradient(circle_at_50%_-20%,#1e1b4b,transparent_70%)] bg-[radial-gradient(circle_at_50%_-20%,#e0e7ff,transparent_70%)] opacity-60" />
-        <div className="absolute inset-0 dark:bg-[radial-gradient(circle_at_80%_40%,#4c1d9550,transparent_50%)] bg-[radial-gradient(circle_at_80%_40%,#f3e8ff80,transparent_50%)]" />
-        
-        {/* Subtle Grid Pattern */}
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] mix-blend-overlay" />
-        <div className="absolute inset-0 opacity-40 dark:opacity-100" style={{ backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)', backgroundSize: '60px 60px', color: 'rgba(120,120,120,0.1)' }} />
+  const step = isHqActive || isAudioReady || isGenerating ? 3 : scriptState === 'valid' ? 2 : 1;
 
-        {/* Dynamic Aurora Orbs */}
-        <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-blue-600/10 dark:bg-blue-600/15 blur-[140px] animate-pulse opacity-40" />
-        <div className="absolute top-[30%] -right-[15%] w-[40%] h-[40%] rounded-full bg-purple-600/10 dark:bg-purple-600/15 blur-[120px] animate-pulse opacity-30" style={{ animationDelay: '5s' }} />
-        <div className="absolute -bottom-[10%] left-[20%] w-[35%] h-[35%] rounded-full bg-indigo-500/10 dark:bg-indigo-500/10 blur-[100px] animate-pulse opacity-20" style={{ animationDelay: '10s' }} />
+  return (
+    <div className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-[#f6f8fc] pb-24 text-foreground dark:bg-zinc-950">
+      {/* Background: one soft wash + a fine grid. Static — nothing here
+          animates, so it never costs a repaint while you type. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(60%_60%_at_50%_0%,rgba(37,99,235,0.14),transparent_70%)] dark:bg-[radial-gradient(60%_60%_at_50%_0%,rgba(59,130,246,0.18),transparent_70%)]" />
+        <div className="absolute inset-0 opacity-[0.5] [background-image:linear-gradient(rgba(15,23,42,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.04)_1px,transparent_1px)] [background-size:32px_32px] [mask-image:linear-gradient(to_bottom,black,transparent_70%)] dark:[background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)]" />
       </div>
 
-      <div className="container relative z-10 mx-auto max-w-7xl pt-10 pb-10 px-4 space-y-8">
+      <div className="container relative z-10 mx-auto max-w-6xl space-y-6 px-4 pb-10 pt-6 sm:pt-8">
+        <StudioTopBar step={step} />
+
         {/* key forces a clean unmount/remount instead of React trying to
             reconcile ScriptEditor/CharacterAssignments/StudioDemoCard against
             each other when several flags (Firestore hqProject snapshot +
             isGenerating) flip in the same render — this was the likely source
             of the insertBefore/removeChild NotFoundError crashes on /studio. */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start" key={isHqActive || isAudioReady ? 'result' : 'editor'}>
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3" key={isHqActive || isAudioReady ? 'result' : 'editor'}>
           
           {/* PURGE EDITOR ON HQ SUBMISSION OR WHEN AUDIO IS READY */}
           {!isHqActive && !isAudioReady && !(isGenerating && generationMode === 'high-quality') && (
-            <div className="lg:col-span-2 space-y-8 animate-in fade-in slide-in-from-left-4 duration-700">
+            <div className="anim-studio-rise min-w-0 space-y-6 lg:col-span-2">
               <ScriptEditor />
             </div>
           )}
 
           <div className={cn(
-              "space-y-8 mt-4 lg:mt-0 animate-in fade-in duration-700",
+              "anim-studio-rise min-w-0 space-y-6",
               (isHqActive || isAudioReady || (isGenerating && generationMode === 'high-quality')) ? "lg:col-span-3 max-w-2xl mx-auto w-full" : "lg:col-span-1"
           )}>
             {(scriptState === 'valid' || isHqActive || isAudioReady) ? (
-              <div className="space-y-8 lg:sticky lg:top-24 pb-12">
+              <div className="space-y-6 pb-12 lg:sticky lg:top-24">
                 {/* PURGE ASSIGNMENTS ON HQ SUBMISSION OR WHEN AUDIO IS READY */}
                 {!isHqActive && !isAudioReady && !(isGenerating && generationMode === 'high-quality') && (
                     <CharacterAssignments />
@@ -85,11 +126,7 @@ function StudioContent() {
                 {generationMode === 'fast' && (isGenerating || isFinalizing) && <GenerationProgress />}
               </div>
             ) : (
-                <StudioDemoCard 
-                  title="STUDIO ENGINE READY" 
-                  badgeText="INSTANT VOICE SYNTHESIS" 
-                  subtitle="Analyze script to activate neural voices" 
-                />
+                <StudioDemoCard />
             )}
           </div>
 
@@ -97,7 +134,7 @@ function StudioContent() {
 
         {/* Dialogues placed at the very bottom below Generate button & all controls */}
         {showGeneratedLines && (
-          <div className="w-full pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="anim-studio-rise w-full min-w-0 pt-2">
             <GeneratedLines />
           </div>
         )}

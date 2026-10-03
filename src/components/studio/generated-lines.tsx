@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useStudio } from '@/context/studio-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { studioCard } from './studio-ui';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -474,14 +475,14 @@ export function GeneratedLines() {
     };
 
     return (
-        <Card className="mt-8 border-border dark:border-white/10 shadow-2xl bg-card dark:bg-white/[0.02] backdrop-blur-3xl overflow-hidden rounded-[2rem]">
-            <CardHeader className="bg-primary/5 pb-6 border-b border-border/50 dark:border-white/5">
+        <Card className={cn(studioCard, 'mt-2')}>
+            <CardHeader className="border-b border-black/[0.05] px-5 pb-4 pt-5 dark:border-white/10">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <Activity className="h-5 w-5 text-primary animate-pulse" />
-                        <div>
-                            <CardTitle className="text-lg font-black uppercase tracking-tight text-foreground dark:text-white">Production Hub</CardTitle>
-                            <CardDescription className="text-[8px] font-bold uppercase tracking-widest opacity-60">Manage each dialogue node.</CardDescription>
+                    <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Activity className="h-5 w-5" /></div>
+                        <div className="min-w-0">
+                            <CardTitle className="truncate text-[17px] font-bold leading-tight tracking-tight text-foreground">Lines</CardTitle>
+                            <CardDescription className="truncate text-xs text-muted-foreground">Play, edit or redo any line</CardDescription>
                         </div>
                     </div>
                     <DownloadOptions />

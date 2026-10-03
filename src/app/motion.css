@@ -255,6 +255,33 @@
   animation: text-shimmer-pass 5.5s var(--ease-in-out-soft) infinite;
 }
 
+/* ── Studio ──────────────────────────────────────────────────────────
+   Entrance: fade + 10px rise, transform/opacity only (GPU, no layout). */
+@keyframes studio-rise { from { opacity: 0; transform: translate3d(0, 10px, 0); } to { opacity: 1; transform: none; } }
+.anim-studio-rise { animation: studio-rise 520ms var(--ease-out-firm) both; }
+
+/* Light sweep across the primary action button. */
+@keyframes studio-sheen { 0% { transform: translateX(-120%) skewX(-20deg); } 60%, 100% { transform: translateX(260%) skewX(-20deg); } }
+.anim-studio-sheen { position: relative; overflow: hidden; isolation: isolate; }
+.anim-studio-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: studio-sheen 3.2s var(--ease-in-out-soft) infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+.anim-studio-sheen:disabled::after { animation: none; opacity: 0; }
+
+/* Equalizer bars on the playing sample. */
+@keyframes studio-eq { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+
+/* Slow float for the hero icon tile. */
+@keyframes studio-float { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -4px, 0); } }
+.anim-studio-float { animation: studio-float 4s ease-in-out infinite; }
+
 /* One-word live status ("Voicing…"), Claude-style: a bright band sweeps
    across dimmed text. */
 @keyframes status-shimmer { from { background-position: 100% 0; } to { background-position: 0% 0; } }
