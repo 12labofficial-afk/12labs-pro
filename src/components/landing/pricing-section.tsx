@@ -119,11 +119,11 @@ export function PricingSection() {
                 viewport={{ once: true, margin: '300px 0px -5% 0px' }}
                 transition={{ type: 'spring', stiffness: 300, damping: 22, delay: index * 0.08 }}
                 whileHover={{ y: -6 }}
-                className="snap-center shrink-0 self-start w-[78vw] max-w-[310px] sm:w-[300px]"
+                className="snap-center shrink-0 w-[78vw] max-w-[310px] sm:w-[300px]"
               >
                 <Card
                   className={cn(
-                    "relative flex flex-col overflow-hidden rounded-[26px] border bg-white/90 shadow-[0_18px_50px_-30px_rgba(37,99,235,0.45)] backdrop-blur transition-all duration-500 group hover:shadow-[0_24px_60px_-28px_rgba(37,99,235,0.55)] dark:bg-zinc-900/70",
+                    "relative flex h-full flex-col overflow-hidden rounded-[26px] border bg-white/90 shadow-[0_18px_50px_-30px_rgba(37,99,235,0.45)] backdrop-blur transition-all duration-500 group hover:shadow-[0_24px_60px_-28px_rgba(37,99,235,0.55)] dark:bg-zinc-900/70",
                     plan.isAutopay
                       ? "border-indigo-300/60 bg-gradient-to-b from-indigo-50 to-white dark:from-indigo-950/30 dark:to-zinc-900"
                       : plan.bestValue
