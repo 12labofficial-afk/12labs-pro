@@ -1,6 +1,7 @@
 
 'use client';
 
+import { MessageSquare } from 'lucide-react';
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/auth-provider';
 import {
@@ -1993,6 +1994,11 @@ export function UserManagement() {
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem className="h-10 rounded-lg cursor-pointer" onClick={async () => { try { const p = await getUserProfileFromServer(await getIdToken(), user.uid); if (p) { setFirestoreProfiles(prev => ({ ...prev, [user.uid]: p })); setSelectedProfile(p); setTicketDelta(''); setShowTicketDialog(true); } } catch (err) { console.error("[UserManagement] ticket profile fetch failed:", err); } }}>
                                                     <Ticket className="mr-3 h-4 w-4 text-purple-600" /> Edit Tickets
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem asChild className="h-10 rounded-lg cursor-pointer">
+                                                    <a href={`/admin/chat?user=${encodeURIComponent(user.uid)}&name=${encodeURIComponent(user.name || '')}&email=${encodeURIComponent(user.email || '')}`}>
+                                                        <MessageSquare className="mr-3 h-4 w-4 text-primary" /> Message in Live Chat
+                                                    </a>
                                                 </DropdownMenuItem>
                                                 {/* Reach one user directly — in-app notification, email, or
                                                     both. Uses the row data we already have, so no profile

@@ -116,6 +116,8 @@ export function LiveChatWidget() {
   const nearBottom = useRef(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [hasUnread, setHasUnread] = useState(false);
+  // Support has opened this conversation since the user's last message.
+  const [seenBySupport, setSeenBySupport] = useState(false);
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
   const [isMobile, setIsMobile] = useState(false);
@@ -185,6 +187,11 @@ export function LiveChatWidget() {
       const last = dbMessages[dbMessages.length - 1];
       if (last?.sender === 'admin' && !last.seen && !isOpenRef.current) setHasUnread(true);
     });
+  }, [user?.uid, database]);
+
+  useEffect(() => {
+    if (!user?.uid || !database) return;
+    return onRtdbValue(ref(database, `chats/${user.uid}/isReadByAdmin`), (snap) => setSeenBySupport(snap.val() === true));
   }, [user?.uid, database]);
 
   useEffect(() => {
@@ -569,7 +576,9 @@ export function LiveChatWidget() {
                       onImageClick={setPreviewImage}
                     />
                     {i === lastUserIdx && !message.status && (
-                      <p className="mt-0.5 pr-1 text-right text-[11px] text-muted-foreground">Delivered</p>
+                      <p className={cn('mt-0.5 pr-1 text-right text-[11px]', seenBySupport && i === messages.length - 1 ? 'font-semibold text-primary' : 'text-muted-foreground')}>
+                        {seenBySupport && i === messages.length - 1 ? 'Seen' : 'Delivered'}
+                      </p>
                     )}
                   </React.Fragment>
                 );

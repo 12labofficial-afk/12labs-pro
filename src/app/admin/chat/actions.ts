@@ -267,6 +267,18 @@ export async function sendAdminChatReply(idToken: string,
     await newMsgRef.set(messageData);
 
     const sessionRef = database.ref(`chats/${userId}`);
+    // Admin-started chat: the session node may not exist yet, so give it the
+    // user's identity for the conversation list.
+    const nameSnap = await sessionRef.child('userName').get().catch(() => null);
+    if (!nameSnap?.exists()) {
+      const { firestore } = initializeFirebase();
+      const u = (await firestore.collection('users').doc(userId).get().catch(() => null))?.data() || {};
+      Object.assign(sessionUpdateData, {
+        userId,
+        userName: u.name || u.email || userEmail || 'User',
+        userEmail: u.email || userEmail || 'N/A',
+      });
+    }
     await sessionRef.update(sessionUpdateData);
 
     // Send a browser push only when the user explicitly enabled notifications.

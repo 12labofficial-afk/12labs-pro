@@ -16,6 +16,9 @@ import { MessageCircle, Send, Bot, Loader2, ArrowLeft, Trash2, Edit, X, ImagePlu
 import { cn, generateAvatarColor, getDisplayUrl, compressImage } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { deleteChatSession, bulkDeleteChats, deleteSingleChatMessage, uploadChatImageToGCS, sendAdminChatReply } from './actions';
+import { findUserAndDataByEmail } from '@/app/admin/user-lookup/actions';
+import { useSearchParams } from 'next/navigation';
+import { Input } from '@/components/ui/input';
 import { useUsersMap } from '@/hooks/use-users-map';
 import {
     AlertDialog,
@@ -575,6 +578,51 @@ export default function AdminChatPage() {
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
+    // Start a conversation with any user (admin-initiated). The session
+    // only exists in RTDB once the first message is sent.
+    const searchParams = useSearchParams();
+    const [newChatEmail, setNewChatEmail] = useState('');
+    const [isFindingUser, setIsFindingUser] = useState(false);
+    const [showNewChat, setShowNewChat] = useState(false);
+    const openChatWith = (u: { uid: string; name?: string | null; email?: string | null }) => {
+        const existing = sessions.find((x) => x.userId === u.uid);
+        setSelectedSession(existing || {
+            id: u.uid,
+            userId: u.uid,
+            userName: u.name || u.email || 'User',
+            userEmail: u.email || 'N/A',
+            lastMessage: '',
+            lastMessageTimestamp: new Date().toISOString(),
+            isReadByAdmin: true,
+        });
+    };
+    useEffect(() => {
+        const uid = searchParams.get('user');
+        if (uid) openChatWith({ uid, name: searchParams.get('name'), email: searchParams.get('email') });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+    const handleStartNewChat = async () => {
+        const email = newChatEmail.trim().toLowerCase();
+        if (!email) return;
+        setIsFindingUser(true);
+        try {
+            const res = await findUserAndDataByEmail(await getIdToken(), email);
+            if (!res.success || !res.data?.user) {
+                toast({ variant: 'destructive', title: 'User not found', description: 'No account with that email.' });
+                return;
+            }
+            const u = res.data.user;
+            openChatWith({ uid: u.uid, name: u.name, email: u.email });
+            setNewChatEmail('');
+            setShowNewChat(false);
+        } catch (e) {
+            reportClientError('src/app/admin/chat/page.tsx:newChat', e);
+            toast({ variant: 'destructive', title: 'Could not start chat' });
+        } finally {
+            setIsFindingUser(false);
+        }
+    };
+
     const userIds = useMemo(() => sessions.map(s => s.userId), [sessions]);
     const { usersMap, isLoading: usersLoading } = useUsersMap(userIds);
 
@@ -673,7 +721,12 @@ export default function AdminChatPage() {
         )}>
             <div className="p-6 border-b space-y-4">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-black uppercase tracking-tight">Conversations</h2>
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-black uppercase tracking-tight">Conversations</h2>
+                        <Button size="sm" variant="outline" onClick={() => setShowNewChat((v) => !v)} className="h-8 rounded-xl text-[11px] font-bold">
+                            <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> New chat
+                        </Button>
+                    </div>
                     {selectedUserIds.length > 0 && (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -715,6 +768,14 @@ export default function AdminChatPage() {
                     </Button>
                 </div>
 
+                {showNewChat && (
+                    <div className="flex gap-2">
+                        <Input value={newChatEmail} onChange={(e) => setNewChatEmail(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleStartNewChat(); }} placeholder="User's email" type="email" className="h-9 rounded-xl" />
+                        <Button size="sm" onClick={handleStartNewChat} disabled={isFindingUser || !newChatEmail.trim()} className="h-9 rounded-xl px-4">
+                            {isFindingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Open'}
+                        </Button>
+                    </div>
+                )}
                 <Tabs value={view} onValueChange={(v) => setView(v as 'unread' | 'premium' | 'all')} className="w-full">
                     <TabsList className="grid w-full grid-cols-3 bg-muted/50 rounded-xl h-10 p-1">
                         <TabsTrigger value="unread" className="text-[9px] font-black uppercase rounded-lg">Unread</TabsTrigger>
