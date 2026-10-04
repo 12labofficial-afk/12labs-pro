@@ -118,7 +118,7 @@ export default function BuyCreditsPage() {
     };
   }, [database]);
 
-  // Auto-apply promo codes from URL (e.g., ?code=EXTRA10 or ?promo=EXTRA10)
+  // Auto-apply promo codes from URL (e.g., ?code=CODE or ?promo=CODE)
   useEffect(() => {
     if (typeof window !== 'undefined' && user) {
         const params = new URLSearchParams(window.location.search);
@@ -365,7 +365,7 @@ export default function BuyCreditsPage() {
     finalPrice = Math.max(0, finalPrice);
 
     const bonusCredits = (!plan.isAutopay && bonusCreditPercentage) 
-      ? Math.floor(plan.credits * (bonusCreditPercentage / 100)) + (appliedCode === 'EXTRA10' ? 2000 : 0)
+      ? Math.floor(plan.credits * (bonusCreditPercentage / 100))
       : 0;
     const totalCreditsWithBonus = plan.credits + bonusCredits;
     const currencySymbol = currency === 'INR' ? '₹' : '$';

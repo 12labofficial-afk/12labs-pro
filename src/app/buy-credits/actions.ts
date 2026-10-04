@@ -177,9 +177,9 @@ export async function handlePurchaseAction(idToken: string,
             }
         }
 
-        // Handle Extra Credits Bonus (Affiliate / Special Promos like EXTRA10)
+        // Handle Extra Credits Bonus (affiliate / special promo codes)
         if (promoResult.type === 'credit_bonus' && promoResult.value) {
-            const extraFlat = (promoResult as any).extraFlatCredits || (promoCode.toUpperCase() === 'EXTRA10' ? 2000 : 0);
+            const extraFlat = Number((promoResult as any).extraFlatCredits) || 0;
             bonusCredits = Math.floor(plan.credits * (promoResult.value / 100)) + extraFlat;
             finalCredits += bonusCredits;
         }

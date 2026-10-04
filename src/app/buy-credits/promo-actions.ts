@@ -40,17 +40,6 @@ export async function applyPromoCode(idToken: string,
   const promoRef = firestore.collection('promoCodes').doc(validatedCode);
 
   try {
-    // 0. System-level fallback promo codes for immediate, zero-setup reliability
-    if (validatedCode === 'EXTRA10') {
-      return {
-        success: true,
-        type: 'credit_bonus',
-        value: 10, // 10% extra credits
-        extraFlatCredits: 2000, // + 2,000 bonus credits
-        message: 'Exclusive 10% Extra Credits + 2,000 Welcome Bonus applied!'
-      };
-    }
-
     // 1. Standard Firestore Promo Codes
     const doc = await promoRef.get();
     if (doc.exists) {

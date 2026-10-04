@@ -13,7 +13,6 @@ import { DynamicThemeProvider } from '@/components/dynamic-theme-provider';
 import { MaintenanceGuard } from '@/components/maintenance-guard';
 import { OnboardingDialog } from '@/components/onboarding-dialog';
 import { PushSubscriptionHandler } from '@/components/push-subscription-handler';
-import { AltAccountOfferModal } from '@/components/alt-account-offer-modal';
 import { CookieConsent } from '@/components/cookie-consent';
 import { FirestoreCrashGuard } from '@/components/firestore-crash-guard';
 import { AppVersionGate } from '@/components/app-version-gate';
@@ -72,7 +71,6 @@ export function Providers({ children }: { children: ReactNode }) {
                     <PushSubscriptionHandler />
                     <FirebaseErrorListener />
                     <OnboardingDialog />
-                    <AltAccountOfferModal />
                     {children}
                     <CookieConsent />
                     <Toaster />
