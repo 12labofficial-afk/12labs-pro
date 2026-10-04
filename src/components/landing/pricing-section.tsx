@@ -119,110 +119,77 @@ export function PricingSection() {
                 viewport={{ once: true, margin: '300px 0px -5% 0px' }}
                 transition={{ type: 'spring', stiffness: 300, damping: 22, delay: index * 0.08 }}
                 whileHover={{ y: -6 }}
-                className="snap-center shrink-0 w-[85vw] sm:w-[340px] lg:w-[330px]"
+                className="snap-center shrink-0 self-start w-[78vw] max-w-[310px] sm:w-[300px]"
               >
                 <Card
                   className={cn(
-                    "flex flex-col h-full transition-all duration-500 rounded-3xl overflow-hidden group border-border/50 hover:border-primary/50 shadow-sm hover:shadow-2xl relative",
-                    plan.isAutopay && "bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-indigo-950/20 dark:via-background dark:to-purple-950/20 border-indigo-200/50"
+                    "relative flex flex-col overflow-hidden rounded-[26px] border bg-white/90 shadow-[0_18px_50px_-30px_rgba(37,99,235,0.45)] backdrop-blur transition-all duration-500 group hover:shadow-[0_24px_60px_-28px_rgba(37,99,235,0.55)] dark:bg-zinc-900/70",
+                    plan.isAutopay
+                      ? "border-indigo-300/60 bg-gradient-to-b from-indigo-50 to-white dark:from-indigo-950/30 dark:to-zinc-900"
+                      : plan.bestValue
+                      ? "border-amber-300/70 ring-1 ring-amber-300/50"
+                      : "border-black/[0.06] dark:border-white/10"
                   )}
                 >
-                  {plan.profitAmount && (
-                    <Badge className="absolute top-4 right-4 bg-green-600 text-white font-black uppercase text-[10px] h-6 px-3 shadow-lg border-none rounded-full">
-                      ₹{plan.profitAmount} PROFIT
-                    </Badge>
+                  {/* Accent bar */}
+                  <div aria-hidden className={cn("h-1 w-full", plan.isAutopay ? "bg-gradient-to-r from-indigo-500 to-fuchsia-500" : plan.bestValue ? "bg-gradient-to-r from-amber-400 to-orange-500" : "bg-gradient-to-r from-primary to-indigo-500")} />
+
+                  {(plan.bestValue || plan.isAutopay || plan.profitAmount) && (
+                    <span className={cn(
+                      "absolute right-3 top-4 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow",
+                      plan.profitAmount ? "bg-emerald-600" : plan.isAutopay ? "bg-indigo-600" : "bg-gradient-to-r from-amber-500 to-orange-500"
+                    )}>
+                      {plan.profitAmount ? `₹${plan.profitAmount} profit` : plan.isAutopay ? 'Monthly' : 'Best value'}
+                    </span>
                   )}
 
-                  <CardHeader className="items-center text-center p-6 pb-3 relative z-10">
-                    <div
-                      className={cn(
-                        "p-3 rounded-2xl mb-3 transition-transform duration-500 group-hover:scale-110 shadow-sm w-fit mx-auto",
-                        plan.isAutopay ? "bg-primary/5 text-indigo-600 dark:text-indigo-400" : "bg-primary/10 text-primary"
-                      )}
-                    >
-                      <plan.icon className="h-6 w-6" />
-                    </div>
-
-                    <CardTitle
-                      className={cn(
-                        "text-2xl font-black tracking-tight uppercase",
-                        plan.isAutopay ? "text-indigo-600 dark:text-indigo-400" : "text-primary"
-                      )}
-                    >
-                      {plan.name}
-                    </CardTitle>
-
-                    <div className="flex flex-col items-center mt-3">
-                      <span
-                        className={cn(
-                          "text-4xl font-black tracking-tighter",
-                          plan.isAutopay ? "text-indigo-600 dark:text-indigo-400" : "text-primary"
-                        )}
-                      >
-                        ₹{finalPrice.toFixed(0)}
-                        {plan.isAutopay && <span className="text-base font-bold">/mo</span>}
-                      </span>
-                    </div>
-
-                    <div className="mt-3">
-                      <Badge
-                        variant="outline"
-                        className="bg-primary/5 text-primary border-primary/20 text-[9px] font-black uppercase tracking-widest px-3 h-6 rounded-full inline-flex items-center gap-1.5 mx-auto shadow-sm"
-                      >
-                        <ShieldCheck className="h-3 w-3" /> ALL-INCLUSIVE PRICE
-                      </Badge>
-                    </div>
-
-                    <div className="pt-5 flex flex-col items-center gap-2">
-                      <div
-                        className={cn(
-                          "flex items-center justify-center gap-2 font-black text-lg",
-                          plan.isAutopay ? "text-indigo-600 dark:text-indigo-400" : "text-primary"
-                        )}
-                      >
-                        <div className="flex items-center justify-center h-5 w-5">
-                          <Coins className="h-full w-full" />
-                        </div>
-                        <span className="tracking-tight">
-                          {plan.id === 'pro'
-                            ? '30,000 + 1,000 Bonus'
-                            : `${plan.credits.toLocaleString()} Credits`}
-                        </span>
+                  <CardHeader className="space-y-0 p-5 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", plan.isAutopay ? "bg-indigo-500/10 text-indigo-600" : "bg-primary/10 text-primary")}>
+                        <plan.icon className="h-[18px] w-[18px]" />
                       </div>
-                      {plan.weeklyCredits && (
-                        <Badge
-                          variant="secondary"
-                          className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-bold border-none px-3 py-1 text-xs mt-0.5"
-                        >
-                          {plan.weeklyCredits.toLocaleString()} Credits Weekly
-                        </Badge>
-                      )}
+                      <CardTitle className="text-base font-extrabold tracking-tight">{plan.name}</CardTitle>
+                    </div>
+
+                    <div className="mt-3 flex items-baseline gap-1">
+                      <span className={cn("text-[34px] font-black leading-none tracking-tight", plan.isAutopay ? "text-indigo-600 dark:text-indigo-400" : "text-foreground")}>
+                        ₹{finalPrice.toFixed(0)}
+                      </span>
+                      {plan.isAutopay && <span className="text-sm font-semibold text-muted-foreground">/month</span>}
+                    </div>
+                    <p className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                      <ShieldCheck className="h-3 w-3 text-primary" /> All-inclusive price
+                    </p>
+
+                    <div className={cn(
+                      "mt-3 flex items-center gap-2 rounded-2xl px-3 py-2",
+                      plan.isAutopay ? "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" : "bg-primary/[0.07] text-primary"
+                    )}>
+                      <Coins className="h-4 w-4 shrink-0" />
+                      <span className="text-sm font-black tracking-tight">
+                        {plan.weeklyCredits
+                          ? `${plan.weeklyCredits.toLocaleString()} credits / week`
+                          : plan.id === 'pro'
+                          ? '30,000 + 1,000 bonus credits'
+                          : `${plan.credits.toLocaleString()} credits`}
+                      </span>
                     </div>
                   </CardHeader>
 
-                  <CardContent className="flex-grow p-6 pt-3 relative z-10">
-                    <ul className="space-y-2.5">
+                  <CardContent className="flex-grow px-5 pb-4 pt-1">
+                    <ul className="space-y-2">
                       {plan.features.map((feature, i) => (
-                        <li key={i} className="flex items-start gap-3">
+                        <li key={i} className="flex items-start gap-2.5">
                           {feature.includes('Store Ticket') ? (
-                            <TicketArt className="mt-0.5 w-8 flex-shrink-0" />
+                            <TicketArt className="mt-0.5 w-7 flex-shrink-0" />
                           ) : (
-                            <CheckCircle
-                              className={cn(
-                                "h-4 w-4 flex-shrink-0 mt-0.5",
-                                plan.isAutopay ? "text-indigo-500" : "text-green-500"
-                              )}
-                            />
+                            <CheckCircle className={cn("mt-0.5 h-4 w-4 flex-shrink-0", plan.isAutopay ? "text-indigo-500" : "text-emerald-500")} />
                           )}
                           <span
                             className={cn(
-                              "text-muted-foreground font-semibold text-sm leading-snug",
-                              (feature.includes('Full commercial') ||
-                                feature.includes('Voice editing') ||
-                                feature.includes('Bonus')) &&
-                                "font-black text-indigo-600 dark:text-indigo-400",
-                                feature.includes('Store Ticket') && "rounded-lg bg-purple-500/10 px-2 py-0.5 font-black text-purple-700 dark:text-purple-300",
-                              plan.isAutopay && "text-foreground/80"
+                              "text-[13px] font-medium leading-snug text-muted-foreground",
+                              (feature.includes('Full commercial') || feature.includes('Voice editing') || feature.includes('Bonus')) && "font-bold text-indigo-600 dark:text-indigo-400",
+                              feature.includes('Store Ticket') && "rounded-md bg-purple-500/10 px-1.5 py-0.5 font-bold text-purple-700 dark:text-purple-300",
                             )}
                           >
                             {feature}
@@ -232,18 +199,20 @@ export function PricingSection() {
                     </ul>
                   </CardContent>
 
-                  <CardFooter className="p-6 pt-0 relative z-10">
+                  <CardFooter className="px-5 pb-5 pt-0">
                     <Button
                       asChild
                       className={cn(
-                        "w-full h-12 text-base font-black rounded-xl shadow-xl transition-all duration-300 active:scale-95 btn-shine uppercase",
+                        "anim-studio-sheen h-11 w-full rounded-2xl text-sm font-bold shadow-lg transition-transform duration-200 active:scale-95",
                         plan.isAutopay
-                          ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
-                          : "bg-primary hover:bg-primary/90 text-white shadow-primary/20"
+                          ? "bg-gradient-to-r from-indigo-600 to-fuchsia-500 text-white shadow-indigo-600/25"
+                          : plan.bestValue
+                          ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-amber-500/25"
+                          : "bg-gradient-to-r from-primary to-indigo-500 text-white shadow-primary/25"
                       )}
                     >
                       <Link href="/buy-credits" prefetch={false}>
-                        {plan.isAutopay ? 'Start Membership' : 'Get Credits'}
+                        <span className="relative z-[2]">{plan.isAutopay ? 'Start membership' : 'Get credits'}</span>
                       </Link>
                     </Button>
                   </CardFooter>

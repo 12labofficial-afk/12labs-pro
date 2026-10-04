@@ -429,9 +429,17 @@ export default function BuyCreditsPage() {
 
           <div className="pt-5 flex flex-col items-center gap-2">
               {bonusCreditPercentage && !plan.isAutopay ? (
-                  <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200 py-1.5 px-4 font-black">
-                      {totalCreditsWithBonus.toLocaleString()} CREDITS (+{bonusCreditPercentage}%)
-                  </Badge>
+                  <div className="flex flex-col items-center gap-1.5">
+                      <div className="flex items-baseline gap-2">
+                          <span className="text-sm font-bold text-muted-foreground line-through decoration-2">{plan.credits.toLocaleString()}</span>
+                          <span className="flex items-center gap-1 text-xl font-black text-emerald-600">
+                              <Coins className="h-5 w-5" /> {totalCreditsWithBonus.toLocaleString()} credits
+                          </span>
+                      </div>
+                      <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-black text-emerald-700 dark:text-emerald-400">
+                          +{(totalCreditsWithBonus - plan.credits).toLocaleString()} bonus credits ({bonusCreditPercentage}% extra)
+                      </span>
+                  </div>
               ) : (
                   <>
                     <div className={cn("flex items-center justify-center gap-2 font-black text-xl", plan.isAutopay ? "text-indigo-600" : plan.bestValue ? "text-amber-600 dark:text-amber-400" : "text-primary")}>
@@ -682,7 +690,7 @@ export default function BuyCreditsPage() {
                              <div>
                                <p className="text-[10px] font-black uppercase text-green-800 dark:text-green-300">Promo Code: <span className="font-bold">{appliedCode}</span></p>
                                <p className="text-sm font-black text-green-600 dark:text-green-200">
-                                {showTestPlan ? "Test Plan Unlocked!" : appliedDiscount?.type === 'percentage' ? `${appliedDiscount.value}% OFF ACTIVATED!` : appliedDiscount ? `₹${appliedDiscount?.value} DISCOUNT!` : `${bonusCreditPercentage}% BONUS GRANTED!`}
+                                {showTestPlan ? "Test Plan Unlocked!" : appliedDiscount?.type === 'percentage' ? `${appliedDiscount.value}% OFF ACTIVATED!` : appliedDiscount ? `₹${appliedDiscount?.value} DISCOUNT!` : `${bonusCreditPercentage}% BONUS APPLIED!`}
                                </p>
                              </div>
                              <Button variant="ghost" size="sm" className="h-9 rounded-xl text-[10px] font-black uppercase hover:bg-red-50 hover:text-red-600" onClick={handleRemovePromo}>Detach</Button>
