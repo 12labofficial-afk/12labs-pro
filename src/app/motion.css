@@ -282,6 +282,20 @@
 @keyframes new-pulse { 0% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.45); } 70%, 100% { box-shadow: 0 0 0 12px hsl(var(--primary) / 0); } }
 .anim-new-pulse { animation: new-pulse 1.8s ease-out infinite; }
 
+/* Pricing cards: flowing accent bar + a gentle pop on the tag. */
+@keyframes bar-flow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+.anim-bar-flow { background-size: 200% 100%; animation: bar-flow 3.5s linear infinite; }
+@keyframes tag-pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+.anim-tag-pop { animation: tag-pop 2.6s ease-in-out infinite; }
+
+/* Login page: drifting background glows and a pulsing ring on the logo. */
+@keyframes login-orb { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(40px, 30px, 0) scale(1.08); } }
+.login-orb { animation: login-orb 12s ease-in-out infinite; will-change: transform; }
+.login-orb-2 { animation-duration: 15s; animation-direction: reverse; }
+@keyframes login-ring { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.35); opacity: 0; } }
+.login-ring { animation: login-ring 2.4s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .login-orb, .login-ring { animation: none !important; } }
+
 /* Slow float for the hero icon tile. */
 @keyframes studio-float { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -4px, 0); } }
 .anim-studio-float { animation: studio-float 4s ease-in-out infinite; }

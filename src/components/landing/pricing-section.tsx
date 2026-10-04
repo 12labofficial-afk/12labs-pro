@@ -132,11 +132,11 @@ export function PricingSection() {
                   )}
                 >
                   {/* Accent bar */}
-                  <div aria-hidden className={cn("h-1 w-full", plan.isAutopay ? "bg-gradient-to-r from-indigo-500 to-fuchsia-500" : plan.bestValue ? "bg-gradient-to-r from-amber-400 to-orange-500" : "bg-gradient-to-r from-primary to-indigo-500")} />
+                  <div aria-hidden className={cn("anim-bar-flow h-1 w-full", plan.isAutopay ? "bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-indigo-500" : plan.bestValue ? "bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400" : "bg-gradient-to-r from-primary via-indigo-400 to-primary")} />
 
                   {(plan.bestValue || plan.isAutopay || plan.profitAmount) && (
                     <span className={cn(
-                      "absolute right-3 top-4 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow",
+                      "anim-tag-pop absolute right-3 top-4 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow",
                       plan.profitAmount ? "bg-emerald-600" : plan.isAutopay ? "bg-indigo-600" : "bg-gradient-to-r from-amber-500 to-orange-500"
                     )}>
                       {plan.profitAmount ? `₹${plan.profitAmount} profit` : plan.isAutopay ? 'Monthly' : 'Best value'}
@@ -146,7 +146,7 @@ export function PricingSection() {
                   <CardHeader className="space-y-0 p-5 pb-3">
                     <div className="flex items-center gap-2.5">
                       <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", plan.isAutopay ? "bg-indigo-500/10 text-indigo-600" : "bg-primary/10 text-primary")}>
-                        <plan.icon className="h-[18px] w-[18px]" />
+                        <plan.icon className="h-[18px] w-[18px] transition-transform duration-500 group-hover:rotate-[-8deg] group-hover:scale-110" />
                       </div>
                       <CardTitle className="text-base font-extrabold tracking-tight">{plan.name}</CardTitle>
                     </div>

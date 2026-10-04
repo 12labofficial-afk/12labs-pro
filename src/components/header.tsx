@@ -173,6 +173,9 @@ export function Header() {
   const isLoading = !isMounted || authLoading;
   const currentTheme = resolvedTheme || 'light';
 
+  // The sign-in screen is a focused, full-screen page — no site header.
+  if (pathname === '/login') return null;
+
   // backdrop-blur-lg (16px) on a `sticky` bar has to re-sample everything
   // scrolling underneath it on every single frame — one of the most
   // common real causes of janky/laggy-feeling scroll on mobile. A lighter
